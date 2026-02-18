@@ -6,12 +6,12 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:23:54 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/17 23:05:50 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/02/18 09:32:31 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Webserv.hpp"
-#include "DummyConfig.hpp"
+#include "Config.hpp"
 
 int	main(int argc, char **argv)
 {
@@ -20,7 +20,7 @@ int	main(int argc, char **argv)
 		try
 		{
 			std::string			RawConfig; // for later
-			DummyConfig			DummyConfigChunk;
+			Config				DummyConfigChunk;
 			
 			
 		}
