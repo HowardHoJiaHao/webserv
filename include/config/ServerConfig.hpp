@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 23:16:56 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/17 23:27:51 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/02/18 09:58:35 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,6 +36,8 @@ class ServerConfig
 		void	setServerName(const std::string& name);
 		void	setRoot(const std::string& root);
 		void	setIndex(const std::string& index);
+
+		void	addLocation(const LocationConfig& location);
 
 		const	std::string& getHost()const;
 		int		getPort()const;

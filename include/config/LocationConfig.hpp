@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 23:29:41 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/17 23:35:52 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/02/18 09:48:29 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,7 @@ class LocationConfig
 		void	setPath(const std::string& path);
 		void	setAllowedMethods(const std::vector<std::string>& method);
 		void	setRoot(const std::string& root);
-		void	setUploadENabled(bool enabled);
+		void	setUploadEnabled(bool enabled);
 		void	setUploadPath(const std::string& path);
 
 		const	std::string& getPath() const;
