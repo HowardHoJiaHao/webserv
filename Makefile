@@ -12,8 +12,8 @@
 
 # Compiler and flags
 CXX			= c++
-CXXFLAGS	= -Wall -Wextra -Werror -std=c++98
-CPPFLAGS	= -I./include
+CXXFLAGS	= -Wall -Wextra -Werror -std=c++11
+CPPFLAGS	= -I./include -I./include/config
 
 # Target executable
 TARGET		= webserv
