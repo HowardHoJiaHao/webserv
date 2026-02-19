@@ -24,7 +24,10 @@ OBJ_DIR		= objs
 DEP_DIR		= deps
 
 SRCS		= $(SRC_DIR)/main.cpp \
-			  $(SRC_DIR)/dummyConfig/dummyConfig.cpp
+			  $(SRC_DIR)/dummyConfig/dummyConfig.cpp \
+			  $(SRC_DIR)/dummyConfig/LocationConfig.cpp \
+			  $(SRC_DIR)/dummyConfig/ServerConfig.cpp
+
 
 OBJS		= $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 DEPS		= $(SRCS:$(SRC_DIR)/%.cpp=$(DEP_DIR)/%.d)
@@ -46,7 +49,7 @@ $(TARGET): $(OBJS)
 
 # Object file compilation with automatic dependency generation
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR) $(DEP_DIR)
-	@mkdir -p $(dir $@)
+	@mkdir -p $(dir $@) $(dir $(DEP_DIR)/$*.d)
 	@echo "$(YELLOW)Compiling $<...$(NC)"
 	@$(CXX) $(CXXFLAGS) $(CPPFLAGS) -MMD -MP -MF $(DEP_DIR)/$*.d -c $< -o $@
 	@echo "$(GREEN)✓ Compiled: $@$(NC)"

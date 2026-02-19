@@ -6,12 +6,22 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:23:54 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/18 10:35:06 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/02/19 10:20:10 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Webserv.hpp"
 #include "Config.hpp"
+
+void	printServerStatus(const std::vector<ServerConfig>& servers)
+{
+	for (size_t i = 0; i < servers.size(); i++)
+	{
+		std::cout << "Server " << i << std::endl;
+		std::cout << "Port: " << servers[i].getPort() << std::endl;
+		std::cout << "Host: " << servers[i].getHost() << std::endl;
+	}
+}
 
 int	main(int argc, char **argv)
 {
@@ -24,13 +34,7 @@ int	main(int argc, char **argv)
 			Config				DummyConfigChunk;
 
 			const std::vector<ServerConfig>& servers = DummyConfigChunk.getServers();
-
-			for (size_t i = 0; i < servers.size(); i++)
-			{
-				std::cout << "Server " << i << std::endl;
-				std::cout << "Port: " << servers[i].getPort() << std::endl;
-				std::cout << "Host: " << servers[i].getHost() << std::endl;
-			}
+			printServerStatus(servers);
 
 			
 		}
