@@ -1,21 +1,34 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   Webserv.hpp                                        :+:      :+:    :+:   */
+/*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/17 22:29:16 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/19 21:06:21 by Ho Wai Keon      ###   ########.fr       */
+/*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
+/*   Updated: 2026/02/19 22:00:54 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef WEBSERV_HPP
-#define WEBSERV_HPP
-
-#include <iostream>
-#include <stdexcept>
 #include "Config.hpp"
-#include "engine.hpp"
+#include <map>
+#include <utility>
+#include <string>
+
+#ifndef ENGINE_HPP
+#define ENGINE_HPP
+
+class Engine
+{
+	private:
+		const Config& _config;
+		std::map<std::pair<std::string,int>, int> _listenSockets;
+
+	public:
+		Engine(const Config& _config);
+		~Engine();
+		void	setupListeningSockets();
+		void	run();
+};
 
 #endif

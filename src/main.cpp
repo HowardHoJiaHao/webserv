@@ -6,12 +6,13 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:23:54 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/19 10:20:10 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/02/19 21:59:56 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Webserv.hpp"
 #include "Config.hpp"
+#include "engine.hpp"
 
 void	printServerStatus(const std::vector<ServerConfig>& servers)
 {
@@ -30,12 +31,15 @@ int	main(int argc, char **argv)
 	{
 		try
 		{
-			std::string			RawConfig; // for later
-			Config				DummyConfigChunk;
+			//std::string			RawConfig; // for later
+			Config				config;
 
-			const std::vector<ServerConfig>& servers = DummyConfigChunk.getServers();
-			printServerStatus(servers);
-
+			Engine	engine(config);
+			engine.setupListeningSockets();
+			engine.run();
+			const std::vector<ServerConfig>& servers = config.getServers();
+			printServerStatus(servers); //debug testing
+			
 			
 		}
 		catch (std::exception &e)
@@ -46,7 +50,7 @@ int	main(int argc, char **argv)
 	}
 	else
 	{
-		std::cerr << "problem argument " << std::endl;
+		std::cerr << "problem in argument " << std::endl;
 		return (1);
 	}
 	return (0);

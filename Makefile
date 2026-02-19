@@ -24,9 +24,10 @@ OBJ_DIR		= objs
 DEP_DIR		= deps
 
 SRCS		= $(SRC_DIR)/main.cpp \
-			  $(SRC_DIR)/dummyConfig/dummyConfig.cpp \
-			  $(SRC_DIR)/dummyConfig/LocationConfig.cpp \
-			  $(SRC_DIR)/dummyConfig/ServerConfig.cpp
+			  $(SRC_DIR)/config/dummyConfig.cpp \
+			  $(SRC_DIR)/config/LocationConfig.cpp \
+			  $(SRC_DIR)/config/ServerConfig.cpp \
+			  $(SRC_DIR)/engine/engine.cpp
 
 
 OBJS		= $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)

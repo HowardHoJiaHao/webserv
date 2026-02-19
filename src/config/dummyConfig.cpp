@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 09:35:36 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/18 09:56:30 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/02/19 10:23:31 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,7 @@ const std::vector<ServerConfig>& Config::getServers()const
 void Config::initDummy()
 {
 	// first server
+	std::cout << "printing server" << std::endl;
 	ServerConfig server1;
 	server1.setHost("127.0.0.1");
 	server1.setPort(8080);
