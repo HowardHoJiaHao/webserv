@@ -20,7 +20,7 @@
 class Config
 {
 	private:
-		std::vector<ServerConfig> _servers;
+		std::vector<ServerConfig> _serverConfigs;
 		void						initDummy();
 	public:
 		Config();

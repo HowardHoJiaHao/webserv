@@ -19,7 +19,7 @@ Config::Config()
 
 const std::vector<ServerConfig>& Config::getServers()const
 {
-	return _servers;
+	return _serverConfigs;
 }
 
 void Config::initDummy()
@@ -46,7 +46,7 @@ void Config::initDummy()
 
 	server1.addLocation(loc1);
 	server1.addLocation(loc2);
-	_servers.push_back(server1);
+	_serverConfigs.push_back(server1);
 
 	//second server
 	ServerConfig server2;
@@ -62,5 +62,5 @@ void Config::initDummy()
 	loc3.setUploadEnabled(false);
 
 	server2.addLocation(loc3);
-	_servers.push_back(server2);
+	_serverConfigs.push_back(server2);
 }
