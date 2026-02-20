@@ -37,8 +37,8 @@ int	main(int argc, char **argv)
 			Engine	engine(config);
 			engine.setupListeningSockets();
 			engine.run();
-			const std::vector<ServerConfig>& servers = config.getServers();
-			printServerStatus(servers); //debug testing
+			// const std::vector<ServerConfig>& servers = config.getServers();
+			// printServerStatus(servers); //debug testing
 			
 			
 		}
