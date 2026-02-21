@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:48:52 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/02/21 09:46:02 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/02/21 10:21:14 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,8 +22,8 @@ Connection::Connection(int fd)
 
 Connection::~Connection()
 {
-	// if (!_closed)
-	// 	close();
+	if (!_closed)
+		close();
 }
 
 int Connection::getFd() const

@@ -24,7 +24,7 @@ class Engine
 	private:
 		const Config& _config;
 		std::map<std::pair<std::string,int>, int> _listenSockets;
-		std::map<int, Connection> _connections;
+		std::map<int, Connection*> _connections;
 
 	public:
 		Engine(const Config& _config);

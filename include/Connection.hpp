@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/02/21 09:43:18 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/02/21 10:21:08 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,8 +23,8 @@ class Connection
 		std::string _writeBuffer;
 		bool		_closed;
 
-		// Connection(const Connection&);
-		// Connection& operator=(const Connection&);
+		Connection(const Connection&);
+		Connection& operator=(const Connection&);
 	public:
 		Connection(int fd);
 		~Connection();

@@ -29,9 +29,15 @@ Engine::Engine(const Config& config) : _config(config){}
 //close fd, destructor
 Engine::~Engine()
 {
+	for (std::map<int, Connection*>::iterator it = _connections.begin();
+		it != _connections.end(); ++it)
+	{
+		delete it->second;
+	}
 	for(std::map<std::pair<std::string, int>, int>::iterator it = _listenSockets.begin(); 
 		it != _listenSockets.end(); ++it)
 		close(it->second);
+		//delete it->second;
 }
 
 static int createListeningSocket(const std::string& host, int port)
@@ -123,7 +129,7 @@ void Engine::run()
 				maxFd = fd;
 		}
 
-		for (std::map<int, Connection>::iterator it = _connections.begin();
+		for (std::map<int, Connection*>::iterator it = _connections.begin();
 			it != _connections.end(); ++it)
 		{
 			std::cout << "tracking client fd=" << it->first << std::endl;
@@ -159,7 +165,7 @@ void Engine::run()
 
 						if (fcntl(clientFd, F_GETFD) == -1)
 							perror("FD invalid immediately after accept");
-						_connections.insert(std::make_pair(clientFd, Connection(clientFd)));
+						_connections[clientFd] = new Connection(clientFd);
 						
 						std::cout << "New connection on fd=" << clientFd << std::endl;
 					}
@@ -168,7 +174,7 @@ void Engine::run()
 			}
 		}
 	
-		for (std::map<int, Connection>::iterator it = _connections.begin();
+		for (std::map<int, Connection*>::iterator it = _connections.begin();
 			it != _connections.end();)
 		{
 			int clientFd = it->first;
@@ -179,7 +185,7 @@ void Engine::run()
 				std::cout << "recv returned: " << bytes << std::endl;
 				if (bytes > 0)
 				{
-					it->second.getReadBuffer().append(buffer, bytes);
+					it->second->getReadBuffer().append(buffer, bytes);
 					std::cout << "Received " << bytes << 
 					" bytes from fd=" << clientFd << std::endl;
 					++it;
@@ -187,13 +193,13 @@ void Engine::run()
 				else if (bytes == 0)
 				{
 					std::cout << "Client disconnected on fd=" << clientFd << std::endl;
-					it->second.close();
+					delete it->second;
 					_connections.erase(it++);
 				}
 				else
 				{
 					perror("recv");
-					it->second.close();
+					delete it->second;
 					_connections.erase(it++);
 				}
 			}
