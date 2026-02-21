@@ -97,6 +97,7 @@ Architectural invariant:
   * Read buffer
   * Write buffer
   * Closed state
+  * Protocol state (`READING` / `WRITING`)
 * Destructor-driven socket close
 * Non-copyable resource owner
 
@@ -147,7 +148,67 @@ Architectural invariant:
 * Concurrent curl requests verified
 * No hang, no crash, no truncation
 
-Transport layer is now considered fully stable and production-grade for further protocol layering.
+Transport layer is considered stable and ready for protocol layering.
+
+---
+
+## ✅ Phase 5 — HTTP Framing & Minimal Parsing (In Progress)
+
+### 5.1 Explicit Connection State (Completed)
+
+* `enum State { READING, WRITING }` added
+* `_state` member added to `Connection`
+* Initialized to `READING` in constructor
+* Explicit transition to `WRITING` after response preparation
+* Reactor `fd_set` population gated by connection state
+* Read/write execution strictly separated by protocol state
+
+Architectural invariant:
+
+> A connection in `READING` never sends.
+> A connection in `WRITING` never receives.
+
+Protocol state now explicitly controls transport behavior.
+
+---
+
+### 5.2 HTTP Header Boundary Detection (Next)
+
+* [ ] Detect `"\r\n\r\n"` in read buffer
+* [ ] Only schedule write after header completion
+* [ ] Ignore incomplete requests
+
+---
+
+### 5.3 Minimal Request Line Parsing
+
+* [ ] Parse method, path, version
+* [ ] Validate request line structure
+* [ ] Return 400 on malformed request
+
+---
+
+### 5.4 Basic Header Parsing
+
+* [ ] Parse headers into key-value map
+* [ ] Extract `Content-Length` if present
+
+---
+
+### 5.5 Content-Length Handling
+
+* [ ] Wait for full body if present
+* [ ] Only transition to `WRITING` when complete
+
+---
+
+# 🎯 Stopping Point for Phase 5
+
+* Server responds only to complete, valid HTTP requests
+* Invalid requests return 400
+* POST with body handled correctly
+* No premature response before full message
+* Transport stability preserved
 
 ---
 
@@ -159,78 +220,16 @@ Completed layers:
 2. Socket Binding Layer
 3. Reactor Layer
 4. Non-Blocking Transport Layer
+5. Protocol State Layer
 
-System now provides a correct, fully non-blocking, multiplexed TCP server core.
-
----
-
-# 🔜 Phase 5 — HTTP Framing & Minimal Parsing (Next)
-
-## Objective
-
-Move from:
-
-> Respond to any received bytes
-
-To:
-
-> Respond only to complete HTTP requests
-
----
-
-## Phase 5 Checklist
-
-### 1. Explicit Connection State
-
-* [ ] Add `enum State { READING, WRITING }`
-* [ ] Add `_state` to `Connection`
-* [ ] Use explicit state transitions
-
----
-
-### 2. HTTP Header Boundary Detection
-
-* [ ] Detect `"\r\n\r\n"` in read buffer
-* [ ] Only schedule write after header complete
-* [ ] Ignore incomplete requests
-
----
-
-### 3. Minimal Request Line Parsing
-
-* [ ] Parse method, path, version
-* [ ] Validate request line structure
-* [ ] Return 400 on malformed request
-
----
-
-### 4. Basic Header Parsing
-
-* [ ] Parse headers into key-value map
-* [ ] Extract `Content-Length` if present
-
----
-
-### 5. Content-Length Handling
-
-* [ ] Wait for full body if present
-* [ ] Only transition to WRITING when complete
-
----
-
-# Stopping Point for Phase 5
-
-* Server only responds to valid complete HTTP requests
-* Invalid requests return 400
-* POST with body is handled correctly
-* No premature response before full message
-* Transport remains stable
+System now provides a correct, fully non-blocking, multiplexed TCP server core with explicit protocol state control.
 
 ---
 
 # Long-Term Roadmap (After Phase 5)
 
-* HTTP request/response abstraction classes
+* HTTP request abstraction class
+* HTTP response abstraction class
 * Virtual host routing
 * Static file serving
 * Keep-alive support
@@ -245,8 +244,10 @@ These are later phases, not immediate tasks.
 
 Phase 1 — Stable
 Phase 2 — Stable
-Phase 3 — Stable (Reactor & Lifecycle)
-Phase 4 — Stable (Non-Blocking Transport)
-Phase 5 — Next Target (HTTP Framing & Parsing)
+Phase 3 — Stable
+Phase 4 — Stable
+Phase 5.1 — Complete
+Phase 5.2+ — In Progress
 
-System foundation is now strong enough to build protocol logic cleanly without revisiting transport design.
+Transport foundation is stable.
+Protocol framing is now being layered on top in a controlled manner.

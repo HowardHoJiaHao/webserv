@@ -153,9 +153,13 @@ void Engine::run()
 			if (fcntl(fd, F_GETFD) == -1)
 				perror("FD invalid"	);
 			
-			FD_SET(fd, &readSet);
-			if (!it->second->getWriteBuffer().empty())
-				FD_SET(fd, &writeSet);
+			// FD_SET(fd, &readSet);
+			// if (!it->second->getWriteBuffer().empty())
+			// 	FD_SET(fd, &writeSet);
+			if (it->second->getState() == Connection::READING)
+				FD_SET(fd, &readSet);
+			if (it->second->getState() == Connection::WRITING)
+				FD_SET(fd,&writeSet);
 			if (fd > maxFd)
 				maxFd = fd;
 		}
@@ -222,6 +226,7 @@ void Engine::run()
 					// delete it->second;
 					// _connections.erase(it++);
 					it->second->getWriteBuffer() = buildMinimalResponse();
+					it->second->setState(Connection::WRITING);
 					++it;
 					continue; //new
 					// std::cout << "Received " << bytes << 

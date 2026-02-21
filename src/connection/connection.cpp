@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:48:52 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/02/21 17:21:01 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/02/22 02:45:23 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,7 @@ Connection::Connection(int fd)
 	: _fd(fd),
 	_readBuffer(),
 	_writeBuffer(),
+	_state(READING),
 	_closed(false)
 	{}
 
@@ -55,4 +56,14 @@ void Connection::appendToReadBuffer(const char* buffer, ssize_t bytes)
 {
 	if (bytes > 0)
 		_readBuffer.append(buffer, bytes);
+}
+
+Connection::State Connection::getState() const
+{
+	return _state;
+}
+
+void Connection::setState(State state)
+{
+	_state = state;
 }

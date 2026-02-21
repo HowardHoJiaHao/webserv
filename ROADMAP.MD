@@ -8,14 +8,16 @@
 ✔ Phase 2 — Socket Binding
 ✔ Phase 3 — Reactor & Connection Lifecycle
 ✔ Phase 4 — Non-Blocking Transport & Write Handling
+✔ Phase 5.1 — Explicit Protocol State
 
 Transport layer is complete and stable.
+Protocol state layer is now integrated into the reactor.
 
 We now build upward.
 
 ---
 
-# 🚀 Phase 5 — HTTP Framing & Minimal Protocol Awareness
+# 🚀 Phase 5 — HTTP Framing & Minimal Protocol Awareness (In Progress)
 
 ## 🎯 Objective
 
@@ -23,16 +25,23 @@ Respond only to complete and valid HTTP requests.
 
 ---
 
-## 5.1 — Protocol State Introduction
+## 5.1 — Protocol State Introduction (Completed)
 
-* [ ] Add `enum State { READING, WRITING }`
-* [ ] Add `_state` to `Connection`
-* [ ] Initialize to `READING`
-* [ ] Transition only when request complete
+* `enum State { READING, WRITING }` implemented
+* `_state` added to `Connection`
+* Initialized to `READING`
+* Explicit transition to `WRITING` after response preparation
+* Reactor `fd_set` population gated by state
+* Read/write execution strictly separated by protocol state
+
+Architectural invariant:
+
+> A connection in `READING` never sends.
+> A connection in `WRITING` never receives.
 
 ---
 
-## 5.2 — Header Boundary Detection
+## 5.2 — Header Boundary Detection (Next)
 
 * [ ] Detect `"\r\n\r\n"`
 * [ ] Do not respond before headers complete
@@ -215,6 +224,8 @@ Never implement advanced features on unstable foundation.
 
 # 🎯 Immediate Next Action
 
-Start Phase 5.1 only.
-Stop after explicit state works cleanly.
-Review before moving forward.
+Start Phase 5.2 only.
+Implement header boundary detection cleanly.
+Do not parse request line yet.
+Do not add new abstractions yet.
+Validate framing correctness before moving forward.

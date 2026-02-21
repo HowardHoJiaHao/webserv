@@ -97,6 +97,7 @@ Each unique `(host, port)` produces exactly one listening socket.
   * Read buffer
   * Write buffer
   * Closed flag
+  * Protocol state
 * Destructor-driven socket close
 * Copy constructor & assignment disabled
 
@@ -155,61 +156,31 @@ Transport layer is fully stable and considered complete.
 
 ---
 
-# 🎯 Current System State
+# ✅ Phase 5 — HTTP Framing & Minimal Parsing (In Progress)
 
-The system now provides:
+## 5.1 Explicit Connection State (Completed)
 
-* Immutable configuration layer
-* Deterministic socket binding layer
-* Stable multiplexed reactor
-* Fully non-blocking transport
-* Correct partial read/write handling
-* Safe connection lifecycle management
+* `enum State { READING, WRITING }` added to `Connection`
+* `_state` member added
+* Initialized to `READING` in constructor
+* Explicit transition to `WRITING` after response generation
+* Reactor `fd_set` population gated by connection state
+* Read and write operations strictly separated by protocol state
 
-Architecture layers completed:
-
-1. Config Layer
-2. Socket Binding Layer
-3. Reactor Layer
-4. Non-Blocking Transport Layer
-
-Transport correctness is complete.
+**Architectural invariant:**
+A connection in `READING` never sends.
+A connection in `WRITING` never receives.
 
 ---
 
-# 🚀 Phase 5 — HTTP Framing & Minimal Parsing (Next Target)
-
-## Objective
-
-Move from:
-
-> Respond to any received bytes
-
-To:
-
-> Respond only to complete, valid HTTP requests
-
----
-
-## Phase 5 Checklist
-
-### 5.1 Explicit Connection State
-
-* [ ] Add `enum State { READING, WRITING }`
-* [ ] Add `_state` to `Connection`
-* [ ] Initialize to `READING`
-* [ ] Transition to `WRITING` only when request complete
-
----
-
-### 5.2 Header Boundary Detection
+## 5.2 Header Boundary Detection (Next)
 
 * [ ] Detect `"\r\n\r\n"` in read buffer
 * [ ] Do not respond before header completion
 
 ---
 
-### 5.3 Request Line Parsing
+## 5.3 Request Line Parsing
 
 * [ ] Parse method, path, version
 * [ ] Validate structure
@@ -217,7 +188,7 @@ To:
 
 ---
 
-### 5.4 Basic Header Parsing
+## 5.4 Basic Header Parsing
 
 * [ ] Parse header lines
 * [ ] Store in key-value map
@@ -225,7 +196,7 @@ To:
 
 ---
 
-### 5.5 Content-Length Handling
+## 5.5 Content-Length Handling
 
 * [ ] Wait for full body when present
 * [ ] Only transition to WRITING when body complete
@@ -236,13 +207,37 @@ To:
 
 Stop when:
 
-* Server responds only to valid HTTP
+* Server responds only to complete, valid HTTP requests
 * Invalid requests return 400
 * POST with body works correctly
 * No premature response
 * Transport remains stable
 
 Refactor before moving to next phase.
+
+---
+
+# 🎯 Current System State
+
+The system now provides:
+
+* Immutable configuration layer
+* Deterministic socket binding layer
+* Stable multiplexed reactor
+* Fully non-blocking transport
+* Explicit protocol state control
+* Safe connection lifecycle management
+
+Architecture layers completed:
+
+1. Config Layer
+2. Socket Binding Layer
+3. Reactor Layer
+4. Non-Blocking Transport Layer
+5. Protocol State Layer
+
+Transport correctness is complete.
+Protocol framing is now under construction.
 
 ---
 
@@ -264,6 +259,8 @@ Phase 1 — Stable
 Phase 2 — Stable
 Phase 3 — Stable
 Phase 4 — Stable
-Phase 5 — Next Target (Protocol Layer)
+Phase 5.1 — Complete
+Phase 5.2+ — In Progress
 
-The foundation is now solid enough to safely build protocol logic without revisiting transport design.
+The transport foundation is stable.
+Protocol correctness is now being layered on top.
