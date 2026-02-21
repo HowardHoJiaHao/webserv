@@ -146,6 +146,8 @@ void Engine::run()
 		std::cout << "select return= " << activity << std::endl;
 		if (activity < 0)
 		{
+			if (errno = EINTR)
+				continue;
 			perror("select");
 			break;
 		}
