@@ -116,6 +116,8 @@ void Engine::run()
 	{
 		fd_set readSet;
 		FD_ZERO(&readSet);
+		fd_set writeSet;
+		FD_ZERO(&writeSet);
 
 		int maxFd = 0;
 
@@ -135,14 +137,17 @@ void Engine::run()
 			//std::cout << "tracking client fd=" << it->first << std::endl;
 			int fd = it->first;
 
+			
 			if (fcntl(fd, F_GETFD) == -1)
 				perror("FD invalid"	);
 			
 			FD_SET(fd, &readSet);
+			if (!it->second->getWriteBuffer().empty())
+				FD_SET(fd, &writeSet);
 			if (fd > maxFd)
 				maxFd = fd;
 		}
-		int activity = select(maxFd + 1, &readSet, NULL, NULL, NULL);
+		int activity = select(maxFd + 1, &readSet, &writeSet, NULL, NULL);
 		std::cout << "select return= " << activity << std::endl;
 		if (activity < 0)
 		{
@@ -189,10 +194,12 @@ void Engine::run()
 				{
 					//it->second->getReadBuffer().append(buffer, bytes); 
 					it->second->appendToReadBuffer(buffer, bytes); //new
-					std::string response = buildMinimalResponse(); //new
-					send(clientFd, response.c_str(), response.size(), 0);
-					delete it->second;
-					_connections.erase(it++);
+					//std::string response = buildMinimalResponse(); //new
+					// send(clientFd, response.c_str(), response.size(), 0);
+					// delete it->second;
+					// _connections.erase(it++);
+					it->second->getWriteBuffer() = buildMinimalResponse();
+					++it;
 					continue; //new
 					// std::cout << "Received " << bytes << 
 					// " bytes from fd=" << clientFd << std::endl;
@@ -213,6 +220,28 @@ void Engine::run()
 			}
 			else
 				++it;
+		}
+		for (std::map<int, Connection*>::iterator it = _connections.begin();
+			it != _connections.end();)
+		{
+			int clientFd = it->first;
+			if (FD_ISSET(clientFd, &writeSet))
+			{
+				std::string& wb = it->second->getWriteBuffer();
+				if (!wb.empty())
+				{
+					ssize_t sent = send(clientFd, wb.c_str(), wb.size(), 0);
+					if (sent > 0)
+						wb.erase(0, sent);
+					if (wb.empty())
+					{
+						delete it->second;
+						_connections.erase(it++);
+						continue;
+					}
+				}
+			}
+			++it;
 		}
 	}
 }
