@@ -86,6 +86,18 @@ static int createListeningSocket(const std::string& host, int port)
 		close(sockfd);
 		throw std::runtime_error("listen failed");
 	}
+	int flags = fcntl(sockfd, F_GETFL, 0);
+	if (flags == -1)
+	{
+		close(sockfd);
+		throw std::runtime_error("fcntl F_GETFL failed");
+	}
+	if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1)
+	{
+		close(sockfd);
+		throw std::runtime_error("fcntl F_SETFL failed");
+	}
+	fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 	return sockfd;
 }
 
@@ -167,14 +179,25 @@ void Engine::run()
 					int clientFd = accept(listenFd, NULL, NULL);
 					if (clientFd >= 0)
 					{
+						int flags = fcntl(clientFd, F_GETFL, 0);
+						if (flags == -1)
+						{
+							close(clientFd);
+							continue;
+						}
+						if (fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1)
+						{
+							close(clientFd);
+							continue;
+						}
 						// _connections.insert(std::make_pair(clientFd, Connection(clientFd)));
-						std::cout << "Accepted fd = " << clientFd << std::endl;
+						//std::cout << "Accepted fd = " << clientFd << std::endl;
 
 						if (fcntl(clientFd, F_GETFD) == -1)
 							perror("FD invalid immediately after accept");
 						_connections[clientFd] = new Connection(clientFd);
 						
-						std::cout << "New connection on fd=" << clientFd << std::endl;
+						//std::cout << "New connection on fd=" << clientFd << std::endl;
 					}
 
 				}
@@ -213,6 +236,11 @@ void Engine::run()
 				}
 				else
 				{
+					if (errno == EAGAIN || errno == EWOULDBLOCK)
+					{
+						++it;
+						continue;
+					}
 					perror("recv");
 					delete it->second;
 					_connections.erase(it++);
@@ -233,6 +261,18 @@ void Engine::run()
 					ssize_t sent = send(clientFd, wb.c_str(), wb.size(), 0);
 					if (sent > 0)
 						wb.erase(0, sent);
+					else if (sent < 0)
+					{
+						if (errno == EAGAIN || errno == EWOULDBLOCK)
+						{
+							++it;
+							continue;
+						}
+						perror("send");
+						delete it->second;
+						_connections.erase(it++);
+						continue;
+					}
 					if (wb.empty())
 					{
 						delete it->second;
@@ -254,4 +294,16 @@ std::string Engine::buildMinimalResponse()
 		"Connection: close\r\n"
 		"\r\n"
 		"Hello, world!";
+
+	// alternatively
+	// std::string body(2000000, 'A');
+
+	// std::ostringstream oss;
+	// oss << "HTTP/1.1 200 OK\r\n";
+	// oss << "Content-Length: " << body.size() << "\r\n";
+	// oss << "Content-Type: text/plain\r\n";
+	// oss << "Connection: close\r\n";
+	// oss << "\r\n";
+	// oss << body;
+	// return oss.str();
 }
