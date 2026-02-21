@@ -27,7 +27,8 @@ SRCS		= $(SRC_DIR)/main.cpp \
 			  $(SRC_DIR)/config/dummyConfig.cpp \
 			  $(SRC_DIR)/config/LocationConfig.cpp \
 			  $(SRC_DIR)/config/ServerConfig.cpp \
-			  $(SRC_DIR)/engine/engine.cpp
+			  $(SRC_DIR)/engine/engine.cpp \
+			  $(SRC_DIR)/connection/connection.cpp
 
 
 OBJS		= $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)

@@ -20,6 +20,9 @@
 #include <stdexcept>
 #include <sstream>
 #include <signal.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <fcntl.h>
 
 Engine::Engine(const Config& config) : _config(config){}
 
@@ -105,6 +108,97 @@ void Engine::run()
 	std::cout << "Server running..." << std::endl;
 	while (true)
 	{
-		pause();
+		fd_set readSet;
+		FD_ZERO(&readSet);
+
+		int maxFd = 0;
+
+		for (std::map<std::pair<std::string, int>, int>::iterator it = _listenSockets.begin();
+			it != _listenSockets.end(); ++it)
+		{
+			std::cout << "tracing listen fd=" << it->second << std::endl;
+			int fd = it->second;
+			FD_SET(fd, &readSet);
+			if (fd > maxFd)
+				maxFd = fd;
+		}
+
+		for (std::map<int, Connection>::iterator it = _connections.begin();
+			it != _connections.end(); ++it)
+		{
+			std::cout << "tracking client fd=" << it->first << std::endl;
+			int fd = it->first;
+
+			if (fcntl(fd, F_GETFD) == -1)
+				perror("FD invalid"	);
+			
+			FD_SET(fd, &readSet);
+			if (fd > maxFd)
+				maxFd = fd;
+		}
+		int activity = select(maxFd + 1, &readSet, NULL, NULL, NULL);
+		std::cout << "select return= " << activity << std::endl;
+		if (activity < 0)
+		{
+			perror("select");
+			break;
+		}
+
+		for (std::map<std::pair<std::string, int>, int>::iterator it = _listenSockets.begin();
+			it != _listenSockets.end(); ++it)
+		{
+			int listenFd = it->second;
+			{
+				if (FD_ISSET(listenFd, &readSet))
+				{
+					int clientFd = accept(listenFd, NULL, NULL);
+					if (clientFd >= 0)
+					{
+						// _connections.insert(std::make_pair(clientFd, Connection(clientFd)));
+						std::cout << "Accepted fd = " << clientFd << std::endl;
+
+						if (fcntl(clientFd, F_GETFD) == -1)
+							perror("FD invalid immediately after accept");
+						_connections.insert(std::make_pair(clientFd, Connection(clientFd)));
+						
+						std::cout << "New connection on fd=" << clientFd << std::endl;
+					}
+
+				}
+			}
+		}
+	
+		for (std::map<int, Connection>::iterator it = _connections.begin();
+			it != _connections.end();)
+		{
+			int clientFd = it->first;
+			if (FD_ISSET(clientFd, &readSet))
+			{
+				char buffer[1024];
+				int bytes = recv(clientFd, buffer, sizeof(buffer), 0);
+				std::cout << "recv returned: " << bytes << std::endl;
+				if (bytes > 0)
+				{
+					it->second.getReadBuffer().append(buffer, bytes);
+					std::cout << "Received " << bytes << 
+					" bytes from fd=" << clientFd << std::endl;
+					++it;
+				}
+				else if (bytes == 0)
+				{
+					std::cout << "Client disconnected on fd=" << clientFd << std::endl;
+					it->second.close();
+					_connections.erase(it++);
+				}
+				else
+				{
+					perror("recv");
+					it->second.close();
+					_connections.erase(it++);
+				}
+			}
+			else
+				++it;
+		}
 	}
 }
