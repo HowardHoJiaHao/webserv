@@ -122,7 +122,7 @@ void Engine::run()
 		for (std::map<std::pair<std::string, int>, int>::iterator it = _listenSockets.begin();
 			it != _listenSockets.end(); ++it)
 		{
-			std::cout << "tracing listen fd=" << it->second << std::endl;
+			//std::cout << "tracing listen fd=" << it->second << std::endl;
 			int fd = it->second;
 			FD_SET(fd, &readSet);
 			if (fd > maxFd)
@@ -132,7 +132,7 @@ void Engine::run()
 		for (std::map<int, Connection*>::iterator it = _connections.begin();
 			it != _connections.end(); ++it)
 		{
-			std::cout << "tracking client fd=" << it->first << std::endl;
+			//std::cout << "tracking client fd=" << it->first << std::endl;
 			int fd = it->first;
 
 			if (fcntl(fd, F_GETFD) == -1)
@@ -146,7 +146,7 @@ void Engine::run()
 		std::cout << "select return= " << activity << std::endl;
 		if (activity < 0)
 		{
-			if (errno = EINTR)
+			if (errno == EINTR)
 				continue;
 			perror("select");
 			break;
@@ -187,10 +187,16 @@ void Engine::run()
 				std::cout << "recv returned: " << bytes << std::endl;
 				if (bytes > 0)
 				{
-					it->second->getReadBuffer().append(buffer, bytes);
-					std::cout << "Received " << bytes << 
-					" bytes from fd=" << clientFd << std::endl;
-					++it;
+					//it->second->getReadBuffer().append(buffer, bytes); 
+					it->second->appendToReadBuffer(buffer, bytes); //new
+					std::string response = buildMinimalResponse(); //new
+					send(clientFd, response.c_str(), response.size(), 0);
+					delete it->second;
+					_connections.erase(it++);
+					continue; //new
+					// std::cout << "Received " << bytes << 
+					// " bytes from fd=" << clientFd << std::endl;
+					// ++it; //old
 				}
 				else if (bytes == 0)
 				{
@@ -209,4 +215,14 @@ void Engine::run()
 				++it;
 		}
 	}
+}
+
+std::string Engine::buildMinimalResponse()
+{
+	return "HTTP/1.1 200 OK\r\n"
+		"Content-Length: 13\r\n"
+		"Content-Type: text/plain\r\n"
+		"Connection: close\r\n"
+		"\r\n"
+		"Hello, world!";
 }

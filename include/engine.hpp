@@ -31,6 +31,7 @@ class Engine
 		~Engine();
 		void	setupListeningSockets();
 		void	run();
+		std::string buildMinimalResponse();
 };
 
 #endif

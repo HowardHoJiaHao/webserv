@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/02/21 10:21:08 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/02/21 17:16:30 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,7 @@ class Connection
 
 		Connection(const Connection&);
 		Connection& operator=(const Connection&);
+
 	public:
 		Connection(int fd);
 		~Connection();
@@ -33,6 +34,9 @@ class Connection
 		std::string& getReadBuffer();
 		std::string& getWriteBuffer();
 		void close();
+
+		void appendToReadBuffer(const char* buffer, ssize_t bytes);
+
 };
 
 #endif
