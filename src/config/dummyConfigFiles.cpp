@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   dummyConfig.cpp                                    :+:      :+:    :+:   */
+/*   dummyConfigFiles.cpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -12,17 +12,17 @@
 
 #include "Webserv.hpp"
 
-Config::Config()
+ConfigFiles::ConfigFiles()
 {
 	initDummy();
 }
 
-const std::vector<ServerConfig>& Config::getServers()const
+const std::vector<ServerConfig>& ConfigFiles::getServers() const
 {
 	return _serverConfigs;
 }
 
-void Config::initDummy()
+void ConfigFiles::initDummy()
 {
 	// first server
 	std::cout << "printing server" << std::endl;

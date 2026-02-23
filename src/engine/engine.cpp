@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/19 21:58:12 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/02/23 16:16:31 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,7 +24,7 @@
 #include <sys/time.h>
 #include <fcntl.h>
 
-Engine::Engine(const Config& config) : _config(config){}
+Engine::Engine(const ConfigFiles& config) : _config(config){}
 
 //close fd, destructor
 Engine::~Engine()
@@ -103,8 +103,8 @@ static int createListeningSocket(const std::string& host, int port)
 
 void Engine::setupListeningSockets()
 {
-	const std::vector<ServerConfig>& servers = _config.getServers();
-	for (std::vector<ServerConfig>::const_iterator it = servers.begin(); it != servers.end(); ++it)
+	const std::vector<ServerConfig>& serverConfigs = this->_config.getServers();
+	for (std::vector<ServerConfig>::const_iterator it = serverConfigs.begin(); it != serverConfigs.end(); ++it)
 	{
 		std::pair<std::string, int> key(it->getHost(), it->getPort());
 		if (_listenSockets.find(key) == _listenSockets.end())

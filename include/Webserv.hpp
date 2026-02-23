@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Webserv.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:29:16 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/19 21:06:21 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/02/23 16:05:13 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,7 +15,7 @@
 
 #include <iostream>
 #include <stdexcept>
-#include "Config.hpp"
+#include "ConfigFiles.hpp"
 #include "engine.hpp"
 
 #endif

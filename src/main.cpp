@@ -3,15 +3,15 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:23:54 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/19 21:59:56 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/02/23 16:05:25 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Webserv.hpp"
-#include "Config.hpp"
+#include "ConfigFiles.hpp"
 #include "engine.hpp"
 
 void	printServerStatus(const std::vector<ServerConfig>& servers)
@@ -32,7 +32,7 @@ int	main(int argc, char **argv)
 		try
 		{
 			//std::string			RawConfig; // for later
-			Config				config;
+			ConfigFiles		config;
 
 			Engine	engine(config);
 			engine.setupListeningSockets();
