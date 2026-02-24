@@ -13,7 +13,7 @@
 # Compiler and flags
 CXX			= c++
 CXXFLAGS	= -Wall -Wextra -Werror -std=c++11
-CPPFLAGS	= -I./include -I./include/config
+CPPFLAGS	= -I./include -I./include/config -I./include/engine
 
 # Target executable
 TARGET		= webserv
@@ -28,6 +28,7 @@ SRCS		= $(SRC_DIR)/main.cpp \
 			  $(SRC_DIR)/config/LocationConfig.cpp \
 			  $(SRC_DIR)/config/ServerConfig.cpp \
 			  $(SRC_DIR)/engine/engine.cpp \
+			  $(SRC_DIR)/engine/socket_utils.cpp \
 			  $(SRC_DIR)/connection/connection.cpp
 
 

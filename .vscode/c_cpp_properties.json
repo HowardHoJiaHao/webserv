@@ -4,7 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/include",
-                "${workspaceFolder}/include/config"
+                "${workspaceFolder}/include/config",
+                "${workspaceFolder}/include/engine"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/g++",
@@ -16,6 +17,7 @@
                     "${workspaceFolder}",
                     "${workspaceFolder}/include",
                     "${workspaceFolder}/include/config",
+                    "${workspaceFolder}/include/engine",
                     "${workspaceFolder}/src"
                 ],
                 "limitSymbolsToIncludedHeaders": false
