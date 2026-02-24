@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/24 16:54:52 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/02/24 17:16:35 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,32 +40,11 @@ Engine::~Engine()
 		//delete it->second;
 }
 
-// osRes is a linked list, but in this project it will always return single node
-// ai_family -> ipv4
-// socktype -> tcp style
-// ai_
-static int createListeningSocket(const std::string& host, int port)
+int attemptBindingSocket(struct addrinfo* osRes)
 {
-	struct addrinfo		addressQuery;
-	struct addrinfo*	osRes;
-	struct addrinfo*	ptr;
-
-	std::memset(&addressQuery, 0, sizeof(addressQuery));
-	addressQuery.ai_family = AF_INET;
-	addressQuery.ai_socktype = SOCK_STREAM;
-	addressQuery.ai_flags = AI_PASSIVE;
-
-	std::ostringstream oss;
-	oss << port;
-	std::string portStr = oss.str();
-
-	if (getaddrinfo(host.c_str(), portStr.c_str(), &addressQuery, &osRes) != 0)
-		throw std::runtime_error("getaddrinfo failed");
-
+	struct addrinfo* ptr;
 	int sockfd = -1;
 
-	//try socket()
-	//try binding()
 	for (ptr = osRes; ptr != NULL; ptr = ptr->ai_next)
 	{
 		sockfd = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
@@ -84,9 +63,11 @@ static int createListeningSocket(const std::string& host, int port)
 		close(sockfd);
 		sockfd = -1;
 	}
-	freeaddrinfo(osRes);
-	if (sockfd < 0)
-		throw std::runtime_error("bind failed");
+	return sockfd;
+}
+
+static void configureListeningNonblockingSocket(int& sockfd)
+{
 	if (listen(sockfd, SOMAXCONN) < 0)
 	{
 		close(sockfd);
@@ -103,6 +84,77 @@ static int createListeningSocket(const std::string& host, int port)
 		close(sockfd);
 		throw std::runtime_error("fcntl F_SETFL failed");
 	}
+}
+
+static addrinfo* setupAddrInfoQuery(const std::string& host, int port) 
+{
+	struct addrinfo		addressQuery;
+	struct addrinfo*	osRes;
+
+	std::memset(&addressQuery, 0, sizeof(addressQuery));
+	addressQuery.ai_family = AF_INET;
+	addressQuery.ai_socktype = SOCK_STREAM;
+	addressQuery.ai_flags = AI_PASSIVE;
+
+	std::ostringstream oss;
+	oss << port;
+	std::string portStr = oss.str();
+
+	if (getaddrinfo(host.c_str(), portStr.c_str(), &addressQuery, &osRes) != 0)
+		throw std::runtime_error("getaddrinfo failed");
+	return osRes;
+}
+
+// osRes is a linked list, but in this project it will always return single node
+// ai_family -> ipv4
+// socktype -> tcp style
+// ai_flag -> become passive and waiting for connection
+static int createListeningSocket(const std::string& host, int port)
+{
+	// struct addrinfo		addressQuery;
+	// struct addrinfo*	osRes;
+	// struct addrinfo*	ptr;
+
+	// std::memset(&addressQuery, 0, sizeof(addressQuery));
+	// addressQuery.ai_family = AF_INET;
+	// addressQuery.ai_socktype = SOCK_STREAM;
+	// addressQuery.ai_flags = AI_PASSIVE;
+
+	// std::ostringstream oss;
+	// oss << port;
+	// std::string portStr = oss.str();
+
+	// if (getaddrinfo(host.c_str(), portStr.c_str(), &addressQuery, &osRes) != 0)
+	// 	throw std::runtime_error("getaddrinfo failed");
+
+
+	struct addrinfo* osRes = setupAddrInfoQuery(host, port);
+
+	int sockfd = attemptBindingSocket(osRes);
+	//try socket()
+	//try binding()
+	// for (ptr = osRes; ptr != NULL; ptr = ptr->ai_next)
+	// {
+	// 	sockfd = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+	// 	if (sockfd < 0)
+	// 		continue;
+
+	// 	int opt = 1;
+	// 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+	// 	{
+	// 		close(sockfd);
+	// 		sockfd = -1;
+	// 		continue;
+	// 	}
+	// 	if (bind(sockfd, ptr->ai_addr, ptr->ai_addrlen) == 0)
+	// 		break;
+	// 	close(sockfd);
+	// 	sockfd = -1;
+	// }
+	freeaddrinfo(osRes);
+	if (sockfd < 0)
+		throw std::runtime_error("bind failed");
+	configureListeningNonblockingSocket(sockfd);
 	return sockfd;
 }
 
