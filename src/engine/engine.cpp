@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/23 16:16:31 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/02/24 10:40:55 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,29 +40,32 @@ Engine::~Engine()
 		//delete it->second;
 }
 
+// osRes is a linked list
 static int createListeningSocket(const std::string& host, int port)
 {
-	struct addrinfo hints;
-	struct addrinfo* res;
-	struct addrinfo* p;
+	struct addrinfo		addressQuery;
+	struct addrinfo*	osRes;
+	struct addrinfo*	ptr;
 
-	std::memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
+	std::memset(&addressQuery, 0, sizeof(addressQuery));
+	addressQuery.ai_family = AF_INET;
+	addressQuery.ai_socktype = SOCK_STREAM;
+	addressQuery.ai_flags = AI_PASSIVE;
 
 	std::ostringstream oss;
 	oss << port;
 	std::string portStr = oss.str();
 
-	if (getaddrinfo(host.c_str(), portStr.c_str(), &hints, &res) != 0)
+	if (getaddrinfo(host.c_str(), portStr.c_str(), &addressQuery, &osRes) != 0)
 		throw std::runtime_error("getaddrinfo failed");
 
 	int sockfd = -1;
 
-	for (p = res; p != NULL; p = p->ai_next)
+	//try socket()
+	//try binding()
+	for (ptr = osRes; ptr != NULL; ptr = ptr->ai_next)
 	{
-		sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+		sockfd = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
 		if (sockfd < 0)
 			continue;
 
@@ -73,12 +76,12 @@ static int createListeningSocket(const std::string& host, int port)
 			sockfd = -1;
 			continue;
 		}
-		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == 0)
+		if (bind(sockfd, ptr->ai_addr, ptr->ai_addrlen) == 0)
 			break;
 		close(sockfd);
 		sockfd = -1;
 	}
-	freeaddrinfo(res);
+	freeaddrinfo(osRes);
 	if (sockfd < 0)
 		throw std::runtime_error("bind failed");
 	if (listen(sockfd, SOMAXCONN) < 0)
