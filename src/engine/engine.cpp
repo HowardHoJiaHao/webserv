@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/24 10:40:55 by ho               ###   ########.fr       */
+/*   Updated: 2026/02/24 16:54:52 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,7 +40,10 @@ Engine::~Engine()
 		//delete it->second;
 }
 
-// osRes is a linked list
+// osRes is a linked list, but in this project it will always return single node
+// ai_family -> ipv4
+// socktype -> tcp style
+// ai_
 static int createListeningSocket(const std::string& host, int port)
 {
 	struct addrinfo		addressQuery;
@@ -100,7 +103,6 @@ static int createListeningSocket(const std::string& host, int port)
 		close(sockfd);
 		throw std::runtime_error("fcntl F_SETFL failed");
 	}
-	fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 	return sockfd;
 }
 
