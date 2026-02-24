@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/24 17:21:09 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/02/24 18:59:58 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,6 +60,44 @@ void Engine::setupListeningSockets()
 		throw std::runtime_error("No listening sockets created");
 }
 
+static void registerListenSocketsForSelect(const std::map<std::pair<std::string, int>
+	, int>& listenSockets, fd_set& readSet, int& maxFd)
+{
+	for (std::map<std::pair<std::string, int>, int>::const_iterator it = listenSockets.begin();
+		it != listenSockets.end(); ++it)
+	{
+		//std::cout << "tracing listen fd=" << it->second << std::endl;
+		int fd = it->second;
+		FD_SET(fd, &readSet);
+		if (fd > maxFd)
+			maxFd = fd;
+	}
+}
+
+static void registerClientSocketForSelect(const std::map<int, Connection*>& connections,
+	fd_set& readSet, fd_set& writeSet, int& maxFd)
+{
+	for (std::map<int, Connection*>::const_iterator it = connections.begin();
+		it != connections.end(); ++it)
+	{
+		//std::cout << "tracking client fd=" << it->first << std::endl;
+		int fd = it->first;
+
+		if (fcntl(fd, F_GETFD) == -1)
+		{
+			perror("FD invalid");
+			continue ;
+		}
+		if (it->second->getState() == Connection::READING)
+			FD_SET(fd, &readSet);
+		if (it->second->getState() == Connection::WRITING)
+			FD_SET(fd, &writeSet);
+		if (fd > maxFd)
+			maxFd = fd;
+	}
+}
+
+// fd_set is a box of switches indexed by fd number
 void Engine::run()
 {
 	std::cout << "Server running..." << std::endl;
@@ -72,39 +110,11 @@ void Engine::run()
 
 		int maxFd = 0;
 
-		for (std::map<std::pair<std::string, int>, int>::iterator it = _listenSockets.begin();
-			it != _listenSockets.end(); ++it)
-		{
-			//std::cout << "tracing listen fd=" << it->second << std::endl;
-			int fd = it->second;
-			FD_SET(fd, &readSet);
-			if (fd > maxFd)
-				maxFd = fd;
-		}
-
-		for (std::map<int, Connection*>::iterator it = _connections.begin();
-			it != _connections.end(); ++it)
-		{
-			//std::cout << "tracking client fd=" << it->first << std::endl;
-			int fd = it->first;
-
-			
-			if (fcntl(fd, F_GETFD) == -1)
-				perror("FD invalid"	);
-			
-			// FD_SET(fd, &readSet);
-			// if (!it->second->getWriteBuffer().empty())
-			// 	FD_SET(fd, &writeSet);
-			if (it->second->getState() == Connection::READING)
-				FD_SET(fd, &readSet);
-			if (it->second->getState() == Connection::WRITING)
-				FD_SET(fd,&writeSet);
-			if (fd > maxFd)
-				maxFd = fd;
-		}
-		int activity = select(maxFd + 1, &readSet, &writeSet, NULL, NULL);
-		std::cout << "select return= " << activity << std::endl;
-		if (activity < 0)
+		registerListenSocketsForSelect(_listenSockets, readSet, maxFd);
+		registerClientSocketForSelect(_connections, readSet, writeSet, maxFd);
+		int readyFdCount = select(maxFd + 1, &readSet, &writeSet, NULL, NULL);
+		std::cout << "select return= " << readyFdCount << std::endl;
+		if (readyFdCount < 0)
 		{
 			if (errno == EINTR)
 				continue;
