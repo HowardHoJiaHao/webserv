@@ -203,6 +203,16 @@ A connection in `WRITING` never receives.
 
 ---
 
+## 5.6 Bind Failure Handling (Development Note)
+
+* **Issue:** `bind failed` error when previous webserv process still holds ports
+* **Root Cause:** Port remains bound until TCP connection fully closes (TIME_WAIT state)
+* **Solution:** Kill lingering process with `kill -9 <PID>` before restart
+* **Note:** `SO_REUSEADDR` is already implemented but doesn't apply to active CLOSE_WAIT states
+* **Future:** Consider implementing graceful shutdown signal handler or connection cleanup on startup
+
+---
+
 # 🎯 Phase 5 Completion Plateau
 
 Stop when:

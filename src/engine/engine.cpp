@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/25 11:14:11 by ho               ###   ########.fr       */
+/*   Updated: 2026/02/25 18:22:10 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -126,6 +126,91 @@ static void acceptPendingClientConnections(const std::map<std::pair<std::string,
 	}
 }
 
+static void handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes, Engine& engine)
+{
+	conn->appendToReadBuffer(buffer, bytes);
+	conn->getWriteBuffer() = engine.buildMinimalResponse();
+	conn->setState(Connection::WRITING);
+}
+
+static void processIncomingData(fd_set& readSet, std::map<int, Connection *>& connections
+		, Engine& engine)
+{
+	for (std::map<int, Connection*>::iterator it = connections.begin();
+			it != connections.end();)
+	{
+		int clientFd = it->first;
+		if (FD_ISSET(clientFd, &readSet))
+		{
+			char buffer[1024];
+			ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
+			std::cout << "recv returned: " << bytes << std::endl;
+			if (bytes > 0)
+			{
+				handleClientRequest(it->second, buffer, bytes, engine);
+				continue; //new
+			}
+			else if (bytes == 0)
+			{
+				std::cout << "Client disconnected on fd=" << clientFd << std::endl;
+				delete it->second;
+				connections.erase(it++);
+			}
+			else
+			{
+				if (errno == EAGAIN || errno == EWOULDBLOCK)
+				{
+					++it;
+					continue;
+				}
+				perror("recv");
+				delete it->second;
+				connections.erase(it++);
+			}
+		}
+		else
+			++it;
+	}
+}
+
+static void processOutgoingData(fd_set& writeSet, std::map<int, Connection *>& connections)
+{
+	for (std::map<int, Connection*>::iterator it = connections.begin();
+			it != connections.end();)
+	{
+		int clientFd = it->first;
+		if (FD_ISSET(clientFd, &writeSet))
+		{
+			std::string& writebuffer = it->second->getWriteBuffer();
+			if (!writebuffer.empty())
+			{
+				ssize_t sentByte = send(clientFd, writebuffer.c_str(), writebuffer.size(), 0);
+				if (sentByte > 0)
+					writebuffer.erase(0, sentByte);
+				else if (sentByte < 0)
+				{
+					if (errno == EAGAIN || errno == EWOULDBLOCK)
+					{
+						++it;
+						continue;
+					}
+					perror("send");
+					delete it->second;
+					connections.erase(it++);
+					continue;
+				}
+				if (writebuffer.empty())
+				{
+					delete it->second;
+					connections.erase(it++);
+					continue;
+				}
+			}
+		}
+		++it;
+	}
+}
+
 // fd_set is a box of switches indexed by fd number
 void Engine::run()
 {
@@ -150,89 +235,9 @@ void Engine::run()
 			perror("select");
 			break;
 		}
-
 		acceptPendingClientConnections(_listenSockets, readSet, _connections);
-	
-		for (std::map<int, Connection*>::iterator it = _connections.begin();
-			it != _connections.end();)
-		{
-			int clientFd = it->first;
-			if (FD_ISSET(clientFd, &readSet))
-			{
-				char buffer[1024];
-				int bytes = recv(clientFd, buffer, sizeof(buffer), 0);
-				std::cout << "recv returned: " << bytes << std::endl;
-				if (bytes > 0)
-				{
-					//it->second->getReadBuffer().append(buffer, bytes); 
-					it->second->appendToReadBuffer(buffer, bytes); //new
-					//std::string response = buildMinimalResponse(); //new
-					// send(clientFd, response.c_str(), response.size(), 0);
-					// delete it->second;
-					// _connections.erase(it++);
-					it->second->getWriteBuffer() = buildMinimalResponse();
-					it->second->setState(Connection::WRITING);
-					++it;
-					continue; //new
-					// std::cout << "Received " << bytes << 
-					// " bytes from fd=" << clientFd << std::endl;
-					// ++it; //old
-				}
-				else if (bytes == 0)
-				{
-					std::cout << "Client disconnected on fd=" << clientFd << std::endl;
-					delete it->second;
-					_connections.erase(it++);
-				}
-				else
-				{
-					if (errno == EAGAIN || errno == EWOULDBLOCK)
-					{
-						++it;
-						continue;
-					}
-					perror("recv");
-					delete it->second;
-					_connections.erase(it++);
-				}
-			}
-			else
-				++it;
-		}
-		for (std::map<int, Connection*>::iterator it = _connections.begin();
-			it != _connections.end();)
-		{
-			int clientFd = it->first;
-			if (FD_ISSET(clientFd, &writeSet))
-			{
-				std::string& wb = it->second->getWriteBuffer();
-				if (!wb.empty())
-				{
-					ssize_t sent = send(clientFd, wb.c_str(), wb.size(), 0);
-					if (sent > 0)
-						wb.erase(0, sent);
-					else if (sent < 0)
-					{
-						if (errno == EAGAIN || errno == EWOULDBLOCK)
-						{
-							++it;
-							continue;
-						}
-						perror("send");
-						delete it->second;
-						_connections.erase(it++);
-						continue;
-					}
-					if (wb.empty())
-					{
-						delete it->second;
-						_connections.erase(it++);
-						continue;
-					}
-				}
-			}
-			++it;
-		}
+		processIncomingData(readSet, _connections, *this);
+		processOutgoingData(writeSet, _connections);
 	}
 }
 
