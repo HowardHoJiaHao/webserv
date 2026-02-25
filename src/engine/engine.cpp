@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/25 18:22:10 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/02/25 18:30:08 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,11 +60,10 @@ void Engine::setupListeningSockets()
 		throw std::runtime_error("No listening sockets created");
 }
 
-static void registerListenSocketsForSelect(const std::map<std::pair<std::string, int>
-	, int>& listenSockets, fd_set& readSet, int& maxFd)
+void Engine::registerListenSocketsForSelect(fd_set& readSet, int& maxFd)
 {
-	for (std::map<std::pair<std::string, int>, int>::const_iterator it = listenSockets.begin();
-		it != listenSockets.end(); ++it)
+	for (std::map<std::pair<std::string, int>, int>::const_iterator it = _listenSockets.begin();
+		it != _listenSockets.end(); ++it)
 	{
 		//std::cout << "tracing listen fd=" << it->second << std::endl;
 		int fd = it->second;
@@ -74,11 +73,10 @@ static void registerListenSocketsForSelect(const std::map<std::pair<std::string,
 	}
 }
 
-static void registerClientSocketForSelect(const std::map<int, Connection*>& connections,
-	fd_set& readSet, fd_set& writeSet, int& maxFd)
+void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, int& maxFd)
 {
-	for (std::map<int, Connection*>::const_iterator it = connections.begin();
-		it != connections.end(); ++it)
+	for (std::map<int, Connection*>::const_iterator it = _connections.begin();
+		it != _connections.end(); ++it)
 	{
 		//std::cout << "tracking client fd=" << it->first << std::endl;
 		int fd = it->first;
@@ -97,11 +95,10 @@ static void registerClientSocketForSelect(const std::map<int, Connection*>& conn
 	}
 }
 
-static void acceptPendingClientConnections(const std::map<std::pair<std::string, int>, int>& listenSockets,
-	fd_set& readSet, std::map<int, Connection*>& connections)
+void Engine::acceptPendingClientConnections(fd_set& readSet)
 {
-	for (std::map<std::pair<std::string, int>, int>::const_iterator it = listenSockets.begin();
-		it != listenSockets.end(); ++it)
+	for (std::map<std::pair<std::string, int>, int>::const_iterator it = _listenSockets.begin();
+		it != _listenSockets.end(); ++it)
 	{
 		int listenFd = it->second;
 		if (FD_ISSET(listenFd, &readSet))
@@ -120,24 +117,23 @@ static void acceptPendingClientConnections(const std::map<std::pair<std::string,
 					close(clientFd);
 					continue;
 				}
-				connections[clientFd] = new Connection(clientFd);
+				_connections[clientFd] = new Connection(clientFd);
 			}
 		}
 	}
 }
 
-static void handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes, Engine& engine)
+void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes)
 {
 	conn->appendToReadBuffer(buffer, bytes);
-	conn->getWriteBuffer() = engine.buildMinimalResponse();
+	conn->getWriteBuffer() = buildMinimalResponse();
 	conn->setState(Connection::WRITING);
 }
 
-static void processIncomingData(fd_set& readSet, std::map<int, Connection *>& connections
-		, Engine& engine)
+void Engine::processIncomingData(fd_set& readSet)
 {
-	for (std::map<int, Connection*>::iterator it = connections.begin();
-			it != connections.end();)
+	for (std::map<int, Connection*>::iterator it = _connections.begin();
+			it != _connections.end();)
 	{
 		int clientFd = it->first;
 		if (FD_ISSET(clientFd, &readSet))
@@ -147,14 +143,14 @@ static void processIncomingData(fd_set& readSet, std::map<int, Connection *>& co
 			std::cout << "recv returned: " << bytes << std::endl;
 			if (bytes > 0)
 			{
-				handleClientRequest(it->second, buffer, bytes, engine);
-				continue; //new
+				handleClientRequest(it->second, buffer, bytes);
+				continue;
 			}
 			else if (bytes == 0)
 			{
 				std::cout << "Client disconnected on fd=" << clientFd << std::endl;
 				delete it->second;
-				connections.erase(it++);
+				_connections.erase(it++);
 			}
 			else
 			{
@@ -165,7 +161,7 @@ static void processIncomingData(fd_set& readSet, std::map<int, Connection *>& co
 				}
 				perror("recv");
 				delete it->second;
-				connections.erase(it++);
+				_connections.erase(it++);
 			}
 		}
 		else
@@ -173,10 +169,10 @@ static void processIncomingData(fd_set& readSet, std::map<int, Connection *>& co
 	}
 }
 
-static void processOutgoingData(fd_set& writeSet, std::map<int, Connection *>& connections)
+void Engine::processOutgoingData(fd_set& writeSet)
 {
-	for (std::map<int, Connection*>::iterator it = connections.begin();
-			it != connections.end();)
+	for (std::map<int, Connection*>::iterator it = _connections.begin();
+			it != _connections.end();)
 	{
 		int clientFd = it->first;
 		if (FD_ISSET(clientFd, &writeSet))
@@ -196,13 +192,13 @@ static void processOutgoingData(fd_set& writeSet, std::map<int, Connection *>& c
 					}
 					perror("send");
 					delete it->second;
-					connections.erase(it++);
+					_connections.erase(it++);
 					continue;
 				}
 				if (writebuffer.empty())
 				{
 					delete it->second;
-					connections.erase(it++);
+					_connections.erase(it++);
 					continue;
 				}
 			}
@@ -224,8 +220,8 @@ void Engine::run()
 
 		int maxFd = 0;
 
-		registerListenSocketsForSelect(_listenSockets, readSet, maxFd);
-		registerClientSocketForSelect(_connections, readSet, writeSet, maxFd);
+		registerListenSocketsForSelect(readSet, maxFd);
+		registerClientSocketForSelect(readSet, writeSet, maxFd);
 		int readyFdCount = select(maxFd + 1, &readSet, &writeSet, NULL, NULL);
 		std::cout << "select return= " << readyFdCount << std::endl;
 		if (readyFdCount < 0)
@@ -235,9 +231,9 @@ void Engine::run()
 			perror("select");
 			break;
 		}
-		acceptPendingClientConnections(_listenSockets, readSet, _connections);
-		processIncomingData(readSet, _connections, *this);
-		processOutgoingData(writeSet, _connections);
+		acceptPendingClientConnections(readSet);
+		processIncomingData(readSet);
+		processOutgoingData(writeSet);
 	}
 }
 
