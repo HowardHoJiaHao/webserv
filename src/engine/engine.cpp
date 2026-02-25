@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/24 18:59:58 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/02/25 11:14:11 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -97,6 +97,35 @@ static void registerClientSocketForSelect(const std::map<int, Connection*>& conn
 	}
 }
 
+static void acceptPendingClientConnections(const std::map<std::pair<std::string, int>, int>& listenSockets,
+	fd_set& readSet, std::map<int, Connection*>& connections)
+{
+	for (std::map<std::pair<std::string, int>, int>::const_iterator it = listenSockets.begin();
+		it != listenSockets.end(); ++it)
+	{
+		int listenFd = it->second;
+		if (FD_ISSET(listenFd, &readSet))
+		{
+			int clientFd = accept(listenFd, NULL, NULL);
+			if (clientFd >= 0)
+			{
+				int flags = fcntl(clientFd, F_GETFL, 0);
+				if (flags == -1)
+				{
+					close(clientFd);
+					continue;
+				}
+				if (fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1)
+				{
+					close(clientFd);
+					continue;
+				}
+				connections[clientFd] = new Connection(clientFd);
+			}
+		}
+	}
+}
+
 // fd_set is a box of switches indexed by fd number
 void Engine::run()
 {
@@ -122,40 +151,7 @@ void Engine::run()
 			break;
 		}
 
-		for (std::map<std::pair<std::string, int>, int>::iterator it = _listenSockets.begin();
-			it != _listenSockets.end(); ++it)
-		{
-			int listenFd = it->second;
-			{
-				if (FD_ISSET(listenFd, &readSet))
-				{
-					int clientFd = accept(listenFd, NULL, NULL);
-					if (clientFd >= 0)
-					{
-						int flags = fcntl(clientFd, F_GETFL, 0);
-						if (flags == -1)
-						{
-							close(clientFd);
-							continue;
-						}
-						if (fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1)
-						{
-							close(clientFd);
-							continue;
-						}
-						// _connections.insert(std::make_pair(clientFd, Connection(clientFd)));
-						//std::cout << "Accepted fd = " << clientFd << std::endl;
-
-						if (fcntl(clientFd, F_GETFD) == -1)
-							perror("FD invalid immediately after accept");
-						_connections[clientFd] = new Connection(clientFd);
-						
-						//std::cout << "New connection on fd=" << clientFd << std::endl;
-					}
-
-				}
-			}
-		}
+		acceptPendingClientConnections(_listenSockets, readSet, _connections);
 	
 		for (std::map<int, Connection*>::iterator it = _connections.begin();
 			it != _connections.end();)
