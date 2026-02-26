@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/26 11:10:16 by ho               ###   ########.fr       */
+/*   Updated: 2026/02/26 18:03:12 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -159,6 +159,8 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			{
 				std::string& buffer = conn->getReadBuffer();
 				size_t headerEnd = buffer.find("\r\n\r\n");
+				size_t bodyStart = headerEnd + 4; //new
+				size_t currentBodySize = buffer.length() - bodyStart; //new
 				std::string headerSection = buffer.substr(0, headerEnd);
 				
 				std::istringstream stream(headerSection);
@@ -188,7 +190,6 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 					if (!value.empty() && value[0] == ' ')
 						value.erase(0, 1);
 					headers[key] = value;
-
 				}
 				std::map<std::string, std::string>::iterator it = headers.find("Content-Length");
 				if (it != headers.end())
@@ -200,7 +201,6 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 						conn->setState(Connection::WRITING);
 						return;
 					}
-
 					for (size_t i = 0; i < value.length(); ++i)
 					{
 						if (!isdigit(value[i]))
@@ -210,6 +210,11 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 							return;
 						}
 					}
+					size_t expectBodySize = std::atoi(value.c_str()); //new
+					if (currentBodySize < expectBodySize) // newblock
+					{
+						return;
+					}	
 				}
 
 				std::cout << "Request line valid\n";
