@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   connection.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:48:52 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/02/22 02:45:23 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/02/26 09:56:29 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -66,4 +66,9 @@ Connection::State Connection::getState() const
 void Connection::setState(State state)
 {
 	_state = state;
+}
+
+bool Connection::headerComplete() const
+{
+	return  _readBuffer.find("\r\n\r\n") != std::string::npos;
 }

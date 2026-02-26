@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/25 18:30:08 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/02/26 11:10:16 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,7 @@
 #include <sys/select.h>
 #include <sys/time.h>
 #include <fcntl.h>
+#include <sstream>
 
 Engine::Engine(const ConfigFiles& config) : _config(config){}
 
@@ -123,11 +124,108 @@ void Engine::acceptPendingClientConnections(fd_set& readSet)
 	}
 }
 
+bool Engine::parseRequestLine(Connection* conn)
+{
+	std::string& buffer = conn->getReadBuffer();
+	size_t lineEnd = buffer.find("\r\n");
+	if (lineEnd == std::string::npos)
+		return false;
+	std::string requestLine = buffer.substr(0, lineEnd);
+	std::istringstream iss(requestLine);
+	std::string method, path, version;
+
+	if (!(iss >> method >> path >> version))
+		return false;
+	std::string extra;
+	if (iss >> extra)
+		return false;
+	if (path.empty() || path[0] != '/')
+		return false;
+	if (version.find("HTTP/") != 0)
+		return false;
+	return true;
+}
+
 void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes)
 {
+	std::cout << "State before detection: " << conn->getState() << std::endl;
 	conn->appendToReadBuffer(buffer, bytes);
-	conn->getWriteBuffer() = buildMinimalResponse();
-	conn->setState(Connection::WRITING);
+	if (conn->getState() == Connection::READING)
+	{
+		if (conn->headerComplete())
+		{
+			std::cout << "Header complete\n";
+			if (parseRequestLine(conn))
+			{
+				std::string& buffer = conn->getReadBuffer();
+				size_t headerEnd = buffer.find("\r\n\r\n");
+				std::string headerSection = buffer.substr(0, headerEnd);
+				
+				std::istringstream stream(headerSection);
+				std::string line;
+				bool firstLine = true;
+
+				std::map<std::string, std::string>headers;
+				while (std::getline(stream, line))
+				{
+					if (!line.empty() && line[line.length() - 1] == '\r')
+						line.erase(line.length() - 1);
+					if (firstLine)
+					{
+						firstLine = false;
+						continue;
+					}
+					size_t colonPos = line.find(':');
+					if (colonPos == std::string::npos)
+					{
+						conn->getWriteBuffer() = build400Response();
+						conn->setState(Connection::WRITING);
+						return; 
+					}
+					std::string key = line.substr(0, colonPos);
+					std::string value = line.substr(colonPos + 1);
+					
+					if (!value.empty() && value[0] == ' ')
+						value.erase(0, 1);
+					headers[key] = value;
+
+				}
+				std::map<std::string, std::string>::iterator it = headers.find("Content-Length");
+				if (it != headers.end())
+				{
+					std::string value = it->second;
+					if (value.empty())
+					{
+						conn->getWriteBuffer() = build400Response();
+						conn->setState(Connection::WRITING);
+						return;
+					}
+
+					for (size_t i = 0; i < value.length(); ++i)
+					{
+						if (!isdigit(value[i]))
+						{
+							conn->getWriteBuffer() = build400Response();
+							conn->setState(Connection::WRITING);
+							return;
+						}
+					}
+				}
+
+				std::cout << "Request line valid\n";
+				conn->getWriteBuffer() = buildMinimalResponse();
+			}
+			else
+			{	
+				std::cout << "Request line invalid\n";
+				conn->getWriteBuffer() = build400Response();
+			}
+			conn->setState(Connection::WRITING);
+			std::cout << "Switchhed to writting\n";
+		}
+	}
+	//conn->getWriteBuffer() = buildMinimalResponse();
+	//conn->setState(Connection::WRITING);
 }
 
 void Engine::processIncomingData(fd_set& readSet)
@@ -180,6 +278,7 @@ void Engine::processOutgoingData(fd_set& writeSet)
 			std::string& writebuffer = it->second->getWriteBuffer();
 			if (!writebuffer.empty())
 			{
+				std::cout << "about to send on fd=" << clientFd << std::endl;
 				ssize_t sentByte = send(clientFd, writebuffer.c_str(), writebuffer.size(), 0);
 				if (sentByte > 0)
 					writebuffer.erase(0, sentByte);
@@ -235,6 +334,15 @@ void Engine::run()
 		processIncomingData(readSet);
 		processOutgoingData(writeSet);
 	}
+}
+
+std::string Engine::build400Response()
+{
+	return "HTTP/1.1 400 Bad Request\r\n"
+		"Content-Length: 11\r\n"
+		"Content-Type: text/plain\r\n"
+		"\r\n"
+		"Bad Request";
 }
 
 std::string Engine::buildMinimalResponse()
