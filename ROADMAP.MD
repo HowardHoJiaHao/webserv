@@ -8,18 +8,18 @@
 ✔ Phase 2 — Socket Binding
 ✔ Phase 3 — Reactor & Connection Lifecycle
 ✔ Phase 4 — Non-Blocking Transport & Write Handling
-✔ Phase 5.1 — Explicit Protocol State
+✔ Phase 5 — HTTP Framing & Minimal Protocol Enforcement
 
 Transport layer is complete and stable.
-Protocol state layer is now integrated into the reactor.
+HTTP framing, structural validation, and body enforcement are complete.
 
-We now build upward.
+We now move upward into architectural separation.
 
 ---
 
-# 🚀 Phase 5 — HTTP Framing & Minimal Protocol Awareness (In Progress)
+# ✅ Phase 5 — HTTP Framing & Minimal Protocol Awareness (Completed)
 
-## 🎯 Objective
+## 🎯 Objective (Achieved)
 
 Respond only to complete and valid HTTP requests.
 
@@ -41,39 +41,48 @@ Architectural invariant:
 
 ---
 
-## 5.2 — Header Boundary Detection (Next)
+## 5.2 — Header Boundary Detection (Completed)
 
-* [ ] Detect `"\r\n\r\n"`
-* [ ] Do not respond before headers complete
-* [ ] Ignore incomplete requests
-
----
-
-## 5.3 — Request Line Parsing
-
-* [ ] Parse method, path, version
-* [ ] Validate exactly 3 tokens
-* [ ] Return 400 for malformed requests
+* Detect `"\r\n\r\n"` in read buffer
+* No response before header completion
+* Incomplete headers buffered safely
+* Framing strictly enforced
 
 ---
 
-## 5.4 — Header Parsing
+## 5.3 — Request Line Parsing (Completed)
 
-* [ ] Parse headers into key-value map
-* [ ] Extract `Content-Length`
-* [ ] Validate numeric values
-
----
-
-## 5.5 — Body Handling
-
-* [ ] Wait for full body based on Content-Length
-* [ ] Only transition to WRITING when body complete
-* [ ] Reject incomplete or invalid bodies
+* Parse method, path, version
+* Validate exactly 3 tokens
+* Validate path begins with `/`
+* Validate HTTP version prefix
+* Return 400 for malformed requests
 
 ---
 
-## 🛑 Phase 5 Stop Condition
+## 5.4 — Header Parsing (Completed)
+
+* Parse headers into key-value map
+* Validate `Key: Value` format
+* Extract `Content-Length`
+* Reject empty or non-numeric values
+* Return 400 on malformed headers
+
+---
+
+## 5.5 — Body Handling (Completed)
+
+* Compute body start offset
+* Calculate current body size
+* If `Content-Length` present:
+
+  * Wait until full body received
+  * Do not respond prematurely
+* Only transition to `WRITING` when body complete
+
+---
+
+## 🛑 Phase 5 Stop Condition (Reached)
 
 ✔ Only valid HTTP triggers response
 ✔ Invalid requests return 400
@@ -81,35 +90,53 @@ Architectural invariant:
 ✔ No premature response
 ✔ Transport layer remains stable
 
-Refactor and clean before moving forward.
+Phase 5 is structurally complete.
 
 ---
 
-# 🚀 Phase 6 — HTTP Structure Abstraction
+# 🚀 Phase 6 — HTTP Structure Abstraction (Next)
 
 ## 🎯 Objective
 
 Separate protocol parsing from connection handling.
 
+Current issue:
+Parsing logic still lives inside `Engine::handleClientRequest()`.
+
+Goal: Move protocol awareness out of transport layer.
+
 ---
 
 ## 6.1 — HttpRequest Class
 
-* [ ] method
-* [ ] path
-* [ ] version
-* [ ] headers map
-* [ ] body
-* [ ] validation logic
+* method
+* path
+* version
+* headers map
+* body
+* validation logic
+* parsing constructor or factory method
+
+Responsibilities:
+
+* Own parsing logic
+* Own validation rules
+* Represent immutable request data after parsing
 
 ---
 
 ## 6.2 — HttpResponse Class
 
-* [ ] status code
-* [ ] headers map
-* [ ] body
-* [ ] serialize() method
+* status code
+* headers map
+* body
+* `serialize()` method
+
+Responsibilities:
+
+* Build structured response
+* Serialize into correct HTTP wire format
+* Remove raw string building from `Engine`
 
 ---
 
@@ -118,6 +145,7 @@ Separate protocol parsing from connection handling.
 ✔ Connection no longer manually parses strings
 ✔ Engine no longer manually builds raw response strings
 ✔ Protocol logic isolated from transport layer
+✔ Clear separation: Transport vs Protocol
 
 ---
 
@@ -138,9 +166,10 @@ States expand to:
 
 ---
 
-* [ ] Explicit transitions
-* [ ] Remove implicit buffer-based logic
-* [ ] Deterministic lifecycle model
+* Explicit transitions only
+* Remove implicit buffer-length logic
+* Deterministic lifecycle model
+* Clear state diagram documented
 
 ---
 
@@ -149,6 +178,7 @@ States expand to:
 ✔ Clear state diagram exists
 ✔ No hidden transitions
 ✔ No ambiguous lifecycle behavior
+✔ No buffer-length driven implicit logic
 
 ---
 
@@ -160,12 +190,13 @@ Serve real files from filesystem.
 
 ---
 
-* [ ] Map path to filesystem
-* [ ] Open file safely
-* [ ] Determine file size
-* [ ] Set correct Content-Length
-* [ ] Handle 404
-* [ ] Handle permission errors
+* Map path to filesystem
+* Open file safely
+* Determine file size
+* Set correct Content-Length
+* Handle 404
+* Handle permission errors
+* Support binary file serving
 
 ---
 
@@ -185,29 +216,30 @@ Use Host header and config to select server.
 
 ---
 
-* [ ] Parse Host header
-* [ ] Select correct ServerConfig
-* [ ] Match location blocks
-* [ ] Apply root/index rules
+* Parse Host header
+* Select correct ServerConfig
+* Match location blocks
+* Apply root/index rules
+* Config-driven routing logic
 
 ---
 
 ## 🛑 Phase 9 Stop Condition
 
 ✔ Multiple server blocks behave differently
-✔ Routing logic is config-driven
+✔ Routing logic fully config-driven
 
 ---
 
-# 🚀 Phase 10 — Advanced Features (Later)
+# 🚀 Phase 10 — Advanced Features (Later Only)
 
 Do NOT implement until all above layers are stable.
 
-* [ ] Keep-Alive support
-* [ ] Timeout manager
-* [ ] Chunked transfer encoding
-* [ ] Upload handling
-* [ ] CGI execution
+* Keep-Alive support
+* Timeout manager
+* Chunked transfer encoding
+* Upload handling
+* CGI execution
 
 ---
 
@@ -224,8 +256,11 @@ Never implement advanced features on unstable foundation.
 
 # 🎯 Immediate Next Action
 
-Start Phase 5.2 only.
-Implement header boundary detection cleanly.
-Do not parse request line yet.
-Do not add new abstractions yet.
-Validate framing correctness before moving forward.
+Start Phase 6.
+
+Extract HTTP parsing logic into `HttpRequest`.
+Extract response construction into `HttpResponse`.
+Refactor `Engine` into pure transport + state orchestration.
+
+Protocol correctness is stable.
+Now enforce architectural separation.

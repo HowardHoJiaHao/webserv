@@ -156,16 +156,19 @@ Transport layer is fully stable and considered complete.
 
 ---
 
-# ✅ Phase 5 — HTTP Framing & Minimal Parsing (In Progress)
+# ✅ Phase 5 — HTTP Framing & Minimal Parsing (Completed)
+
+Protocol layer now enforces structural correctness and body completeness.
+
+---
 
 ## 5.1 Explicit Connection State (Completed)
 
-* `enum State { READING, WRITING }` added to `Connection`
-* `_state` member added
-* Initialized to `READING` in constructor
-* Explicit transition to `WRITING` after response generation
-* Reactor `fd_set` population gated by connection state
-* Read and write operations strictly separated by protocol state
+* `enum State { READING, WRITING }` implemented
+* `_state` added to `Connection`
+* Initialized to `READING`
+* Reactor `fd_set` population gated by state
+* Read/write execution strictly separated by protocol state
 
 **Architectural invariant:**
 A connection in `READING` never sends.
@@ -173,57 +176,67 @@ A connection in `WRITING` never receives.
 
 ---
 
-## 5.2 Header Boundary Detection (Next)
+## 5.2 Header Boundary Detection (Completed)
 
-* [ ] Detect `"\r\n\r\n"` in read buffer
-* [ ] Do not respond before header completion
-
----
-
-## 5.3 Request Line Parsing
-
-* [ ] Parse method, path, version
-* [ ] Validate structure
-* [ ] Return 400 on malformed request
+* Detect `"\r\n\r\n"` in read buffer
+* No response before header completion
+* Partial headers safely buffered
+* Framing strictly enforced
 
 ---
 
-## 5.4 Basic Header Parsing
+## 5.3 Request Line Parsing (Completed)
 
-* [ ] Parse header lines
-* [ ] Store in key-value map
-* [ ] Extract `Content-Length`
-
----
-
-## 5.5 Content-Length Handling
-
-* [ ] Wait for full body when present
-* [ ] Only transition to WRITING when body complete
+* Parse method, path, version
+* Validate exactly three tokens
+* Validate path begins with `/`
+* Validate HTTP version prefix
+* Return 400 on malformed request
 
 ---
 
-## 5.6 Bind Failure Handling (Development Note)
+## 5.4 Basic Header Parsing (Completed)
 
-* **Issue:** `bind failed` error when previous webserv process still holds ports
-* **Root Cause:** Port remains bound until TCP connection fully closes (TIME_WAIT state)
-* **Solution:** Kill lingering process with `kill -9 <PID>` before restart
-* **Note:** `SO_REUSEADDR` is already implemented but doesn't apply to active CLOSE_WAIT states
-* **Future:** Consider implementing graceful shutdown signal handler or connection cleanup on startup
+* Extract header section safely
+* Split into individual header lines
+* Skip request line during header parsing
+* Validate `Key: Value` format
+* Store headers in temporary key-value map
+* Validate `Content-Length` header:
+
+  * Reject empty value
+  * Reject non-numeric value
+* Return 400 on malformed headers
 
 ---
 
-# 🎯 Phase 5 Completion Plateau
+## 5.5 Content-Length Enforcement (Completed)
 
-Stop when:
+* Compute body start offset after header boundary
+* Calculate current body size using buffer length
+* If `Content-Length` exists:
 
-* Server responds only to complete, valid HTTP requests
-* Invalid requests return 400
-* POST with body works correctly
-* No premature response
-* Transport remains stable
+  * Wait until full body is received
+  * Do not transition to `WRITING` prematurely
+* Only respond when:
 
-Refactor before moving to next phase.
+  * Header is valid
+  * Body is complete (if required)
+
+**Protocol invariant:**
+Server never responds before full declared body is received.
+
+---
+
+## 🎯 Phase 5 Completion Plateau (Reached)
+
+✔ Server responds only to complete, valid HTTP requests
+✔ Invalid requests return 400
+✔ POST with body works correctly
+✔ No premature response
+✔ Transport layer remains stable
+
+Phase 5 is structurally complete.
 
 ---
 
@@ -236,6 +249,7 @@ The system now provides:
 * Stable multiplexed reactor
 * Fully non-blocking transport
 * Explicit protocol state control
+* Strict HTTP framing enforcement
 * Safe connection lifecycle management
 
 Architecture layers completed:
@@ -244,22 +258,21 @@ Architecture layers completed:
 2. Socket Binding Layer
 3. Reactor Layer
 4. Non-Blocking Transport Layer
-5. Protocol State Layer
+5. HTTP Framing & Structural Parsing Layer
 
 Transport correctness is complete.
-Protocol framing is now under construction.
+Protocol framing and minimal HTTP enforcement are complete.
 
 ---
 
-# Long-Term Roadmap (After Phase 5)
+# 🚀 Next Phase — HTTP Abstraction Layer (Phase 6)
 
-* HTTP request abstraction
-* HTTP response abstraction
-* Virtual host routing
-* Static file serving
-* Keep-alive support
-* Timeout manager
-* CGI handling
+Upcoming objectives:
+
+* Introduce `HttpRequest` abstraction
+* Introduce `HttpResponse` abstraction
+* Remove string-based parsing from `Engine`
+* Isolate protocol logic from transport logic
 
 ---
 
@@ -269,8 +282,8 @@ Phase 1 — Stable
 Phase 2 — Stable
 Phase 3 — Stable
 Phase 4 — Stable
-Phase 5.1 — Complete
-Phase 5.2+ — In Progress
+Phase 5 — Complete
 
 The transport foundation is stable.
-Protocol correctness is now being layered on top.
+HTTP framing and structural correctness are enforced.
+The system is ready for protocol abstraction refactoring.
