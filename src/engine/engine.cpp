@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/26 18:03:12 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/21 18:47:59 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,10 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <sstream>
+#include <cstdio>
+#include <cstdlib>
+#include <cerrno>
+#include "httpHandling/httpRequest.hpp"
 
 Engine::Engine(const ConfigFiles& config) : _config(config){}
 
@@ -154,79 +158,53 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	{
 		if (conn->headerComplete())
 		{
-			std::cout << "Header complete\n";
-			if (parseRequestLine(conn))
+			HttpRequest request;
+			try
 			{
-				std::string& buffer = conn->getReadBuffer();
-				size_t headerEnd = buffer.find("\r\n\r\n");
-				size_t bodyStart = headerEnd + 4; //new
-				size_t currentBodySize = buffer.length() - bodyStart; //new
-				std::string headerSection = buffer.substr(0, headerEnd);
-				
-				std::istringstream stream(headerSection);
-				std::string line;
-				bool firstLine = true;
-
-				std::map<std::string, std::string>headers;
-				while (std::getline(stream, line))
-				{
-					if (!line.empty() && line[line.length() - 1] == '\r')
-						line.erase(line.length() - 1);
-					if (firstLine)
-					{
-						firstLine = false;
-						continue;
-					}
-					size_t colonPos = line.find(':');
-					if (colonPos == std::string::npos)
-					{
-						conn->getWriteBuffer() = build400Response();
-						conn->setState(Connection::WRITING);
-						return; 
-					}
-					std::string key = line.substr(0, colonPos);
-					std::string value = line.substr(colonPos + 1);
-					
-					if (!value.empty() && value[0] == ' ')
-						value.erase(0, 1);
-					headers[key] = value;
-				}
-				std::map<std::string, std::string>::iterator it = headers.find("Content-Length");
-				if (it != headers.end())
-				{
-					std::string value = it->second;
-					if (value.empty())
-					{
-						conn->getWriteBuffer() = build400Response();
-						conn->setState(Connection::WRITING);
-						return;
-					}
-					for (size_t i = 0; i < value.length(); ++i)
-					{
-						if (!isdigit(value[i]))
-						{
-							conn->getWriteBuffer() = build400Response();
-							conn->setState(Connection::WRITING);
-							return;
-						}
-					}
-					size_t expectBodySize = std::atoi(value.c_str()); //new
-					if (currentBodySize < expectBodySize) // newblock
-					{
-						return;
-					}	
-				}
-
-				std::cout << "Request line valid\n";
-				conn->getWriteBuffer() = buildMinimalResponse();
+				request.parse(conn->getReadBuffer());
 			}
-			else
-			{	
-				std::cout << "Request line invalid\n";
+			catch(const std::exception& e)
+			{
 				conn->getWriteBuffer() = build400Response();
+				conn->setState(Connection::WRITING);
+				return; 
 			}
+			
+			std::string& buffer = conn->getReadBuffer();
+			size_t headerEnd = buffer.find("\r\n\r\n");
+			size_t bodyStart = headerEnd + 4; //new
+			size_t currentBodySize = buffer.length() - bodyStart; //new
+
+			//std::map<std::string, std::string>::iterator it = headers.find("Content-Length");
+			const std::string* contentLength = request.getHeader("Content-Length");
+			if (contentLength)
+			{
+				const std::string& value = *contentLength;
+				if (value.empty())
+				{
+					conn->getWriteBuffer() = build400Response();
+					conn->setState(Connection::WRITING);
+					return;
+				}
+				for (size_t i = 0; i < value.length(); ++i)
+				{
+					if(!isdigit(value[i]))
+					{
+						conn->getWriteBuffer() = build400Response();
+						conn->setState(Connection::WRITING);
+						return;
+					}
+				}
+				size_t	expectBodySize = std::atoi(value.c_str());
+				if (currentBodySize < expectBodySize)
+				{
+					return ;
+				}
+			}
+			std::cout << "Request line valid\n";
+			conn->getWriteBuffer() = buildMinimalResponse();
 			conn->setState(Connection::WRITING);
-			std::cout << "Switchhed to writting\n";
+		
 		}
 	}
 	//conn->getWriteBuffer() = buildMinimalResponse();

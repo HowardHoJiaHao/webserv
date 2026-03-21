@@ -5,12 +5,13 @@
             "includePath": [
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/include/config",
-                "${workspaceFolder}/include/engine"
+                "${workspaceFolder}/include/engine",
+                "${workspaceFolder}/include/httpHandling"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/g++",
             "cStandard": "c11",
-            "cppStandard": "c++17",
+            "cppStandard": "c++98",
             "intelliSenseMode": "gcc-x64",
             "browse": {
                 "path": [
@@ -18,6 +19,7 @@
                     "${workspaceFolder}/include",
                     "${workspaceFolder}/include/config",
                     "${workspaceFolder}/include/engine",
+                    "${workspaceFolder}/include/httpHandling",
                     "${workspaceFolder}/src"
                 ],
                 "limitSymbolsToIncludedHeaders": false
