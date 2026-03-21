@@ -1,266 +1,397 @@
-# Webserv — Pending & Upcoming Phases (Master Roadmap)
+# Webserv — Pending & Upcoming Phases (Master Roadmap — CORRECTED CONTINUATION)
 
 ---
 
-# 🧱 Completed Foundation
+# 🧱 Completed Foundation (REALIGNED)
 
 ✔ Phase 1 — Configuration Model
 ✔ Phase 2 — Socket Binding
 ✔ Phase 3 — Reactor & Connection Lifecycle
 ✔ Phase 4 — Non-Blocking Transport & Write Handling
 ✔ Phase 5 — HTTP Framing & Minimal Protocol Enforcement
+✔ Phase 6 — HTTP Structure Abstraction (**COMPLETED — CRITICAL MILESTONE**)
 
-Transport layer is complete and stable.
-HTTP framing, structural validation, and body enforcement are complete.
+---
 
-We now move upward into architectural separation.
+## 🧠 System Reality (CRITICAL UPDATE)
+
+```text
+Transport Layer        → COMPLETE
+Framing Layer          → COMPLETE
+Protocol Parsing       → COMPLETE
+Protocol Semantics     → COMPLETE
+Architecture Separation→ COMPLETE
+```
+
+👉 The system is no longer “pre-abstraction”.
+👉 It is now in **post-abstraction phase**.
 
 ---
 
 # ✅ Phase 5 — HTTP Framing & Minimal Protocol Awareness (Completed)
 
-## 🎯 Objective (Achieved)
-
-Respond only to complete and valid HTTP requests.
+(UNCHANGED — retained for continuity)
 
 ---
 
-## 5.1 — Protocol State Introduction (Completed)
+# ✅ Phase 6 — HTTP Structure Abstraction (**COMPLETED — UPDATED**)
 
-* `enum State { READING, WRITING }` implemented
-* `_state` added to `Connection`
-* Initialized to `READING`
-* Explicit transition to `WRITING` after response preparation
-* Reactor `fd_set` population gated by state
-* Read/write execution strictly separated by protocol state
-
-Architectural invariant:
-
-> A connection in `READING` never sends.
-> A connection in `WRITING` never receives.
-
----
-
-## 5.2 — Header Boundary Detection (Completed)
-
-* Detect `"\r\n\r\n"` in read buffer
-* No response before header completion
-* Incomplete headers buffered safely
-* Framing strictly enforced
-
----
-
-## 5.3 — Request Line Parsing (Completed)
-
-* Parse method, path, version
-* Validate exactly 3 tokens
-* Validate path begins with `/`
-* Validate HTTP version prefix
-* Return 400 for malformed requests
-
----
-
-## 5.4 — Header Parsing (Completed)
-
-* Parse headers into key-value map
-* Validate `Key: Value` format
-* Extract `Content-Length`
-* Reject empty or non-numeric values
-* Return 400 on malformed headers
-
----
-
-## 5.5 — Body Handling (Completed)
-
-* Compute body start offset
-* Calculate current body size
-* If `Content-Length` present:
-
-  * Wait until full body received
-  * Do not respond prematurely
-* Only transition to `WRITING` when body complete
-
----
-
-## 🛑 Phase 5 Stop Condition (Reached)
-
-✔ Only valid HTTP triggers response
-✔ Invalid requests return 400
-✔ POST with body works correctly
-✔ No premature response
-✔ Transport layer remains stable
-
-Phase 5 is structurally complete.
-
----
-
-# 🚀 Phase 6 — HTTP Structure Abstraction (Next)
-
-## 🎯 Objective
+## 🎯 Objective (ACHIEVED)
 
 Separate protocol parsing from connection handling.
 
-Current issue:
-Parsing logic still lives inside `Engine::handleClientRequest()`.
+---
 
-Goal: Move protocol awareness out of transport layer.
+## 6.1 — HttpRequest Class (IMPLEMENTED)
+
+### Data Model
+
+* `_method`
+* `_path`
+* `_version`
+* `_headers`
+* `_body`
+* `_contentLength`
+* `_hasContentLength`
 
 ---
 
-## 6.1 — HttpRequest Class
+### Responsibilities (ACHIEVED)
 
-* method
-* path
-* version
-* headers map
-* body
-* validation logic
-* parsing constructor or factory method
-
-Responsibilities:
-
-* Own parsing logic
-* Own validation rules
-* Represent immutable request data after parsing
+✔ Own full parsing pipeline
+✔ Own validation rules
+✔ Own semantic interpretation
+✔ Own body extraction
+✔ Provide read-only access to request data
 
 ---
 
-## 6.2 — HttpResponse Class
+## 6.2 — Parsing Pipeline (STRICT ORDER — ENFORCED)
 
-* status code
-* headers map
-* body
-* `serialize()` method
-
-Responsibilities:
-
-* Build structured response
-* Serialize into correct HTTP wire format
-* Remove raw string building from `Engine`
+```text
+1. Request line parsing
+2. Header boundary detection
+3. Header parsing
+4. Content-Length interpretation
+5. Body extraction (length-aware)
+```
 
 ---
 
-## 🛑 Phase 6 Stop Condition
+## 6.3 — Semantic Enforcement (Content-Length)
 
-✔ Connection no longer manually parses strings
-✔ Engine no longer manually builds raw response strings
-✔ Protocol logic isolated from transport layer
-✔ Clear separation: Transport vs Protocol
+✔ Empty rejected
+✔ Non-numeric rejected
+✔ Stored as integer
+✔ Presence tracked via `_hasContentLength`
 
 ---
 
-# 🚀 Phase 7 — Formal Connection State Machine
+## 6.4 — Body Handling (CORRECTED)
+
+✔ Extracted after semantics known
+✔ Uses exact Content-Length
+✔ Prevents over-read
+✔ Compatible with partial buffer accumulation
+
+---
+
+## 6.5 — Completeness Logic (CRITICAL)
+
+```cpp
+bool isComplete(size_t currentBodySize)
+```
+
+Rules:
+
+* No Content-Length → complete immediately
+* With Content-Length → wait for full body
+
+---
+
+## 6.6 — Engine Refactor (MAJOR ARCHITECTURAL SHIFT)
+
+### Engine NO LONGER:
+
+✘ parses headers
+✘ validates Content-Length
+✘ interprets HTTP
+
+---
+
+### Engine NOW ONLY:
+
+✔ handles socket I/O
+✔ appends buffers
+✔ invokes parsing
+✔ checks completeness
+✔ triggers response
+
+---
+
+## 6.7 — HttpResponse (PARTIALLY PENDING)
+
+⚠️ IMPORTANT: This part is NOT fully implemented yet in your system.
+
+You are still likely doing:
+
+```cpp
+buildMinimalResponse()
+```
+
+Instead of:
+
+```text
+HttpResponse → serialize()
+```
+
+---
+
+### Required Work (STILL MISSING)
+
+* status code abstraction
+* header map for response
+* content-length generation
+* serialization function
+
+---
+
+## 🛑 Phase 6 Stop Condition (REVISED — TRUE COMPLETION)
+
+✔ HttpRequest fully owns protocol parsing
+✔ Engine contains zero protocol logic
+✔ Body extraction is correct
+✔ isComplete() used for control flow
+
+⚠️ HttpResponse abstraction may still be pending
+
+---
+
+# 🚀 Phase 7 — Routing Layer (**ACTUAL CURRENT PHASE**)
+
+---
 
 ## 🎯 Objective
 
-Make lifecycle deterministic and explicit.
+Convert request into behavior.
+
+```text
+HttpRequest → decision → response
+```
 
 ---
 
-States expand to:
+## 7.1 — Routing Inputs
 
-* READING_HEADERS
-* READING_BODY
-* WRITING
-* CLOSING
+* request.getMethod()
+* request.getPath()
 
 ---
 
-* Explicit transitions only
-* Remove implicit buffer-length logic
-* Deterministic lifecycle model
-* Clear state diagram documented
+## 7.2 — Minimal Routing Implementation
+
+```cpp
+if (method == "GET")
+{
+    if (path == "/")
+        return index;
+    else
+        return 404;
+}
+```
+
+---
+
+## 7.3 — Responsibilities
+
+Routing decides:
+
+✔ WHAT to serve
+✘ NOT how to serve
+
+---
+
+## 7.4 — Constraints
+
+* No filesystem yet
+* No config usage yet
+* No CGI
+
+👉 Keep routing purely logical
 
 ---
 
 ## 🛑 Phase 7 Stop Condition
 
-✔ Clear state diagram exists
-✔ No hidden transitions
-✔ No ambiguous lifecycle behavior
-✔ No buffer-length driven implicit logic
+✔ Different paths produce different responses
+✔ 404 implemented
+✔ Method branching exists
+✔ No single hardcoded response
 
 ---
 
 # 🚀 Phase 8 — Static File Serving
 
+---
+
 ## 🎯 Objective
 
-Serve real files from filesystem.
+Serve actual filesystem resources.
 
 ---
 
-* Map path to filesystem
-* Open file safely
-* Determine file size
-* Set correct Content-Length
-* Handle 404
-* Handle permission errors
-* Support binary file serving
+## 8.1 — Path Mapping
+
+```text
+/request/path → ./www/request/path
+```
+
+---
+
+## 8.2 — Implementation Details
+
+✔ open() file
+✔ read() file content
+✔ compute size
+✔ set Content-Length
+✔ send bytes correctly
+
+---
+
+## 8.3 — Error Handling
+
+✔ file not found → 404
+✔ permission denied → 403
+✔ invalid path → reject
+
+---
+
+## 8.4 — MIME Types (basic)
+
+```text
+.html → text/html
+.css → text/css
+.jpg → image/jpeg
+.png → image/png
+```
 
 ---
 
 ## 🛑 Phase 8 Stop Condition
 
-✔ Browser loads static HTML file correctly
-✔ 404 works
+✔ Browser renders HTML
+✔ CSS/images load
 ✔ Binary files work
 
 ---
 
-# 🚀 Phase 9 — Virtual Host Routing
-
-## 🎯 Objective
-
-Use Host header and config to select server.
+# 🚀 Phase 9 — Virtual Host & Config Routing
 
 ---
 
-* Parse Host header
-* Select correct ServerConfig
-* Match location blocks
-* Apply root/index rules
-* Config-driven routing logic
+## 🎯 Objective
+
+Integrate config into routing.
+
+---
+
+## 9.1 — Required Features
+
+✔ parse Host header
+✔ select correct ServerConfig
+✔ match location blocks
+✔ apply root directive
+✔ apply index rules
 
 ---
 
 ## 🛑 Phase 9 Stop Condition
 
-✔ Multiple server blocks behave differently
-✔ Routing logic fully config-driven
+✔ Multiple virtual hosts work
+✔ Behavior changes via config
+✔ No hardcoded routing
 
 ---
 
-# 🚀 Phase 10 — Advanced Features (Later Only)
+# 🚀 Phase 10 — Advanced Features (STRICTLY AFTER STABILITY)
 
-Do NOT implement until all above layers are stable.
+---
 
-* Keep-Alive support
+## 🎯 Objective
+
+Extend server capabilities.
+
+---
+
+## 10.1 — Features
+
+* Keep-Alive
 * Timeout manager
-* Chunked transfer encoding
+* Chunked encoding
 * Upload handling
 * CGI execution
 
 ---
 
-# 🧠 Architectural Rule
+## ⚠️ Critical Warning
 
-Build vertically:
-
-Transport → Framing → Parsing → Abstraction → Routing → Resources → Features
-
-Never jump layers.
-Never implement advanced features on unstable foundation.
+Do NOT start this phase early.
 
 ---
 
-# 🎯 Immediate Next Action
+# 🧠 Architectural Rule (UNCHANGED — ENFORCED)
 
-Start Phase 6.
+```text
+Transport → Framing → Parsing → Abstraction → Routing → Resources → Features
+```
 
-Extract HTTP parsing logic into `HttpRequest`.
-Extract response construction into `HttpResponse`.
-Refactor `Engine` into pure transport + state orchestration.
+Violating order will cause regression.
 
-Protocol correctness is stable.
-Now enforce architectural separation.
+---
+
+# 🎯 Immediate Next Action (CORRECTED)
+
+You are NOT starting Phase 6.
+
+You are HERE:
+
+```text
+Phase 7 — Routing
+```
+
+---
+
+## DO THIS NEXT
+
+```text
+1. Remove buildMinimalResponse()
+2. Implement path-based branching
+3. Return index for "/"
+4. Return 404 otherwise
+```
+
+---
+
+# 🧠 Final System Position
+
+```text
+✔ Core architecture complete
+✔ Protocol correctness complete
+✔ Transport stability complete
+
+→ Moving into behavior layer
+```
+
+---
+
+# Summary
+
+Phase 1 — Stable
+Phase 2 — Stable
+Phase 3 — Stable
+Phase 4 — Stable
+Phase 5 — Complete
+Phase 6 — Complete
+Phase 7 — CURRENT
+
+System has transitioned from correctness → functionality.

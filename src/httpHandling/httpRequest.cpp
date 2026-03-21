@@ -3,15 +3,16 @@
 /*                                                        :::      ::::::::   */
 /*   httpRequest.cpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/21 18:56:27 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/22 02:18:24 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "httpRequest.hpp"
 #include <sstream>
+#include <cstdlib>
 #include <iostream>
 
 HttpRequest::HttpRequest()
@@ -55,6 +56,9 @@ const std::string& HttpRequest::getBody() const
 void HttpRequest::parse(const std::string& rawRequest)
 {
 	_headers.clear();
+	_contentLength = 0;
+	_hasContentLength = false;
+	_body.clear();
 	size_t pos = rawRequest.find("\r\n");
 	if (pos == std::string::npos)
 		throw std::runtime_error("Invalid request line");
@@ -77,6 +81,7 @@ void HttpRequest::parse(const std::string& rawRequest)
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
 	if (headerEnd == std::string::npos)
 		throw std::runtime_error("Headers not complete");
+
 	std::string headerSection = rawRequest.substr(0, headerEnd);
 	std::istringstream stream(headerSection);
 	std::string line;
@@ -99,11 +104,42 @@ void HttpRequest::parse(const std::string& rawRequest)
 
 		if (!value.empty() && value[0] == ' ')
 			value.erase(0, 1);
-		_headers[key] = value; 
+		_headers[key] = value;
 	}
+
+	std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
+	if (it != _headers.end())
+	{
+		const std::string& value = it->second;
+		if(value.empty())
+			throw std::runtime_error("Empty Content-Length");
+		for (size_t i = 0; i < value.length(); ++i)
+		{
+			if (!isdigit(static_cast<unsigned char>(value[i])))
+				throw std::runtime_error("Invalid Content-Length");
+		}
+		_contentLength = std::atoi(value.c_str());
+		_hasContentLength = true;
+	}
+
+	size_t bodyStart = headerEnd + 4;
+	if (bodyStart < rawRequest.size())
+	{
+		if(_hasContentLength)
+			_body = rawRequest.substr(bodyStart, _contentLength);
+		else
+			_body = rawRequest.substr(bodyStart);
+		
+	}
+	else
+		_body.clear();
+
+
 }
 
-// const std::map<std::string, std::string>& getHeaders() const
-// {
-	
-// }
+bool	HttpRequest::isComplete(size_t currentBodySize) const
+{
+	if (_hasContentLength)
+		return currentBodySize >= _contentLength;
+	return true;
+}

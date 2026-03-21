@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   httpRequest.hpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:37:17 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/21 18:53:38 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/22 02:08:11 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,6 +40,8 @@ class HttpRequest
 
 		bool hasContentLength() const;
 		size_t getContentLength() const;
+
+		bool isComplete(size_t currentBodySize) const;
 
 		void parse(const std::string& rawRequest);
 

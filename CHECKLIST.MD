@@ -158,10 +158,6 @@ Transport layer is fully stable and considered complete.
 
 # ✅ Phase 5 — HTTP Framing & Minimal Parsing (Completed)
 
-Protocol layer now enforces structural correctness and body completeness.
-
----
-
 ## 5.1 Explicit Connection State (Completed)
 
 * `enum State { READING, WRITING }` implemented
@@ -181,7 +177,6 @@ A connection in `WRITING` never receives.
 * Detect `"\r\n\r\n"` in read buffer
 * No response before header completion
 * Partial headers safely buffered
-* Framing strictly enforced
 
 ---
 
@@ -191,88 +186,195 @@ A connection in `WRITING` never receives.
 * Validate exactly three tokens
 * Validate path begins with `/`
 * Validate HTTP version prefix
-* Return 400 on malformed request
 
 ---
 
 ## 5.4 Basic Header Parsing (Completed)
 
-* Extract header section safely
-* Split into individual header lines
-* Skip request line during header parsing
-* Validate `Key: Value` format
-* Store headers in temporary key-value map
-* Validate `Content-Length` header:
-
-  * Reject empty value
-  * Reject non-numeric value
-* Return 400 on malformed headers
+* Extract header section
+* Validate `Key: Value`
+* Temporary header map created
 
 ---
 
 ## 5.5 Content-Length Enforcement (Completed)
 
-* Compute body start offset after header boundary
-* Calculate current body size using buffer length
-* If `Content-Length` exists:
-
-  * Wait until full body is received
-  * Do not transition to `WRITING` prematurely
-* Only respond when:
-
-  * Header is valid
-  * Body is complete (if required)
-
-**Protocol invariant:**
-Server never responds before full declared body is received.
+* Body size tracked via buffer
+* Wait until full body arrives
+* Prevent premature response
 
 ---
 
-## 🎯 Phase 5 Completion Plateau (Reached)
+# 🎯 Phase 5 Completion Plateau (Reached)
 
-✔ Server responds only to complete, valid HTTP requests
-✔ Invalid requests return 400
-✔ POST with body works correctly
-✔ No premature response
-✔ Transport layer remains stable
-
-Phase 5 is structurally complete.
+✔ Structural HTTP correctness achieved
+✔ No premature responses
+✔ Stable under partial reads
 
 ---
 
-# 🎯 Current System State
+# ✅ Phase 6 — HTTP Abstraction Layer (NEWLY COMPLETED)
 
-The system now provides:
-
-* Immutable configuration layer
-* Deterministic socket binding layer
-* Stable multiplexed reactor
-* Fully non-blocking transport
-* Explicit protocol state control
-* Strict HTTP framing enforcement
-* Safe connection lifecycle management
-
-Architecture layers completed:
-
-1. Config Layer
-2. Socket Binding Layer
-3. Reactor Layer
-4. Non-Blocking Transport Layer
-5. HTTP Framing & Structural Parsing Layer
-
-Transport correctness is complete.
-Protocol framing and minimal HTTP enforcement are complete.
+This phase introduces a critical architectural separation.
 
 ---
 
-# 🚀 Next Phase — HTTP Abstraction Layer (Phase 6)
+## 6.1 HttpRequest Introduction
 
-Upcoming objectives:
+* New abstraction layer created
+* Encapsulates full request state:
 
-* Introduce `HttpRequest` abstraction
-* Introduce `HttpResponse` abstraction
-* Remove string-based parsing from `Engine`
-* Isolate protocol logic from transport logic
+  * Method
+  * Path
+  * Version
+  * Headers
+  * Body
+  * Content-Length
+
+---
+
+## 6.2 Parsing Responsibility Migration
+
+Moved from Engine → HttpRequest:
+
+✔ Request line parsing
+✔ Header parsing
+✔ Content-Length validation
+✔ Body extraction
+
+Engine no longer parses protocol.
+
+---
+
+## 6.3 Structured Parsing Pipeline
+
+Strict execution order enforced:
+
+1. Request line
+2. Header boundary
+3. Header parsing
+4. Semantic interpretation
+5. Body extraction
+
+---
+
+## 6.4 Content-Length Semantics
+
+* Stored internally
+* Validated for numeric correctness
+* Empty values rejected
+
+---
+
+## 6.5 Body Ownership
+
+* `_body` stored inside HttpRequest
+* Uses Content-Length when available
+* Prevents over-reading
+
+---
+
+## 6.6 Completeness Logic
+
+* Introduced:
+
+  bool isComplete(size_t currentBodySize)
+
+* Determines when request is ready
+
+---
+
+## 6.7 Engine Refactor
+
+Engine now ONLY:
+
+✔ receives data
+✔ appends buffer
+✔ calls parse()
+✔ checks isComplete()
+✔ sends response
+
+Removed from Engine:
+
+✘ header parsing
+✘ Content-Length validation
+✘ protocol decisions
+
+---
+
+## 6.8 Architectural Invariant (CRITICAL)
+
+Transport and protocol are fully decoupled:
+
+Engine → transport layer
+HttpRequest → protocol layer
+
+---
+
+# 🎯 Phase 6 Completion Plateau (Reached)
+
+✔ Full HTTP request abstraction complete
+✔ No duplicated parsing logic
+✔ No protocol leakage into Engine
+✔ Clean layered architecture established
+
+---
+
+# 🚀 Phase 7 — Routing Layer (CURRENT)
+
+## Objective
+
+Transform parsed request into behavior.
+
+---
+
+## 7.1 Routing Decision Layer
+
+* Use:
+
+  * request.getMethod()
+  * request.getPath()
+
+* Map request → handler
+
+---
+
+## 7.2 Initial Routing Scope
+
+* GET / → index response
+* Unknown path → 404 response
+
+---
+
+## 7.3 Architectural Role
+
+Routing bridges:
+
+Protocol → Application logic
+
+---
+
+# 🔜 Upcoming Phases
+
+## Phase 8 — Static File Serving
+
+## Phase 9 — POST Handling
+
+## Phase 10 — CGI Execution
+
+## Phase 11 — Config Integration
+
+## Phase 12 — Robustness & Edge Cases
+
+---
+
+# 📊 System Status
+
+✔ Infrastructure complete
+✔ Protocol complete
+✔ Architecture stable
+
+🔄 Application layer in progress
 
 ---
 
@@ -283,7 +385,7 @@ Phase 2 — Stable
 Phase 3 — Stable
 Phase 4 — Stable
 Phase 5 — Complete
+Phase 6 — Complete
+Phase 7 — In Progress
 
-The transport foundation is stable.
-HTTP framing and structural correctness are enforced.
-The system is ready for protocol abstraction refactoring.
+System is now transitioning from correctness → behavior.

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/21 18:47:59 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/22 02:10:11 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -176,31 +176,39 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			size_t currentBodySize = buffer.length() - bodyStart; //new
 
 			//std::map<std::string, std::string>::iterator it = headers.find("Content-Length");
-			const std::string* contentLength = request.getHeader("Content-Length");
-			if (contentLength)
-			{
-				const std::string& value = *contentLength;
-				if (value.empty())
-				{
-					conn->getWriteBuffer() = build400Response();
-					conn->setState(Connection::WRITING);
-					return;
-				}
-				for (size_t i = 0; i < value.length(); ++i)
-				{
-					if(!isdigit(value[i]))
-					{
-						conn->getWriteBuffer() = build400Response();
-						conn->setState(Connection::WRITING);
-						return;
-					}
-				}
-				size_t	expectBodySize = std::atoi(value.c_str());
-				if (currentBodySize < expectBodySize)
-				{
-					return ;
-				}
-			}
+			//const std::string* contentLength = request.getHeader("Content-Length");
+			// if (contentLength)
+			// {
+			// 	const std::string& value = *contentLength;
+			// 	if (value.empty())
+			// 	{
+			// 		conn->getWriteBuffer() = build400Response();
+			// 		conn->setState(Connection::WRITING);
+			// 		return;
+			// 	}
+			// 	for (size_t i = 0; i < value.length(); ++i)
+			// 	{
+			// 		if(!isdigit(value[i]))
+			// 		{
+			// 			conn->getWriteBuffer() = build400Response();
+			// 			conn->setState(Connection::WRITING);
+			// 			return;
+			// 		}
+			// 	}
+			// 	size_t	expectBodySize = std::atoi(value.c_str());
+			// 	if (currentBodySize < expectBodySize)
+			// 	{
+			// 		return ;
+			// 	}
+			// }
+			// if (request.hasContentLength())
+			// {
+			// 	size_t expectBodySize = request.getContentLength();
+			// 	if (currentBodySize < expectBodySize)
+			// 		return; 
+			// }
+			if (!request.isComplete(currentBodySize))
+				return ;
 			std::cout << "Request line valid\n";
 			conn->getWriteBuffer() = buildMinimalResponse();
 			conn->setState(Connection::WRITING);
