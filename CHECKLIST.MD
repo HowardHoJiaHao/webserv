@@ -276,7 +276,84 @@ recv → append buffer
 
 ---
 
-# 🚀 Phase 8 — Static File Serving (NEXT)
+# 🚀 Phase 8 — Static File Serving (COMPLETED)
+
+## 8.1 — Path Mapping
+
+* `/` → `./www/index.html`
+* `/abc` → `./www/abc`
+
+---
+
+## 8.2 — File Existence Check
+
+* Implemented using `stat()`
+* Missing file → 404
+
+---
+
+## 8.3 — File Reading
+
+* `open → read (loop) → close`
+* Handles large files correctly
+
+---
+
+## 8.4 — Response Construction
+
+* Centralized `buildResponse()`
+* Includes Content-Length & Content-Type
+
+---
+
+## 8.5 — MIME Support
+
+* `.html` → text/html
+* `.txt` → text/plain
+* default → application/octet-stream
+
+---
+
+## 8.6 — Directory Handling
+
+* Detect directory via `stat`
+* Append `/index.html`
+
+---
+
+## 8.7 — Path Traversal Protection
+
+* Reject paths containing `..`
+* Return 403 Forbidden
+
+---
+
+## 8.8 — Concurrency Validation
+
+* Parallel curl tests passed
+* No crash, no hang
+
+---
+
+# 🎯 Phase 8 Completion
+
+✔ Real file serving
+✔ Correct headers
+✔ MIME support
+✔ Directory handling
+✔ Path safety
+✔ Stable under load
+
+---
+
+# 📊 System Status
+
+✔ Transport Layer        → COMPLETE
+✔ Framing Layer          → COMPLETE
+✔ Protocol Parsing       → COMPLETE
+✔ Protocol Semantics     → COMPLETE
+✔ Routing Layer          → COMPLETE
+✔ Static File Serving    → COMPLETE
 
 ---
 
@@ -284,21 +361,28 @@ recv → append buffer
 
 ## Phase 9 — POST Handling
 
-## Phase 10 — CGI Execution
-
-## Phase 11 — Config Integration
-
-## Phase 12 — Robustness & Edge Cases
+* Request body usage
+* Content-Length correctness
 
 ---
 
-# 📊 System Status
+## Phase 10 — CGI Execution
 
-✔ Infrastructure complete
-✔ Protocol complete
-✔ Routing complete
+* fork / execve / pipe
 
-🔄 File serving not started
+---
+
+## Phase 11 — Config Integration
+
+* Host-based routing
+* root/index from config
+
+---
+
+## Phase 12 — Robustness & Edge Cases
+
+* timeout
+* error handling consistency
 
 ---
 
@@ -311,4 +395,4 @@ Phase 4 — Stable
 Phase 5 — Complete
 Phase 6 — Complete
 Phase 7 — Complete
-Phase 8 — Not Started
+Phase 8 — Complete

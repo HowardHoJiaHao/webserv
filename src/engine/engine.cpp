@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/23 01:19:00 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/23 03:21:10 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,9 @@
 #include <cstdlib>
 #include <cerrno>
 #include "httpHandling/httpRequest.hpp"
+#include "FileHandler.hpp"
+#include <sys/stat.h>
+
 
 Engine::Engine(const ConfigFiles& config) : _config(config){}
 
@@ -141,7 +144,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	}
 	catch(const std::exception& e)
 	{
-		conn->getWriteBuffer() = build400Response();
+		conn->getWriteBuffer() = buildResponse("400 Bad Request", "Bad Request", "text/plain");
 		conn->setState(Connection::WRITING);
 		return;
 	}
@@ -262,31 +265,66 @@ void Engine::run()
 	}
 }
 
-std::string Engine::build400Response()
-{
-	return "HTTP/1.1 400 Bad Request\r\n"
-		"Content-Length: 11\r\n"
-		"Content-Type: text/plain\r\n"
-		"\r\n"
-		"Bad Request";
-}
+// std::string Engine::build400Response()
+// {
+// 	return "HTTP/1.1 400 Bad Request\r\n"
+// 		"Content-Length: 11\r\n"
+// 		"Content-Type: text/plain\r\n"
+// 		"\r\n"
+// 		"Bad Request";
+// }
 
 std::string Engine::routeRequest(const HttpRequest& request)
 {
 	if (request.getMethod() != "GET")
 		return build405Response();
-	if (request.getPath() == "/")
-		return buildIndexResponse();
-	return build404Response();
+
+	if (request.getPath().find("..") != std::string::npos)
+		return buildResponse("403 Forbidden", "Forbidden", "text/plain");
+	std::string path = FileHandler::resolvePath(request.getPath());
+
+	struct stat s;
+	if (stat(path.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
+	{
+		path += "/index.html";
+	}
+
+	if (!FileHandler::fileExists(path))
+		return build404Response();
+	std::string content = FileHandler::readFile(path);
+	std::string mime = FileHandler::getMimeType(path);
+	// std::stringstream ss;
+	// ss << "HTTP/1.1 200 OK\r\n";
+	// ss << "Content-Length: " << content.size() << "\r\n";
+	// ss << "Content-Type: " << mime << "\r\n";
+	// ss << "\r\n";
+	// ss << content;
+
+	return buildResponse("200 OK", content, mime);
+	// if (request.getPath() == "/")
+	// 	return buildIndexResponse();
+	// return build404Response();
+}
+
+std::string Engine::buildResponse
+(
+	const std::string& status,
+	const std::string& body,
+	const std::string& contentType
+)
+{
+	std::stringstream ss;
+	ss << "HTTP/1.1 " << status << "\r\n";
+    ss << "Content-Length: " << body.size() << "\r\n";
+    ss << "Content-Type: " << contentType << "\r\n";
+    ss << "\r\n";
+    ss << body;
+    return ss.str();
 }
 
 std::string Engine::build405Response()
 {
-	return "HTTP/1.1 405 Method Not Allowed\r\n"
-		"Content-Length: 18\r\n"
-		"Content-Type: text/plain\r\n"
-		"\r\n"
-		"Method Not Allowed";
+	return buildResponse("405 Method Not Allowed", "Method Not Allowed", "text/plain");
 }
 
 std::string Engine::buildIndexResponse()
@@ -300,10 +338,6 @@ std::string Engine::buildIndexResponse()
 
 std::string Engine::build404Response()
 {
-	return "HTTP/1.1 404 Not Found\r\n"
-			"Content-Length: 9\r\n"
-			"Content-Type: text/plain\r\n"
-			"\r\n"
-			"Not Found";
+	return buildResponse("404 Not Found", "Not Found", "text/plain");
 }
 
