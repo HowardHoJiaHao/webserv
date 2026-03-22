@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:37:17 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/22 02:08:11 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/23 00:54:47 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,9 +24,11 @@ class HttpRequest
 		std::string _path;
 		std::string _version;
 		std::map<std::string, std::string> _headers;
+		std::string _raw;
 		std::string _body;
 		size_t		_contentLength;
 		bool		_hasContentLength;
+		bool		_headersParsed;
 
 	public:
 		HttpRequest();
@@ -41,7 +43,7 @@ class HttpRequest
 		bool hasContentLength() const;
 		size_t getContentLength() const;
 
-		bool isComplete(size_t currentBodySize) const;
+		bool isComplete() const;
 
 		void parse(const std::string& rawRequest);
 

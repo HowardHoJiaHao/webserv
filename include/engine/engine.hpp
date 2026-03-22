@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/26 10:10:49 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/23 01:22:18 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 #include <utility>
 #include <string>
 #include "Connection.hpp"
+#include "httpHandling/httpRequest.hpp"
 
 #ifndef ENGINE_HPP
 #define ENGINE_HPP
@@ -39,8 +40,11 @@ class Engine
 		void	setupListeningSockets();
 		void	run();
 		std::string buildMinimalResponse();
+		std::string build405Response();
+		std::string buildIndexResponse();
+		std::string build404Response();
 		std::string build400Response();
-		bool		parseRequestLine(Connection* conn);
+		std::string routeRequest(const HttpRequest& request);
 
 };
 

@@ -213,150 +213,74 @@ A connection in `WRITING` never receives.
 
 ---
 
-# ✅ Phase 6 — HTTP Abstraction Layer (NEWLY COMPLETED)
+# ✅ Phase 6 — HTTP Abstraction Layer (Completed)
 
-This phase introduces a critical architectural separation.
+## Key Achievements
 
----
-
-## 6.1 HttpRequest Introduction
-
-* New abstraction layer created
-* Encapsulates full request state:
-
-  * Method
-  * Path
-  * Version
-  * Headers
-  * Body
-  * Content-Length
+✔ HttpRequest introduced as protocol owner
+✔ Parsing fully moved out of Engine
+✔ Content-Length handled internally
+✔ Body extraction handled internally
+✔ isComplete() determines readiness
 
 ---
 
-## 6.2 Parsing Responsibility Migration
+## Architectural Invariant
 
-Moved from Engine → HttpRequest:
-
-✔ Request line parsing
-✔ Header parsing
-✔ Content-Length validation
-✔ Body extraction
-
-Engine no longer parses protocol.
-
----
-
-## 6.3 Structured Parsing Pipeline
-
-Strict execution order enforced:
-
-1. Request line
-2. Header boundary
-3. Header parsing
-4. Semantic interpretation
-5. Body extraction
-
----
-
-## 6.4 Content-Length Semantics
-
-* Stored internally
-* Validated for numeric correctness
-* Empty values rejected
-
----
-
-## 6.5 Body Ownership
-
-* `_body` stored inside HttpRequest
-* Uses Content-Length when available
-* Prevents over-reading
-
----
-
-## 6.6 Completeness Logic
-
-* Introduced:
-
-  bool isComplete(size_t currentBodySize)
-
-* Determines when request is ready
-
----
-
-## 6.7 Engine Refactor
-
-Engine now ONLY:
-
-✔ receives data
-✔ appends buffer
-✔ calls parse()
-✔ checks isComplete()
-✔ sends response
-
-Removed from Engine:
-
-✘ header parsing
-✘ Content-Length validation
-✘ protocol decisions
-
----
-
-## 6.8 Architectural Invariant (CRITICAL)
-
-Transport and protocol are fully decoupled:
-
-Engine → transport layer
-HttpRequest → protocol layer
+Engine → transport only
+HttpRequest → protocol only
 
 ---
 
 # 🎯 Phase 6 Completion Plateau (Reached)
 
-✔ Full HTTP request abstraction complete
-✔ No duplicated parsing logic
 ✔ No protocol leakage into Engine
-✔ Clean layered architecture established
+✔ Clean separation achieved
 
 ---
 
-# 🚀 Phase 7 — Routing Layer (CURRENT)
+# ✅ Phase 7 — Routing Layer (Completed)
 
-## Objective
+## 7.1 Routing Logic
 
-Transform parsed request into behavior.
-
----
-
-## 7.1 Routing Decision Layer
-
-* Use:
-
-  * request.getMethod()
-  * request.getPath()
-
-* Map request → handler
+* routeRequest(const HttpRequest& request)
+* No global state
+* Pure decision layer
 
 ---
 
-## 7.2 Initial Routing Scope
+## 7.2 Supported Behavior
 
-* GET / → index response
-* Unknown path → 404 response
+* GET / → 200 OK (index)
+* GET unknown path → 404 Not Found
+* Non-GET method → 405 Method Not Allowed
+* Invalid request → 400 Bad Request
 
 ---
 
-## 7.3 Architectural Role
+## 7.3 Execution Flow
 
-Routing bridges:
+recv → append buffer
+→ parse()
+→ isComplete()
+→ routeRequest()
+→ send()
 
-Protocol → Application logic
+---
+
+# 🎯 Phase 7 Completion Plateau (Reached)
+
+✔ Correct HTTP status codes
+✔ Clean routing layer
+✔ No logic leakage
+
+---
+
+# 🚀 Phase 8 — Static File Serving (NEXT)
 
 ---
 
 # 🔜 Upcoming Phases
-
-## Phase 8 — Static File Serving
 
 ## Phase 9 — POST Handling
 
@@ -372,9 +296,9 @@ Protocol → Application logic
 
 ✔ Infrastructure complete
 ✔ Protocol complete
-✔ Architecture stable
+✔ Routing complete
 
-🔄 Application layer in progress
+🔄 File serving not started
 
 ---
 
@@ -386,6 +310,5 @@ Phase 3 — Stable
 Phase 4 — Stable
 Phase 5 — Complete
 Phase 6 — Complete
-Phase 7 — In Progress
-
-System is now transitioning from correctness → behavior.
+Phase 7 — Complete
+Phase 8 — Not Started

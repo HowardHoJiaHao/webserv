@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/22 02:18:24 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/23 01:00:14 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,8 @@ HttpRequest::HttpRequest()
 	  _version(""),
 	  _body(""),
 	  _contentLength(0),
-	  _hasContentLength(false)
+	  _hasContentLength(false),
+	  _headersParsed(false)
 {
 }
 
@@ -55,6 +56,9 @@ const std::string& HttpRequest::getBody() const
 
 void HttpRequest::parse(const std::string& rawRequest)
 {
+	_raw = rawRequest;
+	if (_headersParsed)
+		return ;
 	_headers.clear();
 	_contentLength = 0;
 	_hasContentLength = false;
@@ -80,7 +84,7 @@ void HttpRequest::parse(const std::string& rawRequest)
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
 	if (headerEnd == std::string::npos)
-		throw std::runtime_error("Headers not complete");
+		return;
 
 	std::string headerSection = rawRequest.substr(0, headerEnd);
 	std::istringstream stream(headerSection);
@@ -126,7 +130,11 @@ void HttpRequest::parse(const std::string& rawRequest)
 	if (bodyStart < rawRequest.size())
 	{
 		if(_hasContentLength)
-			_body = rawRequest.substr(bodyStart, _contentLength);
+		{
+			size_t available = rawRequest.size() - bodyStart;
+			if (available >= _contentLength)
+				_body = rawRequest.substr(bodyStart, _contentLength);
+		}
 		else
 			_body = rawRequest.substr(bodyStart);
 		
@@ -134,12 +142,19 @@ void HttpRequest::parse(const std::string& rawRequest)
 	else
 		_body.clear();
 
-
+	_headersParsed = true;
 }
 
-bool	HttpRequest::isComplete(size_t currentBodySize) const
+bool	HttpRequest::isComplete() const
 {
-	if (_hasContentLength)
-		return currentBodySize >= _contentLength;
-	return true;
+	size_t headerEnd = _raw.find("\r\n\r\n");
+	if (headerEnd == std::string::npos)
+		return false;
+
+	if (!_hasContentLength)
+		return true;
+
+	size_t bodyStart = headerEnd + 4;
+	size_t currentBodySize = _raw.length() - bodyStart;
+	return currentBodySize >= _contentLength;
 }

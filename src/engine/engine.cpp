@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/22 02:10:11 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/23 01:19:00 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -128,95 +128,30 @@ void Engine::acceptPendingClientConnections(fd_set& readSet)
 	}
 }
 
-bool Engine::parseRequestLine(Connection* conn)
-{
-	std::string& buffer = conn->getReadBuffer();
-	size_t lineEnd = buffer.find("\r\n");
-	if (lineEnd == std::string::npos)
-		return false;
-	std::string requestLine = buffer.substr(0, lineEnd);
-	std::istringstream iss(requestLine);
-	std::string method, path, version;
 
-	if (!(iss >> method >> path >> version))
-		return false;
-	std::string extra;
-	if (iss >> extra)
-		return false;
-	if (path.empty() || path[0] != '/')
-		return false;
-	if (version.find("HTTP/") != 0)
-		return false;
-	return true;
-}
 
 void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes)
 {
-	std::cout << "State before detection: " << conn->getState() << std::endl;
+	//std::cout << "State before detection: " << conn->getState() << std::endl;
 	conn->appendToReadBuffer(buffer, bytes);
-	if (conn->getState() == Connection::READING)
+	HttpRequest request;
+	try
 	{
-		if (conn->headerComplete())
-		{
-			HttpRequest request;
-			try
-			{
-				request.parse(conn->getReadBuffer());
-			}
-			catch(const std::exception& e)
-			{
-				conn->getWriteBuffer() = build400Response();
-				conn->setState(Connection::WRITING);
-				return; 
-			}
-			
-			std::string& buffer = conn->getReadBuffer();
-			size_t headerEnd = buffer.find("\r\n\r\n");
-			size_t bodyStart = headerEnd + 4; //new
-			size_t currentBodySize = buffer.length() - bodyStart; //new
-
-			//std::map<std::string, std::string>::iterator it = headers.find("Content-Length");
-			//const std::string* contentLength = request.getHeader("Content-Length");
-			// if (contentLength)
-			// {
-			// 	const std::string& value = *contentLength;
-			// 	if (value.empty())
-			// 	{
-			// 		conn->getWriteBuffer() = build400Response();
-			// 		conn->setState(Connection::WRITING);
-			// 		return;
-			// 	}
-			// 	for (size_t i = 0; i < value.length(); ++i)
-			// 	{
-			// 		if(!isdigit(value[i]))
-			// 		{
-			// 			conn->getWriteBuffer() = build400Response();
-			// 			conn->setState(Connection::WRITING);
-			// 			return;
-			// 		}
-			// 	}
-			// 	size_t	expectBodySize = std::atoi(value.c_str());
-			// 	if (currentBodySize < expectBodySize)
-			// 	{
-			// 		return ;
-			// 	}
-			// }
-			// if (request.hasContentLength())
-			// {
-			// 	size_t expectBodySize = request.getContentLength();
-			// 	if (currentBodySize < expectBodySize)
-			// 		return; 
-			// }
-			if (!request.isComplete(currentBodySize))
-				return ;
-			std::cout << "Request line valid\n";
-			conn->getWriteBuffer() = buildMinimalResponse();
-			conn->setState(Connection::WRITING);
-		
-		}
+		request.parse(conn->getReadBuffer());
 	}
-	//conn->getWriteBuffer() = buildMinimalResponse();
-	//conn->setState(Connection::WRITING);
+	catch(const std::exception& e)
+	{
+		conn->getWriteBuffer() = build400Response();
+		conn->setState(Connection::WRITING);
+		return;
+	}
+	// size_t headerEnd = conn->getReadBuffer().find("\r\n\r\n");
+	// size_t bodyStart = (headerEnd == std::string::npos) ? 0 : headerEnd + 4;
+	// size_t currentBodySize = conn->getReadBuffer().length() - bodyStart;
+	if (!request.isComplete())
+		return;
+	conn->getWriteBuffer() = routeRequest(request);
+	conn->setState(Connection::WRITING);
 }
 
 void Engine::processIncomingData(fd_set& readSet)
@@ -336,24 +271,39 @@ std::string Engine::build400Response()
 		"Bad Request";
 }
 
-std::string Engine::buildMinimalResponse()
+std::string Engine::routeRequest(const HttpRequest& request)
+{
+	if (request.getMethod() != "GET")
+		return build405Response();
+	if (request.getPath() == "/")
+		return buildIndexResponse();
+	return build404Response();
+}
+
+std::string Engine::build405Response()
+{
+	return "HTTP/1.1 405 Method Not Allowed\r\n"
+		"Content-Length: 18\r\n"
+		"Content-Type: text/plain\r\n"
+		"\r\n"
+		"Method Not Allowed";
+}
+
+std::string Engine::buildIndexResponse()
 {
 	return "HTTP/1.1 200 OK\r\n"
 		"Content-Length: 13\r\n"
 		"Content-Type: text/plain\r\n"
-		"Connection: close\r\n"
 		"\r\n"
 		"Hello, world!";
-
-	// alternatively
-	// std::string body(2000000, 'A');
-
-	// std::ostringstream oss;
-	// oss << "HTTP/1.1 200 OK\r\n";
-	// oss << "Content-Length: " << body.size() << "\r\n";
-	// oss << "Content-Type: text/plain\r\n";
-	// oss << "Connection: close\r\n";
-	// oss << "\r\n";
-	// oss << body;
-	// return oss.str();
 }
+
+std::string Engine::build404Response()
+{
+	return "HTTP/1.1 404 Not Found\r\n"
+			"Content-Length: 9\r\n"
+			"Content-Type: text/plain\r\n"
+			"\r\n"
+			"Not Found";
+}
+
