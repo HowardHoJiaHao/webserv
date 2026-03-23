@@ -35,12 +35,21 @@ void ConfigFiles::initDummy()
 
 	LocationConfig loc1;
 	loc1.setPath("/");
-	loc1.setAllowedMethods(std::vector<std::string>{"GET", "POST"});
+	{
+		std::vector<std::string> methods;
+		methods.push_back("GET");
+		methods.push_back("POST");
+		loc1.setAllowedMethods(methods);
+	}
 	loc1.setUploadEnabled(false);
 	
 	LocationConfig loc2;
 	loc2.setPath("/Upload");
-	loc2.setAllowedMethods(std::vector<std::string>{"POST"});
+	{
+		std::vector<std::string> methods;
+		methods.push_back("POST");
+		loc2.setAllowedMethods(methods);
+	}
 	loc2.setUploadEnabled(true);
 	loc2.setUploadPath("./uploads");
 
@@ -58,7 +67,11 @@ void ConfigFiles::initDummy()
 
 	LocationConfig loc3;
 	loc3.setPath("/");
-	loc3.setAllowedMethods(std::vector<std::string>{"GET"});
+	{
+		std::vector<std::string> methods;
+		methods.push_back("GET");
+		loc3.setAllowedMethods(methods);
+	}
 	loc3.setUploadEnabled(false);
 
 	server2.addLocation(loc3);

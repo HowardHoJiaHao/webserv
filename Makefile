@@ -12,7 +12,7 @@
 
 # Compiler and flags
 CXX			= c++
-CXXFLAGS	= -Wall -Wextra -Werror -std=c++11
+CXXFLAGS	= -Wall -Wextra -Werror -std=c++98
 CPPFLAGS	= -I./include -I./include/config -I./include/engine -I./include/httpHandling
 
 # Target executable
@@ -78,8 +78,9 @@ fclean: clean
 	@rm -f $(TARGET)
 	@echo "$(GREEN)✓ Full clean complete$(NC)"
 
-# Rebuild everything
-re: fclean all
+# Rebuild everything (force ordering even with -j)
+re: fclean
+	@$(MAKE) all
 
 # Phony targets
 .PHONY: all clean fclean re
