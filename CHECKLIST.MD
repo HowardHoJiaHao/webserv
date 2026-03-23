@@ -227,15 +227,15 @@ A connection in `WRITING` never receives.
 
 ## Architectural Invariant
 
-Engine → transport only
+Engine → transport + routing + execution
 HttpRequest → protocol only
 
 ---
 
 # 🎯 Phase 6 Completion Plateau (Reached)
 
-✔ No protocol leakage into Engine
-✔ Clean separation achieved
+✔ No protocol leakage into Engine (parsing isolated)
+✔ Clean separation achieved for protocol layer
 
 ---
 
@@ -245,7 +245,7 @@ HttpRequest → protocol only
 
 * routeRequest(const HttpRequest& request)
 * No global state
-* Pure decision layer
+* Central decision layer
 
 ---
 
@@ -272,7 +272,7 @@ recv → append buffer
 
 ✔ Correct HTTP status codes
 ✔ Clean routing layer
-✔ No logic leakage
+✔ No protocol leakage
 
 ---
 
@@ -346,25 +346,96 @@ recv → append buffer
 
 ---
 
-# 📊 System Status
+# 🚀 Phase 9 — POST Handling (COMPLETED)
+
+## 9.1 — Request Body Integration
+
+* HttpRequest guarantees full body accumulation
+* Content-Length enforced strictly
+* isComplete() includes body completeness
+
+**Invariant:**
+No request processed before full body is received
+
+---
+
+## 9.2 — Incremental Body Handling
+
+* Supports partial reads across multiple recv()
+* Body updated progressively
+* Body only valid when complete
+
+**Invariant:**
+isComplete() == true ⇔ body is valid
+
+---
+
+## 9.3 — POST Routing Integration
+
+* routeRequest extended with POST dispatch
+* Clean separation from GET logic
+
+---
+
+## 9.4 — POST Execution
+
+* Body written to filesystem
+* Target file: `./www/upload.txt`
+
+Uses:
+
+* open (O_CREAT | O_WRONLY | O_TRUNC)
+* loop-based write()
+
+---
+
+## 9.5 — Execution Safety
+
+* Execution only happens when request is complete
+* Prevents partial write and corruption
+
+---
+
+## 9.6 — Error Handling
+
+* open failure → 500
+* write failure → 500
+
+---
+
+## 9.7 — End-to-End Flow
+
+recv → buffer
+→ parse (headers + body)
+→ isComplete
+→ routeRequest
+→ POST execution
+→ send
+
+---
+
+# 🎯 Phase 9 Completion
+
+✔ POST supported
+✔ Safe body handling
+✔ Correct file write
+✔ No partial execution
+✔ Stable under load
+
+---
+
+# 📊 System Status (UPDATED)
 
 ✔ Transport Layer        → COMPLETE
 ✔ Framing Layer          → COMPLETE
 ✔ Protocol Parsing       → COMPLETE
-✔ Protocol Semantics     → COMPLETE
 ✔ Routing Layer          → COMPLETE
 ✔ Static File Serving    → COMPLETE
+✔ POST Handling          → COMPLETE
 
 ---
 
 # 🔜 Upcoming Phases
-
-## Phase 9 — POST Handling
-
-* Request body usage
-* Content-Length correctness
-
----
 
 ## Phase 10 — CGI Execution
 
@@ -396,3 +467,4 @@ Phase 5 — Complete
 Phase 6 — Complete
 Phase 7 — Complete
 Phase 8 — Complete
+Phase 9 — Complete

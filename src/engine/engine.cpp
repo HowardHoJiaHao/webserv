@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/23 03:21:10 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/23 18:11:12 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -276,23 +276,41 @@ void Engine::run()
 
 std::string Engine::routeRequest(const HttpRequest& request)
 {
-	if (request.getMethod() != "GET")
-		return build405Response();
-
-	if (request.getPath().find("..") != std::string::npos)
-		return buildResponse("403 Forbidden", "Forbidden", "text/plain");
-	std::string path = FileHandler::resolvePath(request.getPath());
-
-	struct stat s;
-	if (stat(path.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
+	if (request.getMethod() == "GET")
 	{
-		path += "/index.html";
-	}
+		if (request.getPath().find("..") != std::string::npos)
+			return buildResponse("403 Forbidden", "Forbidden", "text/plain");
+		std::string path = FileHandler::resolvePath(request.getPath());
+		struct stat s;
+		if (stat(path.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
+			path += "/index.html";
 
-	if (!FileHandler::fileExists(path))
-		return build404Response();
-	std::string content = FileHandler::readFile(path);
-	std::string mime = FileHandler::getMimeType(path);
+		if (!FileHandler::fileExists(path))
+			return build404Response();
+		std::string content = FileHandler::readFile(path);
+		std::string mime = FileHandler::getMimeType(path);
+		return buildResponse("200 OK", content,mime);
+	}
+	if (request.getMethod() == "POST")
+		return handlePost(request);
+	return build405Response();
+	// if (request.getMethod() != "GET")
+	// 	return build405Response();
+
+	// if (request.getPath().find("..") != std::string::npos)
+	// 	return buildResponse("403 Forbidden", "Forbidden", "text/plain");
+	// std::string path = FileHandler::resolvePath(request.getPath());
+
+	// struct stat s;
+	// if (stat(path.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
+	// {
+	// 	path += "/index.html";
+	// }
+
+	// if (!FileHandler::fileExists(path))
+	// 	return build404Response();
+	// std::string content = FileHandler::readFile(path);
+	// std::string mime = FileHandler::getMimeType(path);
 	// std::stringstream ss;
 	// ss << "HTTP/1.1 200 OK\r\n";
 	// ss << "Content-Length: " << content.size() << "\r\n";
@@ -300,10 +318,36 @@ std::string Engine::routeRequest(const HttpRequest& request)
 	// ss << "\r\n";
 	// ss << content;
 
-	return buildResponse("200 OK", content, mime);
+	// return buildResponse("200 OK", content, mime);
 	// if (request.getPath() == "/")
 	// 	return buildIndexResponse();
 	// return build404Response();
+}
+
+std::string Engine::handlePost(const HttpRequest& request)
+{
+	if (!request.isComplete())
+		return "";
+
+	const std::string& body = request.getBody();
+
+	std::string path = "./www/upload.txt";
+	int fd = open(path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
+	if (fd < 0)
+		return buildResponse("500 Internal Server Error", "Open Failed", "text/plain");
+	size_t total = 0;
+	while (total < body.size())
+	{
+		ssize_t written = write(fd, body.data() + total, body.size() - total);
+		if (written <= 0)
+		{
+			close(fd);
+			return buildResponse("500 Internal Server Error", "Write failed", "text/plain");
+		}
+		total += written;
+	}
+	close(fd);
+	return buildResponse("200 OK", "OK", "text/plain");
 }
 
 std::string Engine::buildResponse

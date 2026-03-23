@@ -3,22 +3,26 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/23 02:53:29 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/23 18:03:25 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+#ifndef ENGINE_HPP
+#define ENGINE_HPP
+
 #include "ConfigFiles.hpp"
-#include <map>
-#include <utility>
-#include <string>
 #include "Connection.hpp"
 #include "httpHandling/httpRequest.hpp"
 
-#ifndef ENGINE_HPP
-#define ENGINE_HPP
+#include <map>
+#include <string>
+#include <utility>
+
+#include <sys/select.h> // fd_set, FD_* macros
+#include <sys/types.h>  // ssize_t
 
 class Engine
 {
@@ -46,7 +50,7 @@ class Engine
 		std::string build400Response();
 		std::string buildResponse(const std::string& status, const std::string& body, const std::string& contentType);
 		std::string routeRequest(const HttpRequest& request);
-
+		std::string handlePost(const HttpRequest& request);
 };
 
 #endif
