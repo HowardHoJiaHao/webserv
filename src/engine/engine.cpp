@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/23 18:11:12 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/24 18:50:21 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,6 +68,7 @@ void Engine::setupListeningSockets()
 		throw std::runtime_error("No listening sockets created");
 }
 
+// check if localhost and 127.0.0.1 since both are local
 void Engine::registerListenSocketsForSelect(fd_set& readSet, int& maxFd)
 {
 	for (std::map<std::pair<std::string, int>, int>::const_iterator it = _listenSockets.begin();
