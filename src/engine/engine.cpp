@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/24 18:50:21 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/25 02:36:48 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -82,6 +82,8 @@ void Engine::registerListenSocketsForSelect(fd_set& readSet, int& maxFd)
 	}
 }
 
+// pointer cannot be store, reassigned or managed inside a container, but pointer can
+// pointer enable persistency and changing state and stored in map
 void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, int& maxFd)
 {
 	for (std::map<int, Connection*>::const_iterator it = _connections.begin();
@@ -89,7 +91,7 @@ void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, in
 	{
 		//std::cout << "tracking client fd=" << it->first << std::endl;
 		int fd = it->first;
-
+		// check if this fd is valid
 		if (fcntl(fd, F_GETFD) == -1)
 		{
 			perror("FD invalid");
@@ -237,6 +239,9 @@ void Engine::processOutgoingData(fd_set& writeSet)
 }
 
 // fd_set is a box of switches indexed by fd number
+// the program will sleep when it reach select function until at least one signal with readset or 
+// writeset is ready
+
 void Engine::run()
 {
 	std::cout << "Server running..." << std::endl;
