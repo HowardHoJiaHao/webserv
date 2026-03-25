@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/25 17:07:50 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/25 18:23:29 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -185,6 +185,7 @@ void Engine::processIncomingData(fd_set& readSet)
 			else if (bytes == 0)
 			{
 				std::cout << "Client disconnected on fd=" << clientFd << std::endl;
+				close(clientFd);
 				delete it->second;
 				_clientConnections.erase(it++);
 			}
@@ -196,6 +197,7 @@ void Engine::processIncomingData(fd_set& readSet)
 					continue;
 				}
 				perror("recv");
+				close(clientFd);
 				delete it->second;
 				_clientConnections.erase(it++);
 			}
