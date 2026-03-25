@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/23 18:03:25 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/25 15:39:43 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,7 +29,7 @@ class Engine
 	private:
 		const ConfigFiles& _config;
 		std::map<std::pair<std::string,int>, int> _listenSockets;
-		std::map<int, Connection*> _connections;
+		std::map<int, Connection*> _clientConnections;
 
 		void registerListenSocketsForSelect(fd_set& readSet, int& maxFd);
 		void registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, int& maxFd);

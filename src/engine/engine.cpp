@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/25 02:36:48 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/25 17:07:50 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,8 +35,8 @@ Engine::Engine(const ConfigFiles& config) : _config(config){}
 //close fd, destructor
 Engine::~Engine()
 {
-	for (std::map<int, Connection*>::iterator it = _connections.begin();
-		it != _connections.end(); ++it)
+	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
+		it != _clientConnections.end(); ++it)
 	{
 		delete it->second;
 	}
@@ -86,8 +86,8 @@ void Engine::registerListenSocketsForSelect(fd_set& readSet, int& maxFd)
 // pointer enable persistency and changing state and stored in map
 void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, int& maxFd)
 {
-	for (std::map<int, Connection*>::const_iterator it = _connections.begin();
-		it != _connections.end(); ++it)
+	for (std::map<int, Connection*>::const_iterator it = _clientConnections.begin();
+		it != _clientConnections.end(); ++it)
 	{
 		//std::cout << "tracking client fd=" << it->first << std::endl;
 		int fd = it->first;
@@ -106,12 +106,14 @@ void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, in
 	}
 }
 
+// _listenSockets -> clientSocketConnection
 void Engine::acceptPendingClientConnections(fd_set& readSet)
 {
 	for (std::map<std::pair<std::string, int>, int>::const_iterator it = _listenSockets.begin();
 		it != _listenSockets.end(); ++it)
 	{
 		int listenFd = it->second;
+		// is listenFd present in readSet, modified by select()
 		if (FD_ISSET(listenFd, &readSet))
 		{
 			int clientFd = accept(listenFd, NULL, NULL);
@@ -128,7 +130,7 @@ void Engine::acceptPendingClientConnections(fd_set& readSet)
 					close(clientFd);
 					continue;
 				}
-				_connections[clientFd] = new Connection(clientFd);
+				_clientConnections[clientFd] = new Connection(clientFd);
 			}
 		}
 	}
@@ -162,8 +164,8 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 
 void Engine::processIncomingData(fd_set& readSet)
 {
-	for (std::map<int, Connection*>::iterator it = _connections.begin();
-			it != _connections.end();)
+	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
+			it != _clientConnections.end();)
 	{
 		int clientFd = it->first;
 		if (FD_ISSET(clientFd, &readSet))
@@ -171,16 +173,20 @@ void Engine::processIncomingData(fd_set& readSet)
 			char buffer[1024];
 			ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
 			std::cout << "recv returned: " << bytes << std::endl;
+			// i received the actual data
+			// process it
+			// stay at this iterator
 			if (bytes > 0)
 			{
 				handleClientRequest(it->second, buffer, bytes);
+				++it;
 				continue;
 			}
 			else if (bytes == 0)
 			{
 				std::cout << "Client disconnected on fd=" << clientFd << std::endl;
 				delete it->second;
-				_connections.erase(it++);
+				_clientConnections.erase(it++);
 			}
 			else
 			{
@@ -191,7 +197,7 @@ void Engine::processIncomingData(fd_set& readSet)
 				}
 				perror("recv");
 				delete it->second;
-				_connections.erase(it++);
+				_clientConnections.erase(it++);
 			}
 		}
 		else
@@ -201,8 +207,8 @@ void Engine::processIncomingData(fd_set& readSet)
 
 void Engine::processOutgoingData(fd_set& writeSet)
 {
-	for (std::map<int, Connection*>::iterator it = _connections.begin();
-			it != _connections.end();)
+	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
+			it != _clientConnections.end();)
 	{
 		int clientFd = it->first;
 		if (FD_ISSET(clientFd, &writeSet))
@@ -223,13 +229,13 @@ void Engine::processOutgoingData(fd_set& writeSet)
 					}
 					perror("send");
 					delete it->second;
-					_connections.erase(it++);
+					_clientConnections.erase(it++);
 					continue;
 				}
 				if (writebuffer.empty())
 				{
 					delete it->second;
-					_connections.erase(it++);
+					_clientConnections.erase(it++);
 					continue;
 				}
 			}
@@ -258,6 +264,7 @@ void Engine::run()
 		registerClientSocketForSelect(readSet, writeSet, maxFd);
 		int readyFdCount = select(maxFd + 1, &readSet, &writeSet, NULL, NULL);
 		std::cout << "select return= " << readyFdCount << std::endl;
+		// signal interrupts it (EINTR)
 		if (readyFdCount < 0)
 		{
 			if (errno == EINTR)
