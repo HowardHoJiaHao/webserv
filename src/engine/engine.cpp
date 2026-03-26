@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/25 18:23:29 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/26 17:28:56 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -136,7 +136,10 @@ void Engine::acceptPendingClientConnections(fd_set& readSet)
 	}
 }
 
-
+// request line : 1) method, 2) path, 3) version, eg: GET / HTTP/1.1 \r\n
+// header : 1) localhost, 2) content-length
+// empty line
+// body (optional)
 
 void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes)
 {
@@ -170,9 +173,11 @@ void Engine::processIncomingData(fd_set& readSet)
 		int clientFd = it->first;
 		if (FD_ISSET(clientFd, &readSet))
 		{
+			// if clients sends higher than buffer limit
+			// select() -> still readable, and will call recv again later
 			char buffer[1024];
 			ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
-			std::cout << "recv returned: " << bytes << std::endl;
+			//std::cout << "recv returned: " << bytes << std::endl;
 			// i received the actual data
 			// process it
 			// stay at this iterator
@@ -374,11 +379,11 @@ std::string Engine::buildResponse
 {
 	std::stringstream ss;
 	ss << "HTTP/1.1 " << status << "\r\n";
-    ss << "Content-Length: " << body.size() << "\r\n";
-    ss << "Content-Type: " << contentType << "\r\n";
-    ss << "\r\n";
-    ss << body;
-    return ss.str();
+	ss << "Content-Length: " << body.size() << "\r\n";
+	ss << "Content-Type: " << contentType << "\r\n";
+	ss << "\r\n";
+	ss << body;
+	return ss.str();
 }
 
 std::string Engine::build405Response()

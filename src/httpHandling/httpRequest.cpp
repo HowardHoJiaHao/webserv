@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/23 16:28:45 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/26 18:41:17 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,6 +60,7 @@ void HttpRequest::parse(const std::string& rawRequest)
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
 	if (headerEnd == std::string::npos)
 		return;
+	//header only parsed once
 	if (!_headersParsed)
 	{
 	// 	return ;
@@ -70,12 +71,15 @@ void HttpRequest::parse(const std::string& rawRequest)
 		size_t pos = rawRequest.find("\r\n");
 		if (pos == std::string::npos)
 			throw std::runtime_error("Invalid request line");
+		// full request line
 		std::string requestLine = rawRequest.substr(0, pos);
 
 		std::istringstream iss(requestLine);
+		// split by empty line
 		if (!(iss >> _method >> _path >> _version))
 			throw std::runtime_error("Malformed request line");
 		
+		// validation
 		if (_path.empty() || _path[0] != '/')
 			throw std::runtime_error("invalid path");
 		
@@ -91,21 +95,29 @@ void HttpRequest::parse(const std::string& rawRequest)
 		std::string line;
 		bool firstLine = true;
 
+		// GET / HTTP/1.1\r\n
+		// Host: localhost\r\n <- header start here
+		// Content-Length: 5\r\n
 		while (std::getline(stream, line))
 		{
+			// the getline will remove \n but not \r
 			if (!line.empty() && line[line.length() - 1] == '\r')
 				line.erase(line.length() - 1);
+			// skip first line, and already parsed
 			if (firstLine)
 			{
 				firstLine = false;
 				continue;
 			}
+
+			// parse the host and content length
 			size_t colonPos = line.find(':');
 			if (colonPos == std::string::npos)
 				throw std::runtime_error("malformed header");
 			std::string key = line.substr(0, colonPos);
 			std::string value = line.substr(colonPos + 1);
 
+			// remove leading space
 			if (!value.empty() && value[0] == ' ')
 				value.erase(0, 1);
 			_headers[key] = value;
@@ -123,6 +135,7 @@ void HttpRequest::parse(const std::string& rawRequest)
 					throw std::runtime_error("Invalid Content-Length");
 			}
 			std::istringstream iss(value);
+			// convert str to number
 			iss >> _contentLength;
 			if (iss.fail())
 				throw std::runtime_error("Invalid Content-Length");
@@ -132,23 +145,25 @@ void HttpRequest::parse(const std::string& rawRequest)
 		}
 		_headersParsed = true;
 	}
-		size_t bodyStart = headerEnd + 4;
 
-		if (!_hasContentLength)
-		{
-			if (bodyStart < rawRequest.size())
-				_body = rawRequest.substr(bodyStart);
-		}
+	//body is after the headerEnd
+	size_t bodyStart = headerEnd + 4;
+	// anything exist after headers, treat it as body, if no content length
+	if (!_hasContentLength) //has some bug, real http doesnt work like this, should be error
+	{
+		if (bodyStart < rawRequest.size())
+			_body = rawRequest.substr(bodyStart);
+	}
+	else
+	{
+		size_t receivedBodyBytes = 0;
+		if (rawRequest.size() > bodyStart)
+			receivedBodyBytes = rawRequest.size() - bodyStart;
+		if (receivedBodyBytes >= _contentLength)
+			_body = rawRequest.substr(bodyStart, _contentLength);
 		else
-		{
-			size_t available = 0;
-			if (rawRequest.size() > bodyStart)
-				available = rawRequest.size() - bodyStart;
-			if (available >= _contentLength)
-				_body = rawRequest.substr(bodyStart, _contentLength);
-			else
-				_body.clear();
-		}
+			_body.clear();
+	}
 	
 }
 
