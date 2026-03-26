@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/26 17:28:56 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 01:35:06 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,6 +28,7 @@
 #include "httpHandling/httpRequest.hpp"
 #include "FileHandler.hpp"
 #include <sys/stat.h>
+#include "extractRequest.hpp"
 
 
 Engine::Engine(const ConfigFiles& config) : _config(config){}
@@ -145,24 +146,26 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 {
 	//std::cout << "State before detection: " << conn->getState() << std::endl;
 	conn->appendToReadBuffer(buffer, bytes);
-	HttpRequest request;
-	try
+	std::string& readBuffer = conn->getReadBuffer();
+	std::string rawRequest;
+
+	while (extractRequest(readBuffer, rawRequest))
 	{
-		request.parse(conn->getReadBuffer());
-	}
-	catch(const std::exception& e)
-	{
-		conn->getWriteBuffer() = buildResponse("400 Bad Request", "Bad Request", "text/plain");
+		HttpRequest request;
+		try
+		{
+			request.parse(rawRequest);
+		}
+		catch (const std::exception& e)
+		{
+			conn->getWriteBuffer() = buildResponse("400 Bad request", "Bad Request", "text/plain");
+			conn->setState(Connection::WRITING);
+			return;
+		}
+		conn->getWriteBuffer() = routeRequest(request);
 		conn->setState(Connection::WRITING);
-		return;
+		break;
 	}
-	// size_t headerEnd = conn->getReadBuffer().find("\r\n\r\n");
-	// size_t bodyStart = (headerEnd == std::string::npos) ? 0 : headerEnd + 4;
-	// size_t currentBodySize = conn->getReadBuffer().length() - bodyStart;
-	if (!request.isComplete())
-		return;
-	conn->getWriteBuffer() = routeRequest(request);
-	conn->setState(Connection::WRITING);
 }
 
 void Engine::processIncomingData(fd_set& readSet)
@@ -241,8 +244,8 @@ void Engine::processOutgoingData(fd_set& writeSet)
 				}
 				if (writebuffer.empty())
 				{
-					delete it->second;
-					_clientConnections.erase(it++);
+					it->second->setState(Connection::READING);
+					++it;
 					continue;
 				}
 			}

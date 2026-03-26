@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   httpRequest.cpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/26 18:41:17 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 02:19:50 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,115 +56,114 @@ const std::string& HttpRequest::getBody() const
 
 void HttpRequest::parse(const std::string& rawRequest)
 {
-	_raw = rawRequest;
+	_method.clear();
+	_path.clear();
+	_version.clear();
+	_body.clear();
+	_headers.clear();
+	_contentLength = 0;
+	_hasContentLength = false;
+
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
 	if (headerEnd == std::string::npos)
-		return;
+		throw std::runtime_error("Incomplete request");
 	//header only parsed once
-	if (!_headersParsed)
-	{
-	// 	return ;
-		_headers.clear();
-		_contentLength = 0;
-		_hasContentLength = false;
-		//_body.clear();
-		size_t pos = rawRequest.find("\r\n");
-		if (pos == std::string::npos)
-			throw std::runtime_error("Invalid request line");
-		// full request line
-		std::string requestLine = rawRequest.substr(0, pos);
+	size_t lineEnd = rawRequest.find("\r\n");
+	if (lineEnd == std::string::npos)
+		throw std::runtime_error("Invalid request line");
 
-		std::istringstream iss(requestLine);
+	std::string requestLine = rawRequest.substr(0, lineEnd);
+	std::istringstream iss(requestLine);
 		// split by empty line
-		if (!(iss >> _method >> _path >> _version))
-			throw std::runtime_error("Malformed request line");
-		
-		// validation
-		if (_path.empty() || _path[0] != '/')
-			throw std::runtime_error("invalid path");
-		
-		if (_version.find("HTTP/") != 0)
-			throw std::runtime_error("invalid http version");
+	if (!(iss >> _method >> _path >> _version))
+		throw std::runtime_error("Malformed request line");
+	
+	// validation
+	if (_path.empty() || _path[0] != '/')
+		throw std::runtime_error("invalid path");
+	
+	if (_version.find("HTTP/") != 0)
+		throw std::runtime_error("invalid http version");
 
-		std::string extra;
-		if (iss >> extra)
-			throw std::runtime_error("redundant token in request line");
+	std::string extra;
+	if (iss >> extra)
+		throw std::runtime_error("redundant token in request line");
 
-		std::string headerSection = rawRequest.substr(0, headerEnd);
-		std::istringstream stream(headerSection);
-		std::string line;
-		bool firstLine = true;
+	std::string headerSection = rawRequest.substr(0, headerEnd);
+	std::istringstream stream(headerSection);
+	std::string line;
+	bool firstLine = true;
 
-		// GET / HTTP/1.1\r\n
-		// Host: localhost\r\n <- header start here
-		// Content-Length: 5\r\n
-		while (std::getline(stream, line))
+	// GET / HTTP/1.1\r\n
+	// Host: localhost\r\n <- header start here
+	// Content-Length: 5\r\n
+	while (std::getline(stream, line))
+	{
+		// the getline will remove \n but not \r
+		if (!line.empty() && line[line.length() - 1] == '\r')
+			line.erase(line.length() - 1);
+		// skip first line, and already parsed
+		if (firstLine)
 		{
-			// the getline will remove \n but not \r
-			if (!line.empty() && line[line.length() - 1] == '\r')
-				line.erase(line.length() - 1);
-			// skip first line, and already parsed
-			if (firstLine)
-			{
-				firstLine = false;
-				continue;
-			}
-
-			// parse the host and content length
-			size_t colonPos = line.find(':');
-			if (colonPos == std::string::npos)
-				throw std::runtime_error("malformed header");
-			std::string key = line.substr(0, colonPos);
-			std::string value = line.substr(colonPos + 1);
-
-			// remove leading space
-			if (!value.empty() && value[0] == ' ')
-				value.erase(0, 1);
-			_headers[key] = value;
+			firstLine = false;
+			continue;
 		}
+		if (line.empty())
+			continue;
 
-		std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
-		if (it != _headers.end())
+		// parse the host and content length
+		size_t colonPos = line.find(':');
+		if (colonPos == std::string::npos)
+			throw std::runtime_error("malformed header");
+		std::string key = line.substr(0, colonPos);
+		std::string value = line.substr(colonPos + 1);
+
+		// remove leading space
+		if (key.empty())
+			throw std::runtime_error("Malformed header: empty key");
+		while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
+			value.erase(0, 1);
+		if (value.empty() && key == "Content-Length")
+			throw std::runtime_error("Empty Content-Length");
+		if (_headers.find(key) != _headers.end())
+			throw std::runtime_error("Duplicate header");
+		_headers[key] = value;
+	}
+	
+	std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
+	if (it != _headers.end())
+	{
+		const std::string& value = it->second;
+		if(value.empty())
+			throw std::runtime_error("Empty Content-Length");
+		for (size_t i = 0; i < value.length(); ++i)
 		{
-			const std::string& value = it->second;
-			if(value.empty())
-				throw std::runtime_error("Empty Content-Length");
-			for (size_t i = 0; i < value.length(); ++i)
-			{
-				if (!isdigit(static_cast<unsigned char>(value[i])))
-					throw std::runtime_error("Invalid Content-Length");
-			}
-			std::istringstream iss(value);
-			// convert str to number
-			iss >> _contentLength;
-			if (iss.fail())
+			if (!isdigit(static_cast<unsigned char>(value[i])))
 				throw std::runtime_error("Invalid Content-Length");
-			if (_contentLength < 0)
-				throw std::runtime_error("Invalid Content-Length");
-			_hasContentLength = true;
 		}
-		_headersParsed = true;
+		std::istringstream iss(value);
+		// convert str to number
+		iss >> _contentLength;
+		if (iss.fail())
+			throw std::runtime_error("Invalid Content-Length");
+		// if (_contentLength < 0)
+		// 	throw std::runtime_error("Invalid Content-Length");
+		_hasContentLength = true;
 	}
 
 	//body is after the headerEnd
 	size_t bodyStart = headerEnd + 4;
 	// anything exist after headers, treat it as body, if no content length
-	if (!_hasContentLength) //has some bug, real http doesnt work like this, should be error
+	if (_hasContentLength)
 	{
-		if (bodyStart < rawRequest.size())
-			_body = rawRequest.substr(bodyStart);
+		if (bodyStart + _contentLength > rawRequest.size())
+			throw std::runtime_error("Body shorter than Content-Length");
+		_body = rawRequest.substr(bodyStart, _contentLength);
 	}
 	else
 	{
-		size_t receivedBodyBytes = 0;
-		if (rawRequest.size() > bodyStart)
-			receivedBodyBytes = rawRequest.size() - bodyStart;
-		if (receivedBodyBytes >= _contentLength)
-			_body = rawRequest.substr(bodyStart, _contentLength);
-		else
-			_body.clear();
+		_body.clear();
 	}
-	
 }
 
 bool	HttpRequest::isComplete() const

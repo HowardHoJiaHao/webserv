@@ -31,6 +31,7 @@ SRCS		= $(SRC_DIR)/main.cpp \
 			  $(SRC_DIR)/engine/socket_utils.cpp \
 			  $(SRC_DIR)/connection/connection.cpp \
 		      $(SRC_DIR)/httpHandling/httpRequest.cpp \
+		      $(SRC_DIR)/httpHandling/extractRequest.cpp \
 		      $(SRC_DIR)/FileHandler.cpp
 
 
