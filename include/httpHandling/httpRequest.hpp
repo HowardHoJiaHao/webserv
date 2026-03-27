@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   httpRequest.hpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:37:17 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/23 00:54:47 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/27 14:35:15 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,6 +46,8 @@ class HttpRequest
 		bool isComplete() const;
 
 		void parse(const std::string& rawRequest);
+
+		bool shouldCloseConnection() const;
 
 
 

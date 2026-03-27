@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   httpRequest.cpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/27 02:19:50 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/27 16:20:08 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -144,8 +144,11 @@ void HttpRequest::parse(const std::string& rawRequest)
 		std::istringstream iss(value);
 		// convert str to number
 		iss >> _contentLength;
+
 		if (iss.fail())
 			throw std::runtime_error("Invalid Content-Length");
+		if (_contentLength > 1000000)
+			throw std::runtime_error("Body too large");
 		// if (_contentLength < 0)
 		// 	throw std::runtime_error("Invalid Content-Length");
 		_hasContentLength = true;
@@ -166,14 +169,33 @@ void HttpRequest::parse(const std::string& rawRequest)
 	}
 }
 
-bool	HttpRequest::isComplete() const
+// bool	HttpRequest::isComplete() const
+// {
+// 	size_t headerEnd = _raw.find("\r\n\r\n");
+// 	if (headerEnd == std::string::npos)
+// 		return false;
+
+// 	if (!_hasContentLength)
+// 		return true;
+
+// 	return _body.size() == _contentLength;
+// }
+
+bool HttpRequest::shouldCloseConnection() const
 {
-	size_t headerEnd = _raw.find("\r\n\r\n");
-	if (headerEnd == std::string::npos)
+	std::map<std::string, std::string>::const_iterator it = _headers.find("Connection");
+
+	if (it != _headers.end())
+	{
+		const std::string& value = it->second;
+
+		if (value == "close")
+			return true;
+		if (value == "keep-alive")
+			return false;
+	}
+	if (_version == "HTTP/1.1" || _version == "HTTP/1.0")
 		return false;
 
-	if (!_hasContentLength)
-		return true;
-
-	return _body.size() == _contentLength;
+	return true;
 }

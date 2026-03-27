@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/27 13:39:28 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 17:39:15 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,7 +29,7 @@
 #include "FileHandler.hpp"
 #include <sys/stat.h>
 #include "extractRequest.hpp"
-
+#include <ctime>
 
 Engine::Engine(const ConfigFiles& config) : _config(config){}
 
@@ -146,6 +146,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 {
 	//std::cout << "State before detection: " << conn->getState() << std::endl;
 	conn->appendToReadBuffer(buffer, bytes);
+	conn->updateActivity();
 	std::string& readBuffer = conn->getReadBuffer();
 	std::string rawRequest;
 
@@ -182,9 +183,12 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			conn->setState(Connection::WRITING);
 			return;
 		}
-		conn->getWriteBuffer() = routeRequest(request);
+		conn->getWriteBuffer() += routeRequest(request);
+		//conn->setShouldClose(request.shouldCloseConnection());
+		if (request.shouldCloseConnection())
+			conn->setShouldClose(true);
 		conn->setState(Connection::WRITING);
-		break;
+		
 	}
 }
 
@@ -237,10 +241,44 @@ void Engine::processIncomingData(fd_set& readSet)
 
 void Engine::processOutgoingData(fd_set& writeSet)
 {
+	time_t now = std::time(NULL);
 	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
 			it != _clientConnections.end();)
 	{
 		int clientFd = it->first;
+		Connection* conn = it->second;
+		Connection::RequestState state = conn->getRequestState();
+		time_t elapsed = now - conn->getLastActivity();
+
+		if (state == Connection::READING_HEADERS)
+		{
+			if (elapsed > 5)
+			{
+				std::cout << "Header timeout fd= " << it->first << std::endl;
+				delete conn;
+				_clientConnections.erase(it++);
+				continue;
+			}
+		}
+		else
+		{
+			if (elapsed > 10)
+			{
+				std::cout << "Connection timeout fd= " << it->first << std::endl;
+				delete conn;
+				_clientConnections.erase(it++);
+				continue;
+			}
+		}
+
+		// if(now - conn->getLastActivity() > 10)
+		// {
+		// 	std::cout << "Connection timeout fd=" << it->first << std::endl;
+		// 	delete conn;
+		// 	_clientConnections.erase(it++);
+		// 	continue;
+		// }
+
 		if (FD_ISSET(clientFd, &writeSet))
 		{
 			std::string& writebuffer = it->second->getWriteBuffer();
@@ -249,7 +287,10 @@ void Engine::processOutgoingData(fd_set& writeSet)
 				std::cout << "about to send on fd=" << clientFd << std::endl;
 				ssize_t sentByte = send(clientFd, writebuffer.c_str(), writebuffer.size(), 0);
 				if (sentByte > 0)
+				{
 					writebuffer.erase(0, sentByte);
+					it->second->updateActivity();
+				}
 				else if (sentByte < 0)
 				{
 					if (errno == EAGAIN || errno == EWOULDBLOCK)
@@ -264,9 +305,20 @@ void Engine::processOutgoingData(fd_set& writeSet)
 				}
 				if (writebuffer.empty())
 				{
-					it->second->setState(Connection::READING);
-					++it;
-					continue;
+					Connection* conn = it->second;
+
+					if (conn->shouldClose())
+					{
+						delete conn;
+						_clientConnections.erase(it++);
+						continue;
+					}
+					else
+					{
+						conn->setState(Connection::READING);
+						++it;
+						continue;
+					}
 				}
 			}
 		}
@@ -369,8 +421,8 @@ std::string Engine::routeRequest(const HttpRequest& request)
 
 std::string Engine::handlePost(const HttpRequest& request)
 {
-	if (!request.isComplete())
-		return "";
+	// if (!request.isComplete())
+	// 	return "";
 
 	const std::string& body = request.getBody();
 

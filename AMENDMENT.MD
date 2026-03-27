@@ -60,14 +60,14 @@ READING_HEADERS
 
 ### Must handle:
 
-* [ ] `Connection: keep-alive`
-* [ ] `Connection: close`
-* [ ] Default behavior (HTTP/1.1 = keep-alive)
+* [x] `Connection: keep-alive`
+* [x] `Connection: close`
+* [x] Default behavior (HTTP/1.1 = keep-alive)
 
 ### Required behavior:
 
-* [ ] Reuse connection for multiple requests
-* [ ] Close only when required
+* [x] Reuse connection for multiple requests
+* [x] Close only when required
 
 ---
 
@@ -77,8 +77,8 @@ READING_HEADERS
 
 ### Must handle:
 
-* [ ] Extract multiple requests from a single buffer
-* [ ] Process them sequentially
+* [x] Extract multiple requests from a single buffer
+* [x] Process them sequentially
 
 ---
 
@@ -88,14 +88,16 @@ READING_HEADERS
 
 ### Must implement:
 
-* [ ] Client inactivity timeout
-* [ ] Header timeout (slowloris protection)
+* [x] Client inactivity timeout
+* [x] Header timeout (slowloris protection)
 * [ ] Max body size limit
+  * Current fallback: 10 MB default
+  * Still needs config.hasBodySize() / config.getBodySize() integration
 
 ### Must handle:
 
-* [ ] Client connects but sends nothing
-* [ ] Client sends extremely slow data
+* [x] Client connects but sends nothing
+* [x] Client sends extremely slow data
 
 ---
 

@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/27 13:27:09 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 15:26:38 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,6 +51,11 @@ class Connection
 
 		RequestState getRequestState() const;
 		void	setRequestState(RequestState state);
+		void	setShouldClose(bool value);
+		bool	shouldClose() const;
+
+		void	updateActivity();
+		time_t	getLastActivity() const;
 
 	private:
 		int 		_fd;
@@ -59,6 +64,8 @@ class Connection
 		State		_state;
 		bool		_closed;
 		RequestState _requestState;
+		bool		_shouldClose;
+		time_t		_lastActivity;
 
 		
 

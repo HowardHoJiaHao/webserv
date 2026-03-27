@@ -6,13 +6,14 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:48:52 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/27 13:30:05 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 15:30:20 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Connection.hpp"
 #include <unistd.h>
 #include <sys/types.h>
+#include <ctime>
 
 Connection::Connection(int fd)
 	: _fd(fd),
@@ -20,7 +21,9 @@ Connection::Connection(int fd)
 	_writeBuffer(),
 	_state(READING),
 	_closed(false),
-	_requestState(READING_HEADERS)
+	_requestState(READING_HEADERS),
+	_shouldClose(false),
+	_lastActivity(std::time(NULL))
 	{}
 
 Connection::~Connection()
@@ -82,4 +85,24 @@ void Connection::setState(State state)
 bool Connection::headerComplete() const // duplicate logic
 {
 	return  _readBuffer.find("\r\n\r\n") != std::string::npos;
+}
+
+void Connection::setShouldClose(bool value)
+{
+	_shouldClose = value;
+}
+
+bool Connection::shouldClose() const
+{
+	return _shouldClose;
+}
+
+void Connection::updateActivity()
+{
+	_lastActivity = std::time(NULL);
+}
+
+time_t Connection::getLastActivity() const
+{
+	return _lastActivity;
 }
