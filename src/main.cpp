@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:23:54 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/23 16:05:25 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/28 00:34:20 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,9 +26,13 @@ void	printServerStatus(const std::vector<ServerConfig>& servers)
 
 int	main(int argc, char **argv)
 {
-	(void) argv;
 	if (argc == 1 || argc == 2)
 	{
+		if (argc == 2)
+		{
+			// TODO: parse argv[1] as config file path.
+			(void)argv[1];
+		}
 		try
 		{
 			//std::string			RawConfig; // for later

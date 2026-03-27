@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/23 01:54:02 by ho                #+#    #+#             */
-/*   Updated: 2026/03/23 02:47:20 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/28 00:34:18 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,12 +14,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <dirent.h>
 
-std::string FileHandler::resolvePath(const std::string& urlPath)
+std::string FileHandler::resolvePath(const std::string& urlPath, const std::string& root, const std::string& index)
 {
 	if (urlPath == "/")
-		return "./www/index.html";
-	return "./www" + urlPath;
+		return root + "/" + index;
+	return root + urlPath;
 }
 
 bool FileHandler::fileExists(const std::string& path)
@@ -52,4 +53,29 @@ std::string FileHandler::getMimeType(const std::string& path)
 	if (path.size() >= 4 && path.substr(path.size() - 4) == ".txt")
 		return "text/plain";
 	return "application/octet-stream";
+}
+
+std::string FileHandler::generateDirectoryListing(const std::string& urlPath, const std::string& fsPath)
+{
+	DIR* dir = opendir(fsPath.c_str());
+	if (!dir)
+		return "";
+
+	std::string body = "<html><head><title>Index of " + urlPath + "</title></head><body>";
+	body += "<h1>Index of " + urlPath + "</h1><hr><pre>";
+
+	struct dirent* entry;
+	while ((entry = readdir(dir)) != NULL)
+	{
+		std::string name = entry->d_name;
+		if (name == ".")
+			continue;
+		body += "<a href=\"" + urlPath;
+		if (!urlPath.empty() && urlPath[urlPath.size() - 1] != '/')
+			body += "/";
+		body += name + "\">" + name + "</a>\n";
+	}
+	closedir(dir);
+	body += "</pre><hr></body></html>";
+	return body;
 }

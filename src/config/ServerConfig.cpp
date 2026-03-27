@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   ServerConfig.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 09:55:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/19 10:05:15 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/03/28 00:34:17 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,8 @@ ServerConfig::ServerConfig()
 	_serverName(""),
 	_root(""),
 	_index(""),
+	_maxBodySize(1000000),
+	_errorPages(),
 	_locations()
 	{}
 
@@ -44,6 +46,16 @@ void ServerConfig::setRoot(const std::string& root)
 void ServerConfig::setIndex(const std::string& index)
 {
 	_index = index;
+}
+
+void ServerConfig::setMaxBodySize(size_t size)
+{
+	_maxBodySize = size;
+}
+
+void ServerConfig::addErrorPage(int code, const std::string& path)
+{
+	_errorPages[code] = path;
 }
 
 void ServerConfig::addLocation(const LocationConfig& location)
@@ -74,6 +86,19 @@ const std::string& ServerConfig::getRoot() const
 const std::string& ServerConfig::getIndex() const
 {
 	return _index;
+}
+
+size_t ServerConfig::getMaxBodySize() const
+{
+	return _maxBodySize;
+}
+
+const std::string* ServerConfig::getErrorPage(int code) const
+{
+	std::map<int, std::string>::const_iterator it = _errorPages.find(code);
+	if (it == _errorPages.end())
+		return NULL;
+	return &it->second;
 }
 
 const std::vector<LocationConfig>& ServerConfig::getLocations() const

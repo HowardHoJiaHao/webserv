@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Connection.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/27 15:26:38 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/28 00:34:20 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,7 +47,6 @@ class Connection
 		void close();
 
 		void appendToReadBuffer(const char* buffer, ssize_t bytes);
-		bool headerComplete() const;
 
 		RequestState getRequestState() const;
 		void	setRequestState(RequestState state);

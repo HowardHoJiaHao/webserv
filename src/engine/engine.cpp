@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/27 23:49:50 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/28 00:34:16 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -134,9 +134,92 @@ void Engine::acceptPendingClientConnections(fd_set& readSet)
 					continue;
 				}
 				_clientConnections[clientFd] = new Connection(clientFd);
+				_clientListenEndpoints[clientFd] = it->first;
 			}
 		}
 	}
+}
+
+const ServerConfig* Engine::findServerConfig(const std::string& host, int port) const
+{
+	const std::vector<ServerConfig>& servers = _config.getServers();
+	for (size_t i = 0; i < servers.size(); ++i)
+	{
+		if (servers[i].getHost() == host && servers[i].getPort() == port)
+			return &servers[i];
+	}
+	for (size_t i = 0; i < servers.size(); ++i)
+	{
+		if (servers[i].getPort() == port)
+			return &servers[i];
+	}
+	return servers.empty() ? NULL : &servers[0];
+}
+
+const ServerConfig* Engine::findServerConfigForConnection(int clientFd, const HttpRequest& request) const
+{
+	std::map<int, std::pair<std::string, int> >::const_iterator epIt = _clientListenEndpoints.find(clientFd);
+	if (epIt == _clientListenEndpoints.end())
+		return findServerConfig("", 0);
+
+	std::string host = epIt->second.first;
+	int port = epIt->second.second;
+
+	const std::string* hostHeader = request.getHeader("host");
+	if (hostHeader != NULL && !hostHeader->empty())
+	{
+		std::string hostValue = *hostHeader;
+		size_t colon = hostValue.rfind(':');
+		if (colon != std::string::npos && colon + 1 < hostValue.size())
+		{
+			host = hostValue.substr(0, colon);
+			std::istringstream iss(hostValue.substr(colon + 1));
+			int parsedPort = port;
+			if (!(iss >> parsedPort).fail())
+				port = parsedPort;
+		}
+		else
+		{
+			host = hostValue;
+		}
+	}
+
+	return findServerConfig(host, port);
+}
+
+const LocationConfig* Engine::findBestLocation(const ServerConfig& serverConfig, const std::string& path) const
+{
+	const std::vector<LocationConfig>& locations = serverConfig.getLocations();
+	const LocationConfig* best = NULL;
+	size_t bestLen = 0;
+
+	for (size_t i = 0; i < locations.size(); ++i)
+	{
+		const std::string& locPath = locations[i].getPath();
+		if (path.find(locPath) == 0 && locPath.size() >= bestLen)
+		{
+			best = &locations[i];
+			bestLen = locPath.size();
+		}
+	}
+	return best;
+}
+
+bool Engine::isMethodAllowed(const std::string& method, const LocationConfig* location) const
+{
+	if (location == NULL)
+		return true;
+
+	const std::vector<std::string>& allowed = location->getAllowedMethods();
+	if (allowed.empty())
+		return true;
+
+	for (size_t i = 0; i < allowed.size(); ++i)
+	{
+		if (allowed[i] == method)
+			return true;
+	}
+	return false;
 }
 
 // request line : 1) method, 2) path, 3) version, eg: GET / HTTP/1.1 \r\n
@@ -146,7 +229,6 @@ void Engine::acceptPendingClientConnections(fd_set& readSet)
 
 void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes)
 {
-	//std::cout << "State before detection: " << conn->getState() << std::endl;
 	conn->appendToReadBuffer(buffer, bytes);
 	conn->updateActivity();
 
@@ -189,6 +271,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	}
 
 	std::string rawRequest;
+	bool producedResponse = false;
 	if (headerEnd == std::string::npos)
 	{
 		conn->setRequestState(Connection::READING_HEADERS);
@@ -197,10 +280,18 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	{
 		std::string testBuffer = readBuffer;
 		std::string dummy;
+		bool malformed = false;
 
-		if (extractRequest(testBuffer, dummy))
+		if (extractRequest(testBuffer, dummy, &malformed))
 		{
 			conn->setRequestState(Connection::COMPLETE);
+		}
+		else if (malformed)
+		{
+			conn->setShouldClose(true);
+			conn->getWriteBuffer() = build400Response(conn->shouldClose(), NULL);
+			conn->setState(Connection::WRITING);
+			return;
 		}
 		else
 		{
@@ -208,36 +299,66 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		}
 	}
 
-	while (extractRequest(readBuffer, rawRequest))
+	while (true)
 	{
+		bool malformed = false;
+		if (!extractRequest(readBuffer, rawRequest, &malformed))
+		{
+			if (malformed)
+			{
+				conn->setShouldClose(true);
+				conn->getWriteBuffer() = build400Response(conn->shouldClose(), NULL);
+				conn->setState(Connection::WRITING);
+				return;
+			}
+			break;
+		}
+
 		HttpRequest request;
+		const ServerConfig* defaultServer = findServerConfig(
+			_clientListenEndpoints[conn->getFd()].first,
+			_clientListenEndpoints[conn->getFd()].second
+		);
+		size_t maxBodySize = (defaultServer != NULL) ? defaultServer->getMaxBodySize() : MAX_REQUEST_SIZE;
 		try
 		{
-			request.parse(rawRequest);
+			request.parse(rawRequest, maxBodySize);
 		}
 		catch (const std::exception& e)
 		{
 			conn->setShouldClose(true);
 			if (std::string(e.what()) == "Body too large")
-				conn->getWriteBuffer() = buildResponse("413 Payload Too Large", "Payload Too Large", "text/plain", conn->shouldClose());
+				conn->getWriteBuffer() = buildErrorResponse(413, "Payload Too Large", conn->shouldClose(), defaultServer);
 			else
-				conn->getWriteBuffer() = buildResponse("400 Bad request", "Bad Request", "text/plain", conn->shouldClose());
+				conn->getWriteBuffer() = build400Response(conn->shouldClose(), defaultServer);
 			conn->setState(Connection::WRITING);
 			return;
 		}
-		std::string response = routeRequest(request);
+
+		const ServerConfig* serverConfig = findServerConfigForConnection(conn->getFd(), request);
+		if (serverConfig != NULL && request.hasContentLength() && request.getContentLength() > serverConfig->getMaxBodySize())
+		{
+			conn->setShouldClose(true);
+			conn->getWriteBuffer() = buildErrorResponse(413, "Payload Too Large", conn->shouldClose(), serverConfig);
+			conn->setState(Connection::WRITING);
+			return;
+		}
+
 		bool shouldClose = request.shouldCloseConnection();
 		if (shouldClose)
 			conn->setShouldClose(true);
-		if (shouldClose)
-		{
-			size_t pos = response.find("Connection: keep-alive");
-			if (pos != std::string::npos)
-				response.replace(pos, 24, "Connection: close");
-		}
+
+		if (serverConfig == NULL)
+			serverConfig = defaultServer;
+		std::string response = routeRequest(request, shouldClose, *serverConfig);
 		conn->getWriteBuffer() += response;
+		producedResponse = true;
 	}
-	conn->setState(Connection::WRITING);
+
+	if (producedResponse)
+		conn->setState(Connection::WRITING);
+	else
+		conn->setState(Connection::READING);
 }
 
 void Engine::processIncomingData(fd_set& readSet)
@@ -246,42 +367,11 @@ void Engine::processIncomingData(fd_set& readSet)
 			it != _clientConnections.end();)
 	{
 		int clientFd = it->first;
-		Connection* conn = it->second;
-		time_t now = std::time(NULL);
-		time_t elapsed = now - conn->getLastActivity();
-
-		if (conn->getRequestState() == Connection::READING_HEADERS)
-		{
-			if (elapsed > 5)
-			{
-				std::cout << "Header timeout fd=" << clientFd << std::endl;
-				delete conn;
-				_clientConnections.erase(it++);
-				continue;
-			}
-		}
-		else
-		{
-			if (elapsed > 10)
-			{
-				std::cout << "Connection timeout fd=" << clientFd << std::endl;
-				delete conn;
-				_clientConnections.erase(it++);
-				continue;
-			}
-		}
-
 
 		if (FD_ISSET(clientFd, &readSet))
 		{
-			// if clients sends higher than buffer limit
-			// select() -> still readable, and will call recv again later
 			char buffer[1024];
 			ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
-			//std::cout << "recv returned: " << bytes << std::endl;
-			// i received the actual data
-			// process it
-			// stay at this iterator
 			if (bytes > 0)
 			{
 				handleClientRequest(it->second, buffer, bytes);
@@ -290,9 +380,8 @@ void Engine::processIncomingData(fd_set& readSet)
 			}
 			else if (bytes == 0)
 			{
-				std::cout << "Client disconnected on fd=" << clientFd << std::endl;
-				close(clientFd);
 				delete it->second;
+				_clientListenEndpoints.erase(clientFd);
 				_clientConnections.erase(it++);
 			}
 			else
@@ -303,8 +392,8 @@ void Engine::processIncomingData(fd_set& readSet)
 					continue;
 				}
 				perror("recv");
-				close(clientFd);
 				delete it->second;
+				_clientListenEndpoints.erase(clientFd);
 				_clientConnections.erase(it++);
 			}
 		}
@@ -319,56 +408,93 @@ void Engine::processOutgoingData(fd_set& writeSet)
 			it != _clientConnections.end();)
 	{
 		int clientFd = it->first;
+		Connection* conn = it->second;
 
-		if (FD_ISSET(clientFd, &writeSet))
+		if (!FD_ISSET(clientFd, &writeSet))
 		{
-			std::string& writebuffer = it->second->getWriteBuffer();
-			if (!writebuffer.empty())
-			{
-				std::cout << "about to send on fd=" << clientFd << std::endl;
-				ssize_t sentByte = send(clientFd, writebuffer.data(), writebuffer.size(), 0);
-				if (sentByte > 0)
-				{
-					writebuffer.erase(0, sentByte);
-					it->second->updateActivity();
-				}
-				else if (sentByte == 0)
-				{
-					delete it->second;
-					_clientConnections.erase(it++);
-					continue;
-				}
-				else if (sentByte < 0)
-				{
-					if (errno == EAGAIN || errno == EWOULDBLOCK)
-					{
-						++it;
-						continue;
-					}
-					perror("send");
-					delete it->second;
-					_clientConnections.erase(it++);
-					continue;
-				}
-				if (writebuffer.empty())
-				{
-					Connection* conn = it->second;
+			++it;
+			continue;
+		}
 
-					if (conn->shouldClose())
-					{
-						delete conn;
-						_clientConnections.erase(it++);
-						continue;
-					}
-					else
-					{
-						conn->setRequestState(Connection::READING_HEADERS);
-						conn->setState(Connection::READING);
-						++it;
-						continue;
-					}
-				}
+		std::string& writebuffer = conn->getWriteBuffer();
+		if (writebuffer.empty())
+		{
+			if (conn->shouldClose())
+			{
+				delete conn;
+				_clientListenEndpoints.erase(clientFd);
+				_clientConnections.erase(it++);
+				continue;
 			}
+
+			conn->setRequestState(Connection::READING_HEADERS);
+			conn->setState(Connection::READING);
+			++it;
+			continue;
+		}
+
+		ssize_t sentByte = send(clientFd, writebuffer.data(), writebuffer.size(), 0);
+		if (sentByte > 0)
+		{
+			writebuffer.erase(0, sentByte);
+			conn->updateActivity();
+
+			if (writebuffer.empty())
+			{
+				if (conn->shouldClose())
+				{
+					delete conn;
+					_clientListenEndpoints.erase(clientFd);
+					_clientConnections.erase(it++);
+					continue;
+				}
+				conn->setRequestState(Connection::READING_HEADERS);
+				conn->setState(Connection::READING);
+			}
+			++it;
+			continue;
+		}
+		if (sentByte == 0)
+		{
+			delete conn;
+			_clientListenEndpoints.erase(clientFd);
+			_clientConnections.erase(it++);
+			continue;
+		}
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+		{
+			++it;
+			continue;
+		}
+		perror("send");
+		delete conn;
+		_clientListenEndpoints.erase(clientFd);
+		_clientConnections.erase(it++);
+	}
+}
+
+void Engine::checkTimeouts()
+{
+	time_t now = std::time(NULL);
+	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
+			it != _clientConnections.end();)
+	{
+		Connection* conn = it->second;
+		time_t elapsed = now - conn->getLastActivity();
+		bool timedOut = false;
+
+		if (conn->getRequestState() == Connection::READING_HEADERS && elapsed > 5)
+			timedOut = true;
+		else if (elapsed > 30)
+			timedOut = true;
+
+		if (timedOut)
+		{
+			int fd = it->first;
+			delete conn;
+			_clientListenEndpoints.erase(fd);
+			_clientConnections.erase(it++);
+			continue;
 		}
 		++it;
 	}
@@ -397,8 +523,6 @@ void Engine::run()
 		timeout.tv_sec = 1;
 		timeout.tv_usec = 0;
 		int readyFdCount = select(maxFd + 1, &readSet, &writeSet, NULL, &timeout);
-		std::cout << "select return= " << readyFdCount << std::endl;
-		// signal interrupts it (EINTR)
 		if (readyFdCount < 0)
 		{
 			if (errno == EINTR)
@@ -406,45 +530,68 @@ void Engine::run()
 			perror("select");
 			break;
 		}
+		checkTimeouts();
 		acceptPendingClientConnections(readSet);
 		processIncomingData(readSet);
 		processOutgoingData(writeSet);
 	}
 }
 
-std::string Engine::routeRequest(const HttpRequest& request)
+std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig)
 {
+	const LocationConfig* location = findBestLocation(serverConfig, request.getPath());
+	if (!isMethodAllowed(request.getMethod(), location))
+		return build405Response(shouldClose, &serverConfig);
+
+	std::string root = serverConfig.getRoot();
+	if (location != NULL && !location->getRoot().empty())
+		root = location->getRoot();
+
 	if (request.getMethod() == "GET")
 	{
 		if (request.getPath().find("..") != std::string::npos)
-			return buildResponse("403 Forbidden", "Forbidden", "text/plain", false);
-		std::string path = FileHandler::resolvePath(request.getPath());
+			return buildErrorResponse(403, "Forbidden", shouldClose, &serverConfig);
+		std::string path = FileHandler::resolvePath(request.getPath(), root, serverConfig.getIndex());
 		struct stat s;
 		if (stat(path.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
-			path += "/index.html";
+		{
+			std::string indexPath = path + "/" + serverConfig.getIndex();
+			if (FileHandler::fileExists(indexPath))
+				path = indexPath;
+			else if (location != NULL && location->isAutoindex())
+			{
+				std::string listing = FileHandler::generateDirectoryListing(request.getPath(), path);
+				if (listing.empty())
+					return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
+				return buildResponse("200 OK", listing, "text/html", shouldClose);
+			}
+			else
+				return buildErrorResponse(403, "Forbidden", shouldClose, &serverConfig);
+		}
 
 		if (!FileHandler::fileExists(path))
-			return build404Response();
+			return build404Response(shouldClose, &serverConfig);
 		std::string content = FileHandler::readFile(path);
 		std::string mime = FileHandler::getMimeType(path);
-		return buildResponse("200 OK", content, mime, false);
+		return buildResponse("200 OK", content, mime, shouldClose);
 	}
 	if (request.getMethod() == "POST")
-		return handlePost(request);
-	return build405Response();
+		return handlePost(request, shouldClose, serverConfig, location);
+	if (request.getMethod() == "DELETE")
+		return handleDelete(request, shouldClose, serverConfig);
+	return build405Response(shouldClose, &serverConfig);
 }
 
-std::string Engine::handlePost(const HttpRequest& request)
+std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location)
 {
-	// if (!request.isComplete())
-	// 	return "";
-
 	const std::string& body = request.getBody();
+	std::string uploadPath = serverConfig.getRoot() + "/upload.txt";
+	if (location != NULL && location->isUploadEnabled() && !location->getUploadPath().empty())
+		uploadPath = location->getUploadPath() + "/upload.txt";
 
-	std::string path = "./www/upload.txt";
-	int fd = open(path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
+	int fd = open(uploadPath.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
 	if (fd < 0)
-		return buildResponse("500 Internal Server Error", "Open Failed", "text/plain", false);
+		return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
 	size_t total = 0;
 	while (total < body.size())
 	{
@@ -452,12 +599,32 @@ std::string Engine::handlePost(const HttpRequest& request)
 		if (written <= 0)
 		{
 			close(fd);
-			return buildResponse("500 Internal Server Error", "Write failed", "text/plain", false);
+			return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
 		}
 		total += written;
 	}
 	close(fd);
-	return buildResponse("200 OK", "OK", "text/plain", false);
+	return buildResponse("201 Created", "Upload OK", "text/plain", shouldClose);
+}
+
+std::string Engine::handleDelete(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig)
+{
+	if (request.getPath().find("..") != std::string::npos)
+		return buildErrorResponse(403, "Forbidden", shouldClose, &serverConfig);
+
+	const LocationConfig* location = findBestLocation(serverConfig, request.getPath());
+	std::string root = serverConfig.getRoot();
+	if (location != NULL && !location->getRoot().empty())
+		root = location->getRoot();
+
+	std::string path = FileHandler::resolvePath(request.getPath(), root, serverConfig.getIndex());
+	if (!FileHandler::fileExists(path))
+		return build404Response(shouldClose, &serverConfig);
+
+	if (std::remove(path.c_str()) != 0)
+		return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
+
+	return buildResponse("204 No Content", "", "text/plain", shouldClose);
 }
 
 std::string Engine::buildResponse
@@ -481,9 +648,32 @@ std::string Engine::buildResponse
 	return ss.str();
 }
 
-std::string Engine::build405Response()
+std::string Engine::buildErrorResponse(int code, const std::string& defaultMsg, bool shouldClose, const ServerConfig* serverConfig)
 {
-	return buildResponse("405 Method Not Allowed", "Method Not Allowed", "text/plain", false);
+	if (serverConfig != NULL)
+	{
+		const std::string* pagePath = serverConfig->getErrorPage(code);
+		if (pagePath != NULL)
+		{
+			std::string fullPath = serverConfig->getRoot() + *pagePath;
+			if (FileHandler::fileExists(fullPath))
+			{
+				std::string body = FileHandler::readFile(fullPath);
+				std::ostringstream status;
+				status << code << " " << defaultMsg;
+				return buildResponse(status.str(), body, "text/html", shouldClose);
+			}
+		}
+	}
+
+	std::ostringstream status;
+	status << code << " " << defaultMsg;
+	return buildResponse(status.str(), defaultMsg, "text/plain", shouldClose);
+}
+
+std::string Engine::build405Response(bool shouldClose, const ServerConfig* serverConfig)
+{
+	return buildErrorResponse(405, "Method Not Allowed", shouldClose, serverConfig);
 }
 
 std::string Engine::buildIndexResponse()
@@ -491,7 +681,12 @@ std::string Engine::buildIndexResponse()
 	return buildResponse("200 OK", "Hello, world!", "text/plain", false);
 }
 
-std::string Engine::build404Response()
+std::string Engine::build404Response(bool shouldClose, const ServerConfig* serverConfig)
 {
-	return buildResponse("404 Not Found", "Not Found", "text/plain", false);
+	return buildErrorResponse(404, "Not Found", shouldClose, serverConfig);
+}
+
+std::string Engine::build400Response(bool shouldClose, const ServerConfig* serverConfig)
+{
+	return buildErrorResponse(400, "Bad Request", shouldClose, serverConfig);
 }

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   LocationConfig.cpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 09:55:21 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/19 10:14:16 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/03/28 00:34:17 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,7 +17,8 @@ LocationConfig::LocationConfig()
 	_allowedMethods(),
 	_root(""),
 	_uploadEnabled(false),
-	_uploadPath("")
+	_uploadPath(""),
+	_autoindex(false)
 	{}
 
 void LocationConfig::setPath(const std::string& path)
@@ -45,6 +46,11 @@ void LocationConfig::setUploadPath(const std::string& path)
 	_uploadPath = path;
 }
 
+void LocationConfig::setAutoindex(bool enabled)
+{
+	_autoindex = enabled;
+}
+
 const std::string& LocationConfig::getPath() const
 {
 	return _path;
@@ -68,4 +74,9 @@ bool LocationConfig::isUploadEnabled() const
 const std::string& LocationConfig::getUploadPath() const
 {
 	return _uploadPath;
+}
+
+bool LocationConfig::isAutoindex() const
+{
+	return _autoindex;
 }

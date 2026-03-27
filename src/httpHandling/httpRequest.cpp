@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/27 23:42:36 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/28 00:34:16 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,8 +30,7 @@ HttpRequest::HttpRequest()
 	  _version(""),
 	  _body(""),
 	  _contentLength(0),
-	  _hasContentLength(false),
-	  _headersParsed(false)
+	  _hasContentLength(false)
 {
 }
 
@@ -80,7 +79,7 @@ bool HttpRequest::isComplete() const
 	return _body.size() == _contentLength;
 }
 
-void HttpRequest::parse(const std::string& rawRequest)
+void HttpRequest::parse(const std::string& rawRequest, size_t maxBodySize)
 {
 	_method.clear();
 	_path.clear();
@@ -182,7 +181,7 @@ void HttpRequest::parse(const std::string& rawRequest)
 
 		if (iss.fail())
 			throw std::runtime_error("Invalid Content-Length");
-		if (_contentLength > 1000000)
+		if (_contentLength > maxBodySize)
 			throw std::runtime_error("Body too large");
 		// if (_contentLength < 0)
 		// 	throw std::runtime_error("Invalid Content-Length");

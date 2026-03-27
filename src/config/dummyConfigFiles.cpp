@@ -25,13 +25,15 @@ const std::vector<ServerConfig>& ConfigFiles::getServers() const
 void ConfigFiles::initDummy()
 {
 	// first server
-	std::cout << "printing server" << std::endl;
 	ServerConfig server1;
 	server1.setHost("127.0.0.1");
 	server1.setPort(8080);
 	server1.setServerName("test1");
 	server1.setRoot("./www1");
 	server1.setIndex("index.html");
+	server1.setMaxBodySize(1000000);
+	server1.addErrorPage(404, "/404.html");
+	server1.addErrorPage(500, "/500.html");
 
 	LocationConfig loc1;
 	loc1.setPath("/");
@@ -42,6 +44,7 @@ void ConfigFiles::initDummy()
 		loc1.setAllowedMethods(methods);
 	}
 	loc1.setUploadEnabled(false);
+	loc1.setAutoindex(false);
 	
 	LocationConfig loc2;
 	loc2.setPath("/Upload");
@@ -52,6 +55,7 @@ void ConfigFiles::initDummy()
 	}
 	loc2.setUploadEnabled(true);
 	loc2.setUploadPath("./uploads");
+	loc2.setAutoindex(false);
 
 	server1.addLocation(loc1);
 	server1.addLocation(loc2);
@@ -64,6 +68,8 @@ void ConfigFiles::initDummy()
 	server2.setServerName("test2");
 	server2.setRoot("./www2");
 	server2.setIndex("home.html");
+	server2.setMaxBodySize(1000000);
+	server2.addErrorPage(404, "/404.html");
 
 	LocationConfig loc3;
 	loc3.setPath("/");
@@ -73,6 +79,7 @@ void ConfigFiles::initDummy()
 		loc3.setAllowedMethods(methods);
 	}
 	loc3.setUploadEnabled(false);
+	loc3.setAutoindex(true);
 
 	server2.addLocation(loc3);
 	_serverConfigs.push_back(server2);

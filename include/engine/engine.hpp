@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/27 18:16:38 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/28 00:34:19 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,6 +30,7 @@ class Engine
 		const ConfigFiles& _config;
 		std::map<std::pair<std::string,int>, int> _listenSockets;
 		std::map<int, Connection*> _clientConnections;
+		std::map<int, std::pair<std::string, int> > _clientListenEndpoints;
 
 		void registerListenSocketsForSelect(fd_set& readSet, int& maxFd);
 		void registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, int& maxFd);
@@ -37,6 +38,13 @@ class Engine
 		void handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes);
 		void processIncomingData(fd_set& readSet);
 		void processOutgoingData(fd_set& writeSet);
+		void checkTimeouts();
+
+		const ServerConfig* findServerConfig(const std::string& host, int port) const;
+		const ServerConfig* findServerConfigForConnection(int clientFd, const HttpRequest& request) const;
+		const LocationConfig* findBestLocation(const ServerConfig& serverConfig, const std::string& path) const;
+		bool isMethodAllowed(const std::string& method, const LocationConfig* location) const;
+		std::string buildErrorResponse(int code, const std::string& defaultMsg, bool shouldClose, const ServerConfig* serverConfig);
 
 	public:
 		Engine(const ConfigFiles& _config);
@@ -44,13 +52,14 @@ class Engine
 		void	setupListeningSockets();
 		void	run();
 		std::string buildMinimalResponse();
-		std::string build405Response();
+		std::string build405Response(bool shouldClose, const ServerConfig* serverConfig);
 		std::string buildIndexResponse();
-		std::string build404Response();
-		std::string build400Response();
+		std::string build404Response(bool shouldClose, const ServerConfig* serverConfig);
+		std::string build400Response(bool shouldClose, const ServerConfig* serverConfig);
 		std::string buildResponse(const std::string& status, const std::string& body, const std::string& contentType, bool shouldClose);
-		std::string routeRequest(const HttpRequest& request);
-		std::string handlePost(const HttpRequest& request);
+		std::string routeRequest(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);
+		std::string handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);
+		std::string handleDelete(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);
 };
 
 #endif

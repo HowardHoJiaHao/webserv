@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/27 00:59:08 by ho                #+#    #+#             */
-/*   Updated: 2026/03/27 23:45:44 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/28 00:34:16 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,7 +60,11 @@ static bool parseChunkedBody(const std::string& buffer, size_t bodyStart, size_t
 		if (lineEnd == std::string::npos)
 			return false;
 
-		std::string hexSize = buffer.substr(pos, lineEnd - pos);
+		std::string rawLine = buffer.substr(pos, lineEnd - pos);
+		size_t semicolon = rawLine.find(';');
+		std::string hexSize = (semicolon == std::string::npos) ? rawLine : rawLine.substr(0, semicolon);
+		while (!hexSize.empty() && (hexSize[hexSize.size() - 1] == ' ' || hexSize[hexSize.size() - 1] == '\t'))
+			hexSize.erase(hexSize.size() - 1);
 		char* endptr = NULL;
 		size_t chunkSize = std::strtoul(hexSize.c_str(), &endptr, 16);
 		if (endptr == hexSize.c_str() || *endptr != '\0')
@@ -85,8 +89,11 @@ static bool parseChunkedBody(const std::string& buffer, size_t bodyStart, size_t
 	}
 }
 
-bool extractRequest(std::string& buffer, std::string& rawRequest)
+bool extractRequest(std::string& buffer, std::string& rawRequest, bool* malformed)
 {
+	if (malformed != NULL)
+		*malformed = false;
+
 	size_t	headerEnd = buffer.find("\r\n\r\n");
 	if (headerEnd == std::string::npos)
 		return false;
@@ -107,6 +114,7 @@ bool extractRequest(std::string& buffer, std::string& rawRequest)
 
 	size_t contentLength = 0;
 	bool hasContentLength = false;
+	bool duplicateContentLength = false;
 
 	std::istringstream stream(headersPart);
 	std::string line;
@@ -127,20 +135,43 @@ bool extractRequest(std::string& buffer, std::string& rawRequest)
 			value.erase(0, 1);
 		if (key == "content-length")
 		{
+			if (hasContentLength)
+			{
+				duplicateContentLength = true;
+				break;
+			}
 			if (value.empty())
+			{
+				if (malformed != NULL)
+					*malformed = true;
 				return false;
+			}
 
 			errno = 0;
 			char* endptr = NULL;
 			unsigned long parsed = std::strtoul(value.c_str(), &endptr, 10);
 			if (endptr == value.c_str() || *endptr != '\0' || errno == ERANGE)
+			{
+				if (malformed != NULL)
+					*malformed = true;
 				return false;
+			}
 			if (parsed > std::numeric_limits<size_t>::max())
+			{
+				if (malformed != NULL)
+					*malformed = true;
 				return false;
+			}
 
 			contentLength = static_cast<size_t>(parsed);
 			hasContentLength = true;
 		}
+	}
+	if (duplicateContentLength)
+	{
+		if (malformed != NULL)
+			*malformed = true;
+		return false;
 	}
 	size_t totalSize = bodyStart;
 	if (hasContentLength)

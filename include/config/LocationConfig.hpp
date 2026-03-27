@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   LocationConfig.hpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 23:29:41 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/18 09:48:29 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/03/28 00:34:16 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,6 +24,7 @@ class LocationConfig
 		std::string					_root;
 		bool						_uploadEnabled;
 		std::string					_uploadPath;
+		bool						_autoindex;
 
 	public:
 		LocationConfig();
@@ -33,12 +34,14 @@ class LocationConfig
 		void	setRoot(const std::string& root);
 		void	setUploadEnabled(bool enabled);
 		void	setUploadPath(const std::string& path);
+		void	setAutoindex(bool enabled);
 
 		const	std::string& getPath() const;
 		const	std::vector<std::string>& getAllowedMethods() const;
 		const	std::string& getRoot() const;
 		bool	isUploadEnabled() const;
 		const	std::string& getUploadPath() const;
+		bool	isAutoindex() const;
 };
 
 #endif
