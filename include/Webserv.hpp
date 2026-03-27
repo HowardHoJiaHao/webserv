@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Webserv.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:29:16 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/27 18:43:10 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 21:58:41 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,7 @@
 #define WEBSERV_HPP
 
 #define MAX_REQUEST_SIZE 1000000
+#define MAX_HEADER_SIZE 8192
 
 #include <iostream>
 #include <stdexcept>

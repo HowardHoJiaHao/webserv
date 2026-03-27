@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/27 18:48:19 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 22:09:33 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -150,6 +150,29 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	conn->appendToReadBuffer(buffer, bytes);
 	conn->updateActivity();
 
+	const size_t maxHeaderSize = 8192;
+
+	std::string& readBuffer = conn->getReadBuffer();
+	size_t headerEnd = readBuffer.find("\r\n\r\n");
+	if (headerEnd == std::string::npos)
+	{
+		if(readBuffer.size() > maxHeaderSize)
+		{
+			conn->setShouldClose(true);
+			conn->getReadBuffer().clear();
+			conn->getWriteBuffer() = buildResponse
+			(
+				"413 Payload Too Large",
+				"Header Too Large",
+				"text/plain",
+				conn->shouldClose()
+			);
+			conn->setState(Connection::WRITING);
+			return;
+		}
+	}
+
+
 	if (conn->getReadBuffer().size() > MAX_REQUEST_SIZE)
 	{
 		conn->setShouldClose(true);
@@ -165,10 +188,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		return;
 	}
 
-	std::string& readBuffer = conn->getReadBuffer();
 	std::string rawRequest;
-
-	size_t headerEnd = readBuffer.find("\r\n\r\n");
 	if (headerEnd == std::string::npos)
 	{
 		conn->setRequestState(Connection::READING_HEADERS);
