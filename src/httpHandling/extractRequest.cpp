@@ -6,13 +6,24 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/27 00:59:08 by ho                #+#    #+#             */
-/*   Updated: 2026/03/27 02:00:04 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/27 23:45:44 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "extractRequest.hpp"
 #include <sstream>
 #include <cstdlib>
+#include <cctype>
+#include <cerrno>
+#include <limits>
+
+static std::string toLowerAscii(const std::string& input)
+{
+	std::string lowered = input;
+	for (size_t i = 0; i < lowered.size(); ++i)
+		lowered[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(lowered[i])));
+	return lowered;
+}
 
 static bool hasChunkedEncoding(const std::string& headers)
 {
@@ -23,9 +34,17 @@ static bool hasChunkedEncoding(const std::string& headers)
 	{
 		if (!line.empty() && line[line.size() - 1] == '\r')
 			line.erase(line.size() - 1);
-		// to lower is safest? multiple testcase
-		if (line.find("Transfer-Encoding:") != std::string::npos &&
-			line.find("chunked") != std::string::npos)
+
+		size_t colon = line.find(':');
+		if (colon == std::string::npos)
+			continue;
+
+		std::string key = toLowerAscii(line.substr(0, colon));
+		std::string value = toLowerAscii(line.substr(colon + 1));
+		while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
+			value.erase(0, 1);
+
+		if (key == "transfer-encoding" && value.find("chunked") != std::string::npos)
 			return true;
 	}
 	return false;
@@ -101,16 +120,25 @@ bool extractRequest(std::string& buffer, std::string& rawRequest)
 		if (colon == std::string::npos)
 			continue;
 
-		std::string key = line.substr(0, colon);
+		std::string key = toLowerAscii(line.substr(0, colon));
 		std::string value = line.substr(colon + 1);
 
-		if (!value.empty() && value[0] == ' ')
-		{
+		while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
 			value.erase(0, 1);
-		}
-		if (key == "Content-Length")
+		if (key == "content-length")
 		{
-			contentLength = std::atoi(value.c_str());
+			if (value.empty())
+				return false;
+
+			errno = 0;
+			char* endptr = NULL;
+			unsigned long parsed = std::strtoul(value.c_str(), &endptr, 10);
+			if (endptr == value.c_str() || *endptr != '\0' || errno == ERANGE)
+				return false;
+			if (parsed > std::numeric_limits<size_t>::max())
+				return false;
+
+			contentLength = static_cast<size_t>(parsed);
 			hasContentLength = true;
 		}
 	}

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   httpRequest.cpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/27 16:20:08 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 23:42:36 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,15 @@
 #include <sstream>
 #include <cstdlib>
 #include <iostream>
+#include <cctype>
+
+static std::string toLowerAscii(const std::string& input)
+{
+	std::string lowered = input;
+	for (size_t i = 0; i < lowered.size(); ++i)
+		lowered[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(lowered[i])));
+	return lowered;
+}
 
 HttpRequest::HttpRequest()
 	: _method(""),
@@ -43,7 +52,7 @@ const std::string& HttpRequest::getVersion() const
 
 const std::string* HttpRequest::getHeader(const std::string& key) const
 {
-	std::map<std::string, std::string>::const_iterator it = _headers.find(key);
+	std::map<std::string, std::string>::const_iterator it = _headers.find(toLowerAscii(key));
 	if (it == _headers.end())
 		return NULL;
 	return &it->second;
@@ -52,6 +61,23 @@ const std::string* HttpRequest::getHeader(const std::string& key) const
 const std::string& HttpRequest::getBody() const
 {
 	return _body;
+}
+
+bool HttpRequest::hasContentLength() const
+{
+	return _hasContentLength;
+}
+
+size_t HttpRequest::getContentLength() const
+{
+	return _contentLength;
+}
+
+bool HttpRequest::isComplete() const
+{
+	if (!_hasContentLength)
+		return true;
+	return _body.size() == _contentLength;
 }
 
 void HttpRequest::parse(const std::string& rawRequest)
@@ -115,7 +141,7 @@ void HttpRequest::parse(const std::string& rawRequest)
 		size_t colonPos = line.find(':');
 		if (colonPos == std::string::npos)
 			throw std::runtime_error("malformed header");
-		std::string key = line.substr(0, colonPos);
+		std::string key = toLowerAscii(line.substr(0, colonPos));
 		std::string value = line.substr(colonPos + 1);
 
 		// remove leading space
@@ -123,14 +149,23 @@ void HttpRequest::parse(const std::string& rawRequest)
 			throw std::runtime_error("Malformed header: empty key");
 		while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
 			value.erase(0, 1);
-		if (value.empty() && key == "Content-Length")
+		if (value.empty() && key == "content-length")
 			throw std::runtime_error("Empty Content-Length");
 		if (_headers.find(key) != _headers.end())
 			throw std::runtime_error("Duplicate header");
 		_headers[key] = value;
 	}
+
+	if (_version == "HTTP/1.1")
+	{
+		std::map<std::string, std::string>::const_iterator hostIt = _headers.find("host");
+		if (hostIt == _headers.end())
+			throw std::runtime_error("Missing Host header");
+		if (hostIt->second.empty())
+			throw std::runtime_error("Invalid Host header");
+	}
 	
-	std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
+	std::map<std::string, std::string>::const_iterator it = _headers.find("content-length");
 	if (it != _headers.end())
 	{
 		const std::string& value = it->second;
@@ -169,33 +204,20 @@ void HttpRequest::parse(const std::string& rawRequest)
 	}
 }
 
-// bool	HttpRequest::isComplete() const
-// {
-// 	size_t headerEnd = _raw.find("\r\n\r\n");
-// 	if (headerEnd == std::string::npos)
-// 		return false;
-
-// 	if (!_hasContentLength)
-// 		return true;
-
-// 	return _body.size() == _contentLength;
-// }
-
 bool HttpRequest::shouldCloseConnection() const
 {
-	std::map<std::string, std::string>::const_iterator it = _headers.find("Connection");
+	std::map<std::string, std::string>::const_iterator it = _headers.find("connection");
 
 	if (it != _headers.end())
 	{
-		const std::string& value = it->second;
+		const std::string value = toLowerAscii(it->second);
 
 		if (value == "close")
 			return true;
 		if (value == "keep-alive")
 			return false;
 	}
-	if (_version == "HTTP/1.1" || _version == "HTTP/1.0")
+	if (_version == "HTTP/1.1")
 		return false;
-
 	return true;
 }

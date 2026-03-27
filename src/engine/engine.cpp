@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/27 22:54:35 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/27 23:49:50 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -218,7 +218,10 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		catch (const std::exception& e)
 		{
 			conn->setShouldClose(true);
-			conn->getWriteBuffer() = buildResponse("400 Bad request", "Bad Request", "text/plain", conn->shouldClose());
+			if (std::string(e.what()) == "Body too large")
+				conn->getWriteBuffer() = buildResponse("413 Payload Too Large", "Payload Too Large", "text/plain", conn->shouldClose());
+			else
+				conn->getWriteBuffer() = buildResponse("400 Bad request", "Bad Request", "text/plain", conn->shouldClose());
 			conn->setState(Connection::WRITING);
 			return;
 		}
@@ -312,43 +315,10 @@ void Engine::processIncomingData(fd_set& readSet)
 
 void Engine::processOutgoingData(fd_set& writeSet)
 {
-	time_t now = std::time(NULL);
 	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
 			it != _clientConnections.end();)
 	{
 		int clientFd = it->first;
-		Connection* conn = it->second;
-		Connection::RequestState state = conn->getRequestState();
-		time_t elapsed = now - conn->getLastActivity();
-
-		if (state == Connection::READING_HEADERS)
-		{
-			if (elapsed > 5)
-			{
-				std::cout << "Header timeout fd= " << it->first << std::endl;
-				delete conn;
-				_clientConnections.erase(it++);
-				continue;
-			}
-		}
-		else
-		{
-			if (elapsed > 10)
-			{
-				std::cout << "Connection timeout fd= " << it->first << std::endl;
-				delete conn;
-				_clientConnections.erase(it++);
-				continue;
-			}
-		}
-
-		// if(now - conn->getLastActivity() > 10)
-		// {
-		// 	std::cout << "Connection timeout fd=" << it->first << std::endl;
-		// 	delete conn;
-		// 	_clientConnections.erase(it++);
-		// 	continue;
-		// }
 
 		if (FD_ISSET(clientFd, &writeSet))
 		{
@@ -392,6 +362,7 @@ void Engine::processOutgoingData(fd_set& writeSet)
 					}
 					else
 					{
+						conn->setRequestState(Connection::READING_HEADERS);
 						conn->setState(Connection::READING);
 						++it;
 						continue;
@@ -421,7 +392,11 @@ void Engine::run()
 
 		registerListenSocketsForSelect(readSet, maxFd);
 		registerClientSocketForSelect(readSet, writeSet, maxFd);
-		int readyFdCount = select(maxFd + 1, &readSet, &writeSet, NULL, NULL);
+
+		struct timeval timeout;
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0;
+		int readyFdCount = select(maxFd + 1, &readSet, &writeSet, NULL, &timeout);
 		std::cout << "select return= " << readyFdCount << std::endl;
 		// signal interrupts it (EINTR)
 		if (readyFdCount < 0)
@@ -436,15 +411,6 @@ void Engine::run()
 		processOutgoingData(writeSet);
 	}
 }
-
-// std::string Engine::build400Response()
-// {
-// 	return "HTTP/1.1 400 Bad Request\r\n"
-// 		"Content-Length: 11\r\n"
-// 		"Content-Type: text/plain\r\n"
-// 		"\r\n"
-// 		"Bad Request";
-// }
 
 std::string Engine::routeRequest(const HttpRequest& request)
 {
@@ -466,34 +432,6 @@ std::string Engine::routeRequest(const HttpRequest& request)
 	if (request.getMethod() == "POST")
 		return handlePost(request);
 	return build405Response();
-	// if (request.getMethod() != "GET")
-	// 	return build405Response();
-
-	// if (request.getPath().find("..") != std::string::npos)
-	// 	return buildResponse("403 Forbidden", "Forbidden", "text/plain");
-	// std::string path = FileHandler::resolvePath(request.getPath());
-
-	// struct stat s;
-	// if (stat(path.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
-	// {
-	// 	path += "/index.html";
-	// }
-
-	// if (!FileHandler::fileExists(path))
-	// 	return build404Response();
-	// std::string content = FileHandler::readFile(path);
-	// std::string mime = FileHandler::getMimeType(path);
-	// std::stringstream ss;
-	// ss << "HTTP/1.1 200 OK\r\n";
-	// ss << "Content-Length: " << content.size() << "\r\n";
-	// ss << "Content-Type: " << mime << "\r\n";
-	// ss << "\r\n";
-	// ss << content;
-
-	// return buildResponse("200 OK", content, mime);
-	// if (request.getPath() == "/")
-	// 	return buildIndexResponse();
-	// return build404Response();
 }
 
 std::string Engine::handlePost(const HttpRequest& request)
