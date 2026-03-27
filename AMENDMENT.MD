@@ -37,20 +37,20 @@ Here. This is your **“don’t-fail-webserv” spec**:
 
 **Goal:** No “one-shot parsing” nonsense.
 
-### Required states:
+### Current state:
 
 ```
 READING_HEADERS
-→ HEADERS_COMPLETE
 → READING_BODY
 → COMPLETE
 ```
 
 ### Rules:
 
-* [ ] Never assume full request is available
-* [ ] Store partial data across reads
-* [ ] Only process request when COMPLETE
+* [x] Never assume full request is available
+* [x] Store partial data across reads
+* [x] Only process request when COMPLETE
+* [ ] Explicit HEADERS_COMPLETE state is not implemented yet
 
 ---
 

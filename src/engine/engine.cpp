@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/27 01:35:06 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/27 13:39:28 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -148,6 +148,26 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	conn->appendToReadBuffer(buffer, bytes);
 	std::string& readBuffer = conn->getReadBuffer();
 	std::string rawRequest;
+
+	size_t headerEnd = readBuffer.find("\r\n\r\n");
+	if (headerEnd == std::string::npos)
+	{
+		conn->setRequestState(Connection::READING_HEADERS);
+	}
+	else
+	{
+		std::string testBuffer = readBuffer;
+		std::string dummy;
+
+		if (extractRequest(testBuffer, dummy))
+		{
+			conn->setRequestState(Connection::COMPLETE);
+		}
+		else
+		{
+			conn->setRequestState(Connection::READING_BODY);
+		}
+	}
 
 	while (extractRequest(readBuffer, rawRequest))
 	{

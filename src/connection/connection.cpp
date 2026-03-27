@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   connection.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:48:52 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/02/26 09:56:29 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/27 13:30:05 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,7 +19,8 @@ Connection::Connection(int fd)
 	_readBuffer(),
 	_writeBuffer(),
 	_state(READING),
-	_closed(false)
+	_closed(false),
+	_requestState(READING_HEADERS)
 	{}
 
 Connection::~Connection()
@@ -52,6 +53,16 @@ void Connection::close()
 	}
 }
 
+Connection::RequestState Connection::getRequestState() const
+{
+	return _requestState;
+}
+
+void Connection::setRequestState(RequestState state)
+{
+	_requestState = state;
+}
+
 void Connection::appendToReadBuffer(const char* buffer, ssize_t bytes)
 {
 	if (bytes > 0)
@@ -68,7 +79,7 @@ void Connection::setState(State state)
 	_state = state;
 }
 
-bool Connection::headerComplete() const
+bool Connection::headerComplete() const // duplicate logic
 {
 	return  _readBuffer.find("\r\n\r\n") != std::string::npos;
 }

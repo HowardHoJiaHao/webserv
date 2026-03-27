@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/23 18:54:02 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 13:27:09 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,6 +24,14 @@ class Connection
 			READING,
 			WRITING,	
 		};
+
+		enum RequestState
+		{
+			READING_HEADERS,
+			READING_BODY,
+			COMPLETE
+		};
+
 		Connection(int fd);
 		~Connection();
 
@@ -41,12 +49,16 @@ class Connection
 		void appendToReadBuffer(const char* buffer, ssize_t bytes);
 		bool headerComplete() const;
 
+		RequestState getRequestState() const;
+		void	setRequestState(RequestState state);
+
 	private:
 		int 		_fd;
 		std::string _readBuffer;
 		std::string _writeBuffer;
 		State		_state;
 		bool		_closed;
+		RequestState _requestState;
 
 		
 
