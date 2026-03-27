@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/27 18:27:10 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 18:48:19 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,6 +30,8 @@
 #include <sys/stat.h>
 #include "extractRequest.hpp"
 #include <ctime>
+#include "Webserv.hpp"
+
 
 Engine::Engine(const ConfigFiles& config) : _config(config){}
 
@@ -147,6 +149,22 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	//std::cout << "State before detection: " << conn->getState() << std::endl;
 	conn->appendToReadBuffer(buffer, bytes);
 	conn->updateActivity();
+
+	if (conn->getReadBuffer().size() > MAX_REQUEST_SIZE)
+	{
+		conn->setShouldClose(true);
+		conn->getReadBuffer().clear();
+		conn->getWriteBuffer() = buildResponse
+		(
+			"413 Payload Too Large",
+			"Payload Too Large",
+			"text/plain",
+			conn->shouldClose()
+		);
+		conn->setState(Connection::WRITING);
+		return;
+	}
+
 	std::string& readBuffer = conn->getReadBuffer();
 	std::string rawRequest;
 
