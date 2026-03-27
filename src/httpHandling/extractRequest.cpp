@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/27 00:59:08 by ho                #+#    #+#             */
-/*   Updated: 2026/03/28 00:34:16 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/28 00:52:08 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,7 +62,11 @@ static bool parseChunkedBody(const std::string& buffer, size_t bodyStart, size_t
 
 		std::string rawLine = buffer.substr(pos, lineEnd - pos);
 		size_t semicolon = rawLine.find(';');
-		std::string hexSize = (semicolon == std::string::npos) ? rawLine : rawLine.substr(0, semicolon);
+		std::string hexSize;
+		if (semicolon == std::string::npos)
+			hexSize = rawLine;
+		else
+			hexSize = rawLine.substr(0, semicolon);
 		while (!hexSize.empty() && (hexSize[hexSize.size() - 1] == ' ' || hexSize[hexSize.size() - 1] == '\t'))
 			hexSize.erase(hexSize.size() - 1);
 		char* endptr = NULL;

@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/28 00:34:16 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/28 00:52:07 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -153,7 +153,9 @@ const ServerConfig* Engine::findServerConfig(const std::string& host, int port) 
 		if (servers[i].getPort() == port)
 			return &servers[i];
 	}
-	return servers.empty() ? NULL : &servers[0];
+	if (servers.empty())
+		return NULL;
+	return &servers[0];
 }
 
 const ServerConfig* Engine::findServerConfigForConnection(int clientFd, const HttpRequest& request) const
@@ -319,7 +321,9 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			_clientListenEndpoints[conn->getFd()].first,
 			_clientListenEndpoints[conn->getFd()].second
 		);
-		size_t maxBodySize = (defaultServer != NULL) ? defaultServer->getMaxBodySize() : MAX_REQUEST_SIZE;
+		size_t maxBodySize = MAX_REQUEST_SIZE;
+		if (defaultServer != NULL)
+			maxBodySize = defaultServer->getMaxBodySize();
 		try
 		{
 			request.parse(rawRequest, maxBodySize);
@@ -348,9 +352,17 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		if (shouldClose)
 			conn->setShouldClose(true);
 
-		if (serverConfig == NULL)
-			serverConfig = defaultServer;
-		std::string response = routeRequest(request, shouldClose, *serverConfig);
+		const ServerConfig* effectiveServer = defaultServer;
+		if (serverConfig != NULL)
+			effectiveServer = serverConfig;
+		if (effectiveServer == NULL)
+		{
+			conn->setShouldClose(true);
+			conn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", conn->shouldClose(), NULL);
+			conn->setState(Connection::WRITING);
+			return;
+		}
+		std::string response = routeRequest(request, shouldClose, *effectiveServer);
 		conn->getWriteBuffer() += response;
 		producedResponse = true;
 	}
