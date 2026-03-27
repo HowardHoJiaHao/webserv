@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:23:54 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/28 00:34:20 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/28 01:00:13 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,16 +28,14 @@ int	main(int argc, char **argv)
 {
 	if (argc == 1 || argc == 2)
 	{
-		if (argc == 2)
-		{
-			// TODO: parse argv[1] as config file path.
-			(void)argv[1];
-		}
 		try
 		{
-			//std::string			RawConfig; // for later
 			ConfigFiles		config;
-
+			if (argc == 2)
+			{
+				std::cout << "compile with config" << std::endl;
+				config = ConfigFiles(argv[1]);
+			}
 			Engine	engine(config);
 			engine.setupListeningSockets();
 			engine.run();
