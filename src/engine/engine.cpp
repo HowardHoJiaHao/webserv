@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/27 22:09:33 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/27 22:54:35 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -222,13 +222,19 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			conn->setState(Connection::WRITING);
 			return;
 		}
-		conn->getWriteBuffer() += routeRequest(request);
-		//conn->setShouldClose(request.shouldCloseConnection());
-		if (request.shouldCloseConnection())
+		std::string response = routeRequest(request);
+		bool shouldClose = request.shouldCloseConnection();
+		if (shouldClose)
 			conn->setShouldClose(true);
-		conn->setState(Connection::WRITING);
-		
+		if (shouldClose)
+		{
+			size_t pos = response.find("Connection: keep-alive");
+			if (pos != std::string::npos)
+				response.replace(pos, 24, "Connection: close");
+		}
+		conn->getWriteBuffer() += response;
 	}
+	conn->setState(Connection::WRITING);
 }
 
 void Engine::processIncomingData(fd_set& readSet)
@@ -237,6 +243,32 @@ void Engine::processIncomingData(fd_set& readSet)
 			it != _clientConnections.end();)
 	{
 		int clientFd = it->first;
+		Connection* conn = it->second;
+		time_t now = std::time(NULL);
+		time_t elapsed = now - conn->getLastActivity();
+
+		if (conn->getRequestState() == Connection::READING_HEADERS)
+		{
+			if (elapsed > 5)
+			{
+				std::cout << "Header timeout fd=" << clientFd << std::endl;
+				delete conn;
+				_clientConnections.erase(it++);
+				continue;
+			}
+		}
+		else
+		{
+			if (elapsed > 10)
+			{
+				std::cout << "Connection timeout fd=" << clientFd << std::endl;
+				delete conn;
+				_clientConnections.erase(it++);
+				continue;
+			}
+		}
+
+
 		if (FD_ISSET(clientFd, &readSet))
 		{
 			// if clients sends higher than buffer limit
@@ -324,11 +356,17 @@ void Engine::processOutgoingData(fd_set& writeSet)
 			if (!writebuffer.empty())
 			{
 				std::cout << "about to send on fd=" << clientFd << std::endl;
-				ssize_t sentByte = send(clientFd, writebuffer.c_str(), writebuffer.size(), 0);
+				ssize_t sentByte = send(clientFd, writebuffer.data(), writebuffer.size(), 0);
 				if (sentByte > 0)
 				{
 					writebuffer.erase(0, sentByte);
 					it->second->updateActivity();
+				}
+				else if (sentByte == 0)
+				{
+					delete it->second;
+					_clientConnections.erase(it++);
+					continue;
 				}
 				else if (sentByte < 0)
 				{

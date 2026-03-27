@@ -149,8 +149,8 @@ READING_HEADERS
 
 ### Must handle:
 
-* [ ] Large request bodies safely
-* [ ] Avoid loading everything blindly into memory
+* [x] Large request bodies safely (with static cap)
+* [ ] Avoid loading everything blindly into memory (intentionally not implemented: no streaming / incremental body handling)
 
 ---
 
@@ -158,10 +158,14 @@ READING_HEADERS
 
 ### Must correctly respond to:
 
-* [ ] Malformed request
-* [ ] Invalid headers
-* [ ] Unsupported method
-* [ ] Oversized body
+* [x] Malformed request
+* [x] Invalid headers
+* [x] Unsupported method
+* [x] Oversized body
+
+Note:
+* `413 Payload Too Large` is handled in `Engine::handleClientRequest()` when request/header buffers exceed limits.
+* Oversized body detected in `HttpRequest::parse()` currently flows through the generic catch path (currently returned as `400` unless catch mapping is specialized to `413`).
 
 ---
 
