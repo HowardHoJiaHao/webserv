@@ -137,9 +137,9 @@ READING_HEADERS
 
 ### Must include:
 
-* [ ] Correct status line
-* [ ] Required headers
-* [ ] Correct Content-Length (or chunked)
+* [x] Correct status line
+* [x] Required headers
+* [x] Correct Content-Length (or chunked)
 
 ---
 

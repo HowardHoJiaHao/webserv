@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/27 17:39:15 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 18:27:10 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -179,7 +179,8 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		}
 		catch (const std::exception& e)
 		{
-			conn->getWriteBuffer() = buildResponse("400 Bad request", "Bad Request", "text/plain");
+			conn->setShouldClose(true);
+			conn->getWriteBuffer() = buildResponse("400 Bad request", "Bad Request", "text/plain", conn->shouldClose());
 			conn->setState(Connection::WRITING);
 			return;
 		}
@@ -374,7 +375,7 @@ std::string Engine::routeRequest(const HttpRequest& request)
 	if (request.getMethod() == "GET")
 	{
 		if (request.getPath().find("..") != std::string::npos)
-			return buildResponse("403 Forbidden", "Forbidden", "text/plain");
+			return buildResponse("403 Forbidden", "Forbidden", "text/plain", false);
 		std::string path = FileHandler::resolvePath(request.getPath());
 		struct stat s;
 		if (stat(path.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
@@ -384,7 +385,7 @@ std::string Engine::routeRequest(const HttpRequest& request)
 			return build404Response();
 		std::string content = FileHandler::readFile(path);
 		std::string mime = FileHandler::getMimeType(path);
-		return buildResponse("200 OK", content,mime);
+		return buildResponse("200 OK", content, mime, false);
 	}
 	if (request.getMethod() == "POST")
 		return handlePost(request);
@@ -429,7 +430,7 @@ std::string Engine::handlePost(const HttpRequest& request)
 	std::string path = "./www/upload.txt";
 	int fd = open(path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
 	if (fd < 0)
-		return buildResponse("500 Internal Server Error", "Open Failed", "text/plain");
+		return buildResponse("500 Internal Server Error", "Open Failed", "text/plain", false);
 	size_t total = 0;
 	while (total < body.size())
 	{
@@ -437,25 +438,30 @@ std::string Engine::handlePost(const HttpRequest& request)
 		if (written <= 0)
 		{
 			close(fd);
-			return buildResponse("500 Internal Server Error", "Write failed", "text/plain");
+			return buildResponse("500 Internal Server Error", "Write failed", "text/plain", false);
 		}
 		total += written;
 	}
 	close(fd);
-	return buildResponse("200 OK", "OK", "text/plain");
+	return buildResponse("200 OK", "OK", "text/plain", false);
 }
 
 std::string Engine::buildResponse
 (
 	const std::string& status,
 	const std::string& body,
-	const std::string& contentType
+	const std::string& contentType,
+	bool shouldClose
 )
 {
 	std::stringstream ss;
 	ss << "HTTP/1.1 " << status << "\r\n";
 	ss << "Content-Length: " << body.size() << "\r\n";
 	ss << "Content-Type: " << contentType << "\r\n";
+	if (shouldClose)
+		ss << "Connection: close\r\n";
+	else
+		ss << "Connection: keep-alive\r\n";
 	ss << "\r\n";
 	ss << body;
 	return ss.str();
@@ -463,20 +469,15 @@ std::string Engine::buildResponse
 
 std::string Engine::build405Response()
 {
-	return buildResponse("405 Method Not Allowed", "Method Not Allowed", "text/plain");
+	return buildResponse("405 Method Not Allowed", "Method Not Allowed", "text/plain", false);
 }
 
 std::string Engine::buildIndexResponse()
 {
-	return "HTTP/1.1 200 OK\r\n"
-		"Content-Length: 13\r\n"
-		"Content-Type: text/plain\r\n"
-		"\r\n"
-		"Hello, world!";
+	return buildResponse("200 OK", "Hello, world!", "text/plain", false);
 }
 
 std::string Engine::build404Response()
 {
-	return buildResponse("404 Not Found", "Not Found", "text/plain");
+	return buildResponse("404 Not Found", "Not Found", "text/plain", false);
 }
-

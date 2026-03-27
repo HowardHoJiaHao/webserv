@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/25 15:39:43 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/27 18:16:38 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,7 +48,7 @@ class Engine
 		std::string buildIndexResponse();
 		std::string build404Response();
 		std::string build400Response();
-		std::string buildResponse(const std::string& status, const std::string& body, const std::string& contentType);
+		std::string buildResponse(const std::string& status, const std::string& body, const std::string& contentType, bool shouldClose);
 		std::string routeRequest(const HttpRequest& request);
 		std::string handlePost(const HttpRequest& request);
 };
