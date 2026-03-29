@@ -1,2 +1,69 @@
 <!DOCTYPE html>
-<html><body><h1>www2 home</h1></body></html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>The Official Department of Silly Business</title>
+	<link rel="stylesheet" href="funny.css" />
+</head>
+<body>
+	<main class="page">
+		<header class="hero">
+			<p class="badge">SERIOUS WEBSITE. VERY PROFESSIONAL.</p>
+			<h1>Welcome to the Department of Silly Business</h1>
+			<p class="subtitle">Our mission is simple: make your eyebrows do that surprised thing.</p>
+		</header>
+
+		<section class="card-grid">
+			<article class="card wobble">
+				<h2>Breaking News</h2>
+				<p>Local potato elected mayor after promising free Wi-Fi and emotional support gravy.</p>
+			</article>
+
+			<article class="card tilt">
+				<h2>Daily Affirmation</h2>
+				<p>You are 92% stardust and 8% trying to remember why you opened this tab.</p>
+			</article>
+
+			<article class="card pop">
+				<h2>Important Poll</h2>
+				<p>Should pigeons wear tiny helmets while riding scooters? Results: "absolutely".</p>
+			</article>
+		</section>
+
+		<section class="nonsense-console" aria-label="Nonsense generator">
+			<h2>Nonsense Generator 3000</h2>
+			<p id="line">Loading elite nonsense...</p>
+			<button id="nonsense-btn" type="button">Generate Fresh Nonsense</button>
+		</section>
+
+		<footer>
+			<p>Certified funny by three raccoons in a trench coat.</p>
+		</footer>
+	</main>
+
+	<script>
+		(function () {
+			var lines = [
+				"A duck just emailed me a PDF of soup.",
+				"Your socks have entered a startup incubator.",
+				"Moonlight is just sunlight wearing pajamas.",
+				"An avocado challenged your keyboard to a dance battle.",
+				"Breaking: one noodle escaped and now lives under your fridge.",
+				"Scientists confirm: saying 'boop' improves aerodynamics."
+			];
+
+			var lineEl = document.getElementById("line");
+			var btn = document.getElementById("nonsense-btn");
+
+			function setRandomLine() {
+				var index = Math.floor(Math.random() * lines.length);
+				lineEl.textContent = lines[index];
+			}
+
+			btn.addEventListener("click", setRandomLine);
+			setRandomLine();
+		})();
+	</script>
+</body>
+</html>

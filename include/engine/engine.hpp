@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/28 00:34:19 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/29 15:48:52 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,6 +31,7 @@ class Engine
 		std::map<std::pair<std::string,int>, int> _listenSockets;
 		std::map<int, Connection*> _clientConnections;
 		std::map<int, std::pair<std::string, int> > _clientListenEndpoints;
+		std::map<std::string, int> _sessions;
 
 		void registerListenSocketsForSelect(fd_set& readSet, int& maxFd);
 		void registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, int& maxFd);
@@ -56,7 +57,7 @@ class Engine
 		std::string buildIndexResponse();
 		std::string build404Response(bool shouldClose, const ServerConfig* serverConfig);
 		std::string build400Response(bool shouldClose, const ServerConfig* serverConfig);
-		std::string buildResponse(const std::string& status, const std::string& body, const std::string& contentType, bool shouldClose);
+		std::string buildResponse(const std::string& status, const std::string& body, const std::string& contentType, bool shouldClose, const std::vector<std::string>& extraHeaders);
 		std::string routeRequest(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);
 		std::string handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);
 		std::string handleDelete(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);

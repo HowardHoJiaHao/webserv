@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   httpRequest.cpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/28 00:34:16 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/29 15:09:27 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -85,6 +85,7 @@ void HttpRequest::parse(const std::string& rawRequest, size_t maxBodySize)
 	_path.clear();
 	_version.clear();
 	_body.clear();
+	_cookies.clear();
 	_headers.clear();
 	_contentLength = 0;
 	_hasContentLength = false;
@@ -153,6 +154,8 @@ void HttpRequest::parse(const std::string& rawRequest, size_t maxBodySize)
 		if (_headers.find(key) != _headers.end())
 			throw std::runtime_error("Duplicate header");
 		_headers[key] = value;
+		if (key == "cookie")
+			parseCookies(value);
 	}
 
 	if (_version == "HTTP/1.1")
@@ -219,4 +222,44 @@ bool HttpRequest::shouldCloseConnection() const
 	if (_version == "HTTP/1.1")
 		return false;
 	return true;
+}
+
+std::string HttpRequest::trim(const std::string& str)
+{
+	size_t start = 0;
+
+	while (start < str.size() && std::isspace(str[start]))
+		start++;
+	size_t end = str.size();
+	while (end > start && std::isspace(str[end - 1]))
+		end--;
+	return str.substr(start, end - start);
+}
+
+void HttpRequest::parseCookies(const std::string& cookieHeader)
+{
+	std::stringstream ss(cookieHeader);
+	std::string pair;
+
+	while (std::getline(ss, pair, ';'))
+	{
+		size_t eqPos = pair.find('=');
+		if (eqPos == std::string::npos)
+			continue;
+		std::string key = pair.substr(0, eqPos);
+		std::string value = pair.substr(eqPos + 1);
+
+		key = trim(key);
+		value = trim(value);
+
+		_cookies[key] = value;
+	}
+}
+
+std::string HttpRequest::getCookie(const std::string& key) const
+{
+	std::map<std::string, std::string>::const_iterator it = _cookies.find(key);
+	if (it != _cookies.end())
+		return it->second;
+	return "";
 }

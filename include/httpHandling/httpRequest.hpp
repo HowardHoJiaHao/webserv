@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   httpRequest.hpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:37:17 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/28 00:34:19 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/29 15:10:08 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,10 +23,14 @@ class HttpRequest
 		std::string _method;
 		std::string _path;
 		std::string _version;
-		std::map<std::string, std::string> _headers;
+		//std::map<std::string, std::string> _headers;
 		std::string _body;
 		size_t		_contentLength;
 		bool		_hasContentLength;
+
+		std::map<std::string, std::string> _headers;
+		std::map<std::string, std::string> _cookies;
+		std::string trim(const std::string& str);
 
 	public:
 		HttpRequest();
@@ -46,6 +50,9 @@ class HttpRequest
 		void parse(const std::string& rawRequest, size_t maxBodySize);
 
 		bool shouldCloseConnection() const;
+		void parseCookies(const std::string& cookieHeader);
+		std::string getCookie(const std::string& key) const;
+
 
 
 

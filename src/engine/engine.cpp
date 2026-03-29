@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/28 00:52:07 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/29 15:53:39 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -249,7 +249,8 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 				"413 Payload Too Large",
 				"Header Too Large",
 				"text/plain",
-				conn->shouldClose()
+				conn->shouldClose(),
+				std::vector<std::string>()
 			);
 			conn->setState(Connection::WRITING);
 			return;
@@ -266,7 +267,8 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			"413 Payload Too Large",
 			"Payload Too Large",
 			"text/plain",
-			conn->shouldClose()
+			conn->shouldClose(),
+			std::vector<std::string>()
 		);
 		conn->setState(Connection::WRITING);
 		return;
@@ -317,6 +319,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		}
 
 		HttpRequest request;
+		std::vector<std::string> extraHeaders;
 		const ServerConfig* defaultServer = findServerConfig(
 			_clientListenEndpoints[conn->getFd()].first,
 			_clientListenEndpoints[conn->getFd()].second
@@ -327,6 +330,25 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		try
 		{
 			request.parse(rawRequest, maxBodySize);
+
+			std::string sessionId = request.getCookie("sessionId");
+			
+
+			if (sessionId.empty() || _sessions.find(sessionId) == _sessions.end())
+			{
+				std::cout << "New User\n";
+				std::stringstream ss;
+				ss << std::rand() << std::time(NULL);
+				sessionId = ss.str();
+
+				_sessions[sessionId] = 1;
+				extraHeaders.push_back("Set-Cookie: sessionId=" + sessionId + "; Path=/");
+			}
+			else
+			{
+				_sessions[sessionId]++;
+				std::cout << "Returning user: " << sessionId << " (visit " << _sessions[sessionId] << ")\n";
+			}
 		}
 		catch (const std::exception& e)
 		{
@@ -363,6 +385,20 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			return;
 		}
 		std::string response = routeRequest(request, shouldClose, *effectiveServer);
+		if (!extraHeaders.empty())
+		{
+			size_t pos = response.find("\r\n\r\n");
+			if (pos != std::string::npos)
+			{
+				std::string headerPart = response.substr(0, pos);
+				std::string bodyPart = response.substr(pos);
+
+				for (size_t i = 0; i < extraHeaders.size(); i++)
+					headerPart += "\r\n" + extraHeaders[i];
+
+				response = headerPart + bodyPart;
+			}
+		}
 		conn->getWriteBuffer() += response;
 		producedResponse = true;
 	}
@@ -575,7 +611,7 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 				std::string listing = FileHandler::generateDirectoryListing(request.getPath(), path);
 				if (listing.empty())
 					return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
-				return buildResponse("200 OK", listing, "text/html", shouldClose);
+				return buildResponse("200 OK", listing, "text/html", shouldClose, std::vector<std::string>());
 			}
 			else
 				return buildErrorResponse(403, "Forbidden", shouldClose, &serverConfig);
@@ -585,7 +621,7 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 			return build404Response(shouldClose, &serverConfig);
 		std::string content = FileHandler::readFile(path);
 		std::string mime = FileHandler::getMimeType(path);
-		return buildResponse("200 OK", content, mime, shouldClose);
+		return buildResponse("200 OK", content, mime, shouldClose, std::vector<std::string>());
 	}
 	if (request.getMethod() == "POST")
 		return handlePost(request, shouldClose, serverConfig, location);
@@ -616,7 +652,7 @@ std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, con
 		total += written;
 	}
 	close(fd);
-	return buildResponse("201 Created", "Upload OK", "text/plain", shouldClose);
+	return buildResponse("201 Created", "Upload OK", "text/plain", shouldClose, std::vector<std::string>());
 }
 
 std::string Engine::handleDelete(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig)
@@ -636,7 +672,7 @@ std::string Engine::handleDelete(const HttpRequest& request, bool shouldClose, c
 	if (std::remove(path.c_str()) != 0)
 		return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
 
-	return buildResponse("204 No Content", "", "text/plain", shouldClose);
+	return buildResponse("204 No Content", "", "text/plain", shouldClose, std::vector<std::string>());
 }
 
 std::string Engine::buildResponse
@@ -644,13 +680,19 @@ std::string Engine::buildResponse
 	const std::string& status,
 	const std::string& body,
 	const std::string& contentType,
-	bool shouldClose
+	bool shouldClose,
+	const std::vector<std::string>& extraHeaders
 )
 {
 	std::stringstream ss;
 	ss << "HTTP/1.1 " << status << "\r\n";
 	ss << "Content-Length: " << body.size() << "\r\n";
 	ss << "Content-Type: " << contentType << "\r\n";
+
+	for (size_t i = 0; i < extraHeaders.size(); i++)
+	{
+		ss << extraHeaders[i] << "\r\n";
+	}
 	if (shouldClose)
 		ss << "Connection: close\r\n";
 	else
@@ -673,14 +715,14 @@ std::string Engine::buildErrorResponse(int code, const std::string& defaultMsg, 
 				std::string body = FileHandler::readFile(fullPath);
 				std::ostringstream status;
 				status << code << " " << defaultMsg;
-				return buildResponse(status.str(), body, "text/html", shouldClose);
+				return buildResponse(status.str(), body, "text/html", shouldClose, std::vector<std::string>());
 			}
 		}
 	}
 
 	std::ostringstream status;
 	status << code << " " << defaultMsg;
-	return buildResponse(status.str(), defaultMsg, "text/plain", shouldClose);
+	return buildResponse(status.str(), defaultMsg, "text/plain", shouldClose, std::vector<std::string>());
 }
 
 std::string Engine::build405Response(bool shouldClose, const ServerConfig* serverConfig)
@@ -690,7 +732,7 @@ std::string Engine::build405Response(bool shouldClose, const ServerConfig* serve
 
 std::string Engine::buildIndexResponse()
 {
-	return buildResponse("200 OK", "Hello, world!", "text/plain", false);
+	return buildResponse("200 OK", "Hello, world!", "text/plain", false, std::vector<std::string>());
 }
 
 std::string Engine::build404Response(bool shouldClose, const ServerConfig* serverConfig)
