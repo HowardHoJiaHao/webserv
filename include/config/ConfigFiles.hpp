@@ -21,12 +21,14 @@ class ConfigFiles
 {
 	private:
 		std::vector<ServerConfig> _serverConfigs;
+		std::string				_prefix;
 		void					initDummy();
 		void					loadFromFile(const std::string& path);
 	public:
 		ConfigFiles();
 		ConfigFiles(const std::string& path);
 		const std::vector<ServerConfig>& getServers()const;
+		const std::string&				getPrefix() const;
 };
 
 #endif // CONFIGFILES_HPP

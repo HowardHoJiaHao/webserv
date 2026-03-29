@@ -14,6 +14,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
+#include <sys/stat.h>
 
 struct ConfigToken
 {
@@ -132,6 +133,29 @@ static unsigned long parseUnsigned(const std::string& value, const std::string& 
 	return num;
 }
 
+static bool isDirectoryPath(const std::string& path)
+{
+	struct stat st;
+	if (stat(path.c_str(), &st) != 0)
+		return false;
+	return S_ISDIR(st.st_mode);
+}
+
+static std::string applyPrefixPath(const std::string& prefix, const std::string& path)
+{
+	if (trim(prefix).empty() || trim(path).empty())
+		return path;
+
+	const bool prefixEndsWithSlash = (!prefix.empty() && prefix[prefix.size() - 1] == '/');
+	const bool pathStartsWithSlash = (!path.empty() && path[0] == '/');
+
+	if (prefixEndsWithSlash && pathStartsWithSlash)
+		return prefix + path.substr(1);
+	if (!prefixEndsWithSlash && !pathStartsWithSlash)
+		return prefix + "/" + path;
+	return prefix + path;
+}
+
 static void parseListenValue(const std::string& listenValue, ServerConfig& server, size_t line)
 {
 	size_t colon = listenValue.find(':');
@@ -155,7 +179,7 @@ static void parseListenValue(const std::string& listenValue, ServerConfig& serve
 	server.setPort(static_cast<int>(port));
 }
 
-static void parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server)
+static void parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	if (i >= tokens.size())
 		throw parseError(tokens[tokens.size() - 1].line, "missing location path");
@@ -179,7 +203,7 @@ static void parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i
 		{
 			if (i >= tokens.size())
 				throw parseError(tokens[i - 1].line, "missing location root");
-			loc.setRoot(tokens[i++].value);
+			loc.setRoot(applyPrefixPath(prefix, tokens[i++].value));
 			expectToken(tokens, i, ";");
 		}
 		else if (key == "upload_enable")
@@ -194,7 +218,7 @@ static void parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i
 		{
 			if (i >= tokens.size())
 				throw parseError(tokens[i - 1].line, "missing upload_path value");
-			loc.setUploadPath(tokens[i++].value);
+			loc.setUploadPath(applyPrefixPath(prefix, tokens[i++].value));
 			expectToken(tokens, i, ";");
 		}
 		else if (key == "autoindex")
@@ -215,7 +239,7 @@ static void parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i
 	server.addLocation(loc);
 }
 
-static ServerConfig parseServerBlock(const std::vector<ConfigToken>& tokens, size_t& i)
+static ServerConfig parseServerBlock(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& prefix)
 {
 	ServerConfig server;
 	expectToken(tokens, i, "server");
@@ -250,7 +274,7 @@ static ServerConfig parseServerBlock(const std::vector<ConfigToken>& tokens, siz
 		{
 			if (i >= tokens.size())
 				throw parseError(tokens[i - 1].line, "missing root value");
-			server.setRoot(tokens[i++].value);
+			server.setRoot(applyPrefixPath(prefix, tokens[i++].value));
 			expectToken(tokens, i, ";");
 		}
 		else if (key == "index")
@@ -281,7 +305,7 @@ static ServerConfig parseServerBlock(const std::vector<ConfigToken>& tokens, siz
 		}
 		else if (key == "location")
 		{
-			parseLocationBlock(tokens, i, server);
+			parseLocationBlock(tokens, i, server, prefix);
 		}
 		else
 		{
@@ -296,7 +320,7 @@ static ServerConfig parseServerBlock(const std::vector<ConfigToken>& tokens, siz
 	if (server.getHost().empty())
 		server.setHost("0.0.0.0");
 	if (trim(server.getRoot()).empty())
-		server.setRoot("./www");
+		server.setRoot(applyPrefixPath(prefix, "./www"));
 	if (trim(server.getIndex()).empty())
 		server.setIndex("index.html");
 
@@ -305,11 +329,13 @@ static ServerConfig parseServerBlock(const std::vector<ConfigToken>& tokens, siz
 
 ConfigFiles::ConfigFiles()
 {
+	_prefix.clear();
 	initDummy();
 }
 
 ConfigFiles::ConfigFiles(const std::string& path)
 {
+	_prefix.clear();
 	if (trim(path).empty())
 		initDummy();
 	else
@@ -319,6 +345,11 @@ ConfigFiles::ConfigFiles(const std::string& path)
 const std::vector<ServerConfig>& ConfigFiles::getServers() const
 {
 	return _serverConfigs;
+}
+
+const std::string& ConfigFiles::getPrefix() const
+{
+	return _prefix;
 }
 
 void ConfigFiles::loadFromFile(const std::string& path)
@@ -333,11 +364,26 @@ void ConfigFiles::loadFromFile(const std::string& path)
 
 	_serverConfigs.clear();
 	size_t i = 0;
+	_prefix.clear();
+	if (i < tokens.size() && tokens[i].value == "prefix")
+	{
+		size_t line = tokens[i++].line;
+		if (i >= tokens.size() || tokens[i].value == ";" || tokens[i].value == "{" || tokens[i].value == "}")
+			throw parseError(line, "missing prefix path");
+		_prefix = tokens[i++].value;
+		expectToken(tokens, i, ";");
+		if (!isDirectoryPath(_prefix))
+			throw parseError(line, "prefix must be an existing directory: " + _prefix);
+	}
+	else if (i < tokens.size() && tokens[i].value != "server")
+	{
+		throw parseError(tokens[i].line, "expected 'prefix' or 'server' block");
+	}
 	while (i < tokens.size())
 	{
 		if (tokens[i].value != "server")
 			throw parseError(tokens[i].line, "expected 'server' block");
-		ServerConfig server = parseServerBlock(tokens, i);
+		ServerConfig server = parseServerBlock(tokens, i, _prefix);
 		_serverConfigs.push_back(server);
 	}
 
