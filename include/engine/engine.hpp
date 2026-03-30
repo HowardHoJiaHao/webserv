@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/29 15:48:52 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 02:07:48 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,6 +61,9 @@ class Engine
 		std::string routeRequest(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);
 		std::string handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);
 		std::string handleDelete(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);
+
+		void 		launchCGI(Connection* conn, const HttpRequest& request);
+
 };
 
 #endif

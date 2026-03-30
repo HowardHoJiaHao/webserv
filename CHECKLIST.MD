@@ -166,10 +166,6 @@ Transport layer is fully stable and considered complete.
 * Reactor `fd_set` population gated by state
 * Read/write execution strictly separated by protocol state
 
-**Architectural invariant:**
-A connection in `READING` never sends.
-A connection in `WRITING` never receives.
-
 ---
 
 ## 5.2 Header Boundary Detection (Completed)
@@ -207,9 +203,9 @@ A connection in `WRITING` never receives.
 
 # 🎯 Phase 5 Completion Plateau (Reached)
 
-✔ Structural HTTP correctness achieved
-✔ No premature responses
-✔ Stable under partial reads
+✔ Structural HTTP correctness achieved  
+✔ No premature responses  
+✔ Stable under partial reads  
 
 ---
 
@@ -217,25 +213,25 @@ A connection in `WRITING` never receives.
 
 ## Key Achievements
 
-✔ HttpRequest introduced as protocol owner
-✔ Parsing fully moved out of Engine
-✔ Content-Length handled internally
-✔ Body extraction handled internally
-✔ isComplete() determines readiness
+✔ HttpRequest introduced as protocol owner  
+✔ Parsing fully moved out of Engine  
+✔ Content-Length handled internally  
+✔ Body extraction handled internally  
+✔ isComplete() determines readiness  
 
 ---
 
 ## Architectural Invariant
 
-Engine → transport + routing + execution
-HttpRequest → protocol only
+Engine → transport + routing + execution  
+HttpRequest → protocol only  
 
 ---
 
 # 🎯 Phase 6 Completion Plateau (Reached)
 
-✔ No protocol leakage into Engine (parsing isolated)
-✔ Clean separation achieved for protocol layer
+✔ No protocol leakage into Engine (parsing isolated)  
+✔ Clean separation achieved for protocol layer  
 
 ---
 
@@ -260,211 +256,162 @@ HttpRequest → protocol only
 
 ## 7.3 Execution Flow
 
-recv → append buffer
-→ parse()
-→ isComplete()
-→ routeRequest()
-→ send()
+recv → append buffer  
+→ parse()  
+→ isComplete()  
+→ routeRequest()  
+→ send()  
 
 ---
 
 # 🎯 Phase 7 Completion Plateau (Reached)
 
-✔ Correct HTTP status codes
-✔ Clean routing layer
-✔ No protocol leakage
+✔ Correct HTTP status codes  
+✔ Clean routing layer  
+✔ No protocol leakage  
 
 ---
 
 # 🚀 Phase 8 — Static File Serving (COMPLETED)
 
-## 8.1 — Path Mapping
+## Key Features
 
-* `/` → `./www/index.html`
-* `/abc` → `./www/abc`
-
----
-
-## 8.2 — File Existence Check
-
-* Implemented using `stat()`
-* Missing file → 404
-
----
-
-## 8.3 — File Reading
-
-* `open → read (loop) → close`
-* Handles large files correctly
-
----
-
-## 8.4 — Response Construction
-
-* Centralized `buildResponse()`
-* Includes Content-Length & Content-Type
-
----
-
-## 8.5 — MIME Support
-
-* `.html` → text/html
-* `.txt` → text/plain
-* default → application/octet-stream
-
----
-
-## 8.6 — Directory Handling
-
-* Detect directory via `stat`
-* Append `/index.html`
-
----
-
-## 8.7 — Path Traversal Protection
-
-* Reject paths containing `..`
-* Return 403 Forbidden
-
----
-
-## 8.8 — Concurrency Validation
-
-* Parallel curl tests passed
-* No crash, no hang
+* Path mapping (`/` → `./www/index.html`)
+* File existence via `stat()`
+* Safe file reading loop
+* MIME type handling
+* Directory → `/index.html`
+* Path traversal protection (`..` → 403)
 
 ---
 
 # 🎯 Phase 8 Completion
 
-✔ Real file serving
-✔ Correct headers
-✔ MIME support
-✔ Directory handling
-✔ Path safety
-✔ Stable under load
+✔ Real file serving  
+✔ Correct headers  
+✔ Stable under load  
 
 ---
 
 # 🚀 Phase 9 — POST Handling (COMPLETED)
 
-## 9.1 — Request Body Integration
+## Key Features
 
-* HttpRequest guarantees full body accumulation
-* Content-Length enforced strictly
-* isComplete() includes body completeness
-
-**Invariant:**
-No request processed before full body is received
-
----
-
-## 9.2 — Incremental Body Handling
-
-* Supports partial reads across multiple recv()
-* Body updated progressively
-* Body only valid when complete
-
-**Invariant:**
-isComplete() == true ⇔ body is valid
-
----
-
-## 9.3 — POST Routing Integration
-
-* routeRequest extended with POST dispatch
-* Clean separation from GET logic
-
----
-
-## 9.4 — POST Execution
-
-* Body written to filesystem
-* Target file: `./www/upload.txt`
-
-Uses:
-
-* open (O_CREAT | O_WRONLY | O_TRUNC)
-* loop-based write()
-
----
-
-## 9.5 — Execution Safety
-
-* Execution only happens when request is complete
-* Prevents partial write and corruption
-
----
-
-## 9.6 — Error Handling
-
-* open failure → 500
-* write failure → 500
-
----
-
-## 9.7 — End-to-End Flow
-
-recv → buffer
-→ parse (headers + body)
-→ isComplete
-→ routeRequest
-→ POST execution
-→ send
+* Full body accumulation via HttpRequest
+* Strict Content-Length enforcement
+* Incremental recv() handling
+* File write (`./www/upload.txt`)
+* Execution only after full body received
 
 ---
 
 # 🎯 Phase 9 Completion
 
-✔ POST supported
-✔ Safe body handling
-✔ Correct file write
-✔ No partial execution
-✔ Stable under load
+✔ POST supported  
+✔ Safe body handling  
+✔ No partial execution  
+
+---
+
+# 🚀 Phase 10 — Cookie Handling (COMPLETED)
+
+## 10.1 — Cookie Parsing
+
+* Extract `Cookie` header from request
+* Parse key-value pairs (`key=value`)
+* Support multiple cookies in single header
+
+---
+
+## 10.2 — Cookie Storage
+
+* Stored in structured format (e.g. map or similar)
+* Accessible via HttpRequest abstraction
+
+---
+
+## 10.3 — Cookie Usage
+
+* Routing layer can read cookies
+* Enables session-like behavior
+
+---
+
+## 10.4 — Set-Cookie Support
+
+* Server sends `Set-Cookie` header in response
+* Supports basic attributes:
+
+  * Path
+  * Max-Age (optional)
+
+---
+
+## 10.5 — Safety & Constraints
+
+* No parsing before full header received
+* Robust against malformed cookie format
+* No crash on invalid cookie input
+
+---
+
+# 🎯 Phase 10 Completion
+
+✔ Cookie parsing implemented  
+✔ Cookie accessible in request layer  
+✔ Set-Cookie supported in response  
+✔ Stable behavior under malformed input  
 
 ---
 
 # 📊 System Status (UPDATED)
 
-✔ Transport Layer        → COMPLETE
-✔ Framing Layer          → COMPLETE
-✔ Protocol Parsing       → COMPLETE
-✔ Routing Layer          → COMPLETE
-✔ Static File Serving    → COMPLETE
-✔ POST Handling          → COMPLETE
+✔ Transport Layer        → COMPLETE  
+✔ Framing Layer          → COMPLETE  
+✔ Protocol Parsing       → COMPLETE  
+✔ Routing Layer          → COMPLETE  
+✔ Static File Serving    → COMPLETE  
+✔ POST Handling          → COMPLETE  
+✔ Cookie Handling        → COMPLETE  
 
 ---
 
-# 🔜 Upcoming Phases
+# 🔜 Upcoming / Active Phases
 
-## Phase 10 — CGI Execution
+## Phase 11 — CGI Execution
 
 * fork / execve / pipe
 
 ---
 
-## Phase 11 — Config Integration
+## ✅ Phase 12 — Config Integration (Completed)
 
 * Host-based routing
 * root/index from config
 
 ---
 
-## Phase 12 — Robustness & Edge Cases
+## 🟡 Phase 13 — Robustness & Edge Cases (Mostly Completed)
 
-* timeout
-* error handling consistency
+* timeout handling implemented
+* error consistency mostly unified
+* connection lifecycle edge cases handled
+* remaining polish: timeout response behavior and full custom error-page consistency on all early-fail paths
 
 ---
 
 # Summary
 
-Phase 1 — Stable
-Phase 2 — Stable
-Phase 3 — Stable
-Phase 4 — Stable
-Phase 5 — Complete
-Phase 6 — Complete
-Phase 7 — Complete
-Phase 8 — Complete
-Phase 9 — Complete
+Phase 1 — Stable  
+Phase 2 — Stable  
+Phase 3 — Stable  
+Phase 4 — Stable  
+Phase 5 — Complete  
+Phase 6 — Complete  
+Phase 7 — Complete  
+Phase 8 — Complete  
+Phase 9 — Complete  
+Phase 10 — Complete  
+Phase 11 — Pending  
+Phase 12 — Complete  
+Phase 13 — Mostly Complete  

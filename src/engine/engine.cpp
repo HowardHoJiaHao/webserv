@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/29 15:53:39 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 03:09:30 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,6 +31,8 @@
 #include "extractRequest.hpp"
 #include <ctime>
 #include "Webserv.hpp"
+#include <sys/wait.h>
+
 
 
 Engine::Engine(const ConfigFiles& config) : _config(config){}
@@ -104,6 +106,16 @@ void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, in
 			FD_SET(fd, &readSet);
 		if (it->second->getState() == Connection::WRITING)
 			FD_SET(fd, &writeSet);
+		if (it->second->getState() == Connection::CGI_RUNNING)
+		{
+			int cgi_fd = it->second->getCGIStdoutFd();
+			if (cgi_fd != -1)
+			{
+				FD_SET(cgi_fd, &readSet);
+				if (cgi_fd > maxFd)
+					maxFd = cgi_fd;
+			}
+		}
 		if (fd > maxFd)
 			maxFd = fd;
 	}
@@ -416,6 +428,47 @@ void Engine::processIncomingData(fd_set& readSet)
 	{
 		int clientFd = it->first;
 
+		Connection* conn = it->second;
+
+		if (conn->getState() == Connection::CGI_RUNNING)
+		{
+			int cgi_fd = conn->getCGIStdoutFd();
+			if (cgi_fd != -1 && FD_ISSET(cgi_fd, &readSet))
+			{
+				char buffer[1024];
+				while(true)
+				{
+					ssize_t bytes = read(cgi_fd, buffer, sizeof(buffer));
+					if (bytes > 0)
+					{
+						conn->getWriteBuffer().append(buffer, bytes);
+					}
+					else if (bytes == 0)
+					{
+						pid_t pid = conn->getCGIPid();
+						if (pid > 0)
+							waitpid(pid, NULL, WNOHANG);
+						conn->clearCGI();
+						conn->setState(Connection::WRITING);
+						break;
+					}
+					else
+					{
+						if (errno == EAGAIN || errno == EWOULDBLOCK)
+						{
+							break;
+						}
+						perror("read CGI");
+						conn->clearCGI();
+						conn->setState(Connection::WRITING);
+						break;
+					}
+				}
+			}
+			++it;
+			continue;
+		}
+
 		if (FD_ISSET(clientFd, &readSet))
 		{
 			char buffer[1024];
@@ -458,6 +511,35 @@ void Engine::processOutgoingData(fd_set& writeSet)
 		int clientFd = it->first;
 		Connection* conn = it->second;
 
+		if (conn->getState() == Connection::CGI_RUNNING)
+		{
+			int cgi_in = conn->getCGIStdinFd();
+			if (cgi_in != -1 && !conn->isCGIStdinClosed())
+			{
+				std::string& body = conn->getReadBuffer();
+				if (!body.empty())
+				{
+					ssize_t written = write(cgi_in, body.c_str(), body.size());
+					if (written > 0)
+					{
+						body.erase(0, written);
+					}
+					else if (written < 0)
+					{
+						if (errno != EAGAIN && errno != EWOULDBLOCK)
+						{
+							perror("write CGI stdin");
+						}
+					}
+				}
+				if (body.empty())
+				{
+					close(cgi_in);
+					conn->setCGIStdinClosed(true);
+				}
+			}
+		}
+		
 		if (!FD_ISSET(clientFd, &writeSet))
 		{
 			++it;
@@ -481,6 +563,7 @@ void Engine::processOutgoingData(fd_set& writeSet)
 			continue;
 		}
 
+		
 		ssize_t sentByte = send(clientFd, writebuffer.data(), writebuffer.size(), 0);
 		if (sentByte > 0)
 		{
@@ -743,4 +826,76 @@ std::string Engine::build404Response(bool shouldClose, const ServerConfig* serve
 std::string Engine::build400Response(bool shouldClose, const ServerConfig* serverConfig)
 {
 	return buildErrorResponse(400, "Bad Request", shouldClose, serverConfig);
+}
+
+void	Engine::launchCGI(Connection* conn, const HttpRequest& request)
+{
+	int in_pipe[2];
+	int out_pipe[2];
+
+	(void )request;
+	if (pipe(in_pipe) < 0)
+	{
+		perror("pipe in_pipe failed");
+		return;
+	}
+
+	if (pipe(out_pipe) < 0)
+	{
+		perror("pipe out_pip failed");
+		close(in_pipe[0]);
+		close(in_pipe[1]);
+		return;
+	}
+	pid_t pid = fork();
+	if (pid < 0)
+	{
+		perror("fork failed");
+		close(in_pipe[0]);
+		close(in_pipe[1]);
+		close(out_pipe[0]);
+		close(out_pipe[1]);
+		return;
+	}
+	if (pid == 0)
+	{
+		if (dup2(in_pipe[0], STDIN_FILENO) < 0)
+		{
+			perror("dup2 stdin failed");
+			exit(1);
+		}
+		if (dup2(out_pipe[1], STDOUT_FILENO) < 0)
+		{
+			perror("dup2 stdout failed");
+			exit(1);
+		}
+		close(in_pipe[0]);
+		close(in_pipe[1]);
+		close(out_pipe[0]);
+		close(out_pipe[1]);
+
+		char* argv[] = { (char*)"/bin/ls", NULL};
+		char* envp[] = { NULL };
+
+		execve("/bin/ls", argv, envp);
+		perror("execve failed");
+		exit(1);
+	}
+	else
+	{
+		close(in_pipe[0]);
+		close(out_pipe[1]);
+
+		Connection::CGIContext* cgi = new Connection::CGIContext();
+
+		cgi->pid = pid;
+		cgi->stdin_fd = in_pipe[1];
+		cgi->stdout_fd = out_pipe[0];
+		cgi->stdin_closed = false;
+		fcntl(cgi->stdin_fd, F_SETFL, O_NONBLOCK);
+		fcntl(cgi->stdout_fd, F_SETFL, O_NONBLOCK);
+		
+		conn->setCGI(cgi);
+		conn->setState(Connection::CGI_RUNNING);
+	}
 }
