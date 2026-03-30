@@ -18,7 +18,10 @@ LocationConfig::LocationConfig()
 	_root(""),
 	_uploadEnabled(false),
 	_uploadPath(""),
-	_autoindex(false)
+	_autoindex(false),
+	_hasReturn(false),
+	_returnStatus(0),
+	_returnTarget("")
 	{}
 
 void LocationConfig::setPath(const std::string& path)
@@ -51,6 +54,13 @@ void LocationConfig::setAutoindex(bool enabled)
 	_autoindex = enabled;
 }
 
+void LocationConfig::setReturnDirective(bool enabled, int status, const std::string& target)
+{
+	_hasReturn = enabled;
+	_returnStatus = status;
+	_returnTarget = target;
+}
+
 const std::string& LocationConfig::getPath() const
 {
 	return _path;
@@ -79,4 +89,19 @@ const std::string& LocationConfig::getUploadPath() const
 bool LocationConfig::isAutoindex() const
 {
 	return _autoindex;
+}
+
+bool LocationConfig::hasReturnDirective() const
+{
+	return _hasReturn;
+}
+
+int LocationConfig::getReturnStatus() const
+{
+	return _returnStatus;
+}
+
+const std::string& LocationConfig::getReturnTarget() const
+{
+	return _returnTarget;
 }

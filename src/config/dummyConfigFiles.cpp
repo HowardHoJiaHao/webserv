@@ -133,6 +133,11 @@ static unsigned long parseUnsigned(const std::string& value, const std::string& 
 	return num;
 }
 
+static bool isSupportedReturnStatus(int code)
+{
+	return (code == 301 || code == 302 || code == 303 || code == 307 || code == 308);
+}
+
 static bool isDirectoryPath(const std::string& path)
 {
 	struct stat st;
@@ -228,6 +233,28 @@ static void parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i
 			std::string value = tokens[i++].value;
 			loc.setAutoindex(value == "on" || value == "true" || value == "1");
 			expectToken(tokens, i, ";");
+		}
+		else if (key == "return")
+		{
+			if (i >= tokens.size())
+				throw parseError(tokens[i - 1].line, "missing return status code");
+			unsigned long codeUl = parseUnsigned(tokens[i].value, "return", tokens[i].line);
+			++i;
+			if (i >= tokens.size() || tokens[i].value == ";")
+				throw parseError(tokens[i - 1].line, "missing return target");
+			std::string target = tokens[i++].value;
+			expectToken(tokens, i, ";");
+
+			if (codeUl > 999)
+				throw parseError(tokens[i - 1].line, "invalid return status code");
+			int code = static_cast<int>(codeUl);
+			if (!isSupportedReturnStatus(code))
+			{
+				std::ostringstream oss;
+				oss << "unsupported return status code: " << code;
+				throw parseError(tokens[i - 1].line, oss.str());
+			}
+			loc.setReturnDirective(true, code, target);
 		}
 		else
 		{
