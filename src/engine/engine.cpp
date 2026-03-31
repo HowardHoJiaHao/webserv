@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 03:09:30 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/31 13:12:07 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -671,6 +671,21 @@ void Engine::run()
 std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig)
 {
 	const LocationConfig* location = findBestLocation(serverConfig, request.getPath());
+	if (location != NULL && location->hasReturnDirective())
+	{
+		std::vector<std::string> headers;
+		headers.push_back("Location: " + location->getReturnTarget());
+		std::string status = "302 Found";
+		if (location->getReturnStatus() == 301)
+			status = "301 Moved Permanently";
+		else if (location->getReturnStatus() == 303)
+			status = "303 See Other";
+		else if (location->getReturnStatus() == 307)
+			status = "307 Temporary Redirect";
+		else if (location->getReturnStatus() == 308)
+			status = "308 Permanent Redirect";
+		return buildResponse(status, "", "text/plain", shouldClose, headers);
+	}
 	if (!isMethodAllowed(request.getMethod(), location))
 		return build405Response(shouldClose, &serverConfig);
 
