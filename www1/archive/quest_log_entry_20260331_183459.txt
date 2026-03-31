@@ -1,0 +1,8 @@
+--- Quest Log Entry ---
+
+Adventurer Name: LogTest
+Current Level: 20
+Gender: male
+Character Class: A
+Quest Notes:
+log-check

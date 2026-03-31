@@ -1,0 +1,252 @@
+/* global.css */
+:root{
+    --bg: #f6f8fb;
+    --surface: #ffffff;
+    --muted: #6b7280;
+    --text: #0f172a;
+    --accent: #2563eb; /* blue-600 */
+    --accent-strong: #1e40af;
+    --success: #16a34a;
+    --radius: 10px;
+}
+
+*{ box-sizing: border-box; }
+
+html, body{ height:100%; margin:0; }
+body{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    /* center vertically by default to make forms appear in middle */
+    justify-content:center;
+}
+
+/* opt-out of vertical centering when we need nav pinned to top (e.g., index) */
+.body-top{ justify-content:flex-start; align-items:stretch; }
+.body-top nav{ position:sticky; top:0; z-index:80; }
+
+/* Top navigation */
+nav{
+    width:100%;
+    background: var(--accent);
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    padding:0;
+    display:flex;
+    justify-content:flex-start;
+    align-items:center;
+    color:#fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+/* inner wrapper keeps nav aligned to the left with a max width */
+nav .nav-inner{
+    width:100%;
+    max-width: min(1600px, 98vw);
+    display:flex;
+    justify-content:flex-start;
+    align-items:center;
+}
+
+nav a{
+    color:#fff;
+    text-decoration:none;
+    font-weight:700;
+    padding:14px 18px;
+    display:inline-block;
+    margin:0;
+    border-left:1px solid rgba(255,255,255,0.18);
+}
+
+.table-wrapper{ overflow-x:auto; margin-top:1rem; }
+.archive-table{ width:100%; border-collapse:collapse; background:#fff; box-shadow:0 6px 18px rgba(15,23,42,0.06); border-radius:10px; overflow:hidden; }
+.archive-table th, .archive-table td{ padding:12px 14px; text-align:left; border-bottom:1px solid #e6eef9; }
+.archive-table th{ background:linear-gradient(180deg,#f8fbff,#eef4ff); color:var(--text); font-weight:700; }
+.archive-table tr:last-child td{ border-bottom:none; }
+
+nav a:first-child{ border-left: none; }
+nav a:hover{ background: rgba(255,255,255,0.12); color:#fff; }
+
+/* allow pages to opt-in to a top-left nav (e.g., form page) */
+.top-left-nav{ justify-content:flex-start; padding-left:1rem; position:fixed; top:0; left:0; right:0; z-index:90; background:var(--accent); border-bottom:1px solid rgba(0,0,0,0.08); box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+nav.top-left-nav .nav-inner{ justify-content:flex-start; max-width: min(1600px, 98vw); }
+
+/* Primary button style for links and buttons (blue background => white text) */
+.btn-primary, button.btn-primary{ background:var(--accent); color:#fff !important; padding:0.45rem 0.75rem; border-radius:8px; text-decoration:none !important; display:inline-block; border:none; font-weight:600; }
+.btn-primary:hover, button.btn-primary:hover{ background:#3b82f6; color:#fff !important; text-decoration:none !important; }
+.btn-primary:visited{ color:#fff !important; }
+
+/* light variant for contrast on dark areas */
+.btn-light{ background:#fff; color:var(--accent-strong); padding:0.45rem 0.75rem; border-radius:8px; text-decoration:none; display:inline-block; border:1px solid #e2e8f0; font-weight:700; box-shadow:0 6px 18px rgba(15,23,42,0.08); }
+.btn-light:hover{ background:#f8fafc; color:var(--accent-strong); }
+
+/* prominent nav button (use on Home link) */
+.nav-btn{
+    background:var(--accent);
+    color:#fff !important;
+    padding:0.45rem 0.75rem;
+    border-radius:8px;
+    font-weight:700;
+    box-shadow:0 6px 18px rgba(37,99,235,0.12);
+}
+.nav-btn:hover{ transform:translateY(-2px); }
+
+.container{
+    width:100%;
+    max-width:760px;
+    background:var(--surface);
+    margin:2rem 1rem;
+    padding:1.6rem;
+    border-radius:var(--radius);
+    box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+    text-align:left;
+}
+
+/* hero/landing container center alignment */
+.home-hero{ text-align:center; }
+.hero-wrap{ min-height: calc(100vh - 72px); display:flex; align-items:center; justify-content:center; padding:2rem; }
+.hero-wrap .container{ margin:0 auto; max-width:960px; }
+.hero-wrap h1, .hero-wrap h2, .hero-wrap p{ text-align:center; }
+
+/* form card tweaks */
+.form-card{ padding:2.5rem; }
+.form-title{ margin-top:0; margin-bottom:1.25rem; font-size:2rem; }
+
+/* Larger, centered form variant (applies on pages like form.html) */
+.center-viewport{ min-height:100vh; justify-content:center; }
+.center-viewport .container{ max-width: min(2500px, 98vw); padding:3.5rem; border-radius:14px; }
+
+/* Position nav top-left and style home button when page uses center-viewport */
+.center-viewport nav{ position: absolute; left:16px; top:16px; justify-content:flex-start; gap:0; background:transparent; padding:0; }
+.center-viewport nav a{ background:var(--accent); color:#fff; padding:8px 12px; border-radius:8px; text-decoration:none; display:inline-block; margin-right:8px; }
+.center-viewport nav a:hover{ background:var(--accent-strong); color:#fff; }
+
+/* helper to center page content vertically/horizontally */
+.page-center{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; }
+.page-center .container{ margin:0; max-width: min(2500px, 98vw); padding:3rem; }
+
+.container h1, .container h2{
+    margin:0 0 0.6rem 0;
+    color:var(--text);
+}
+
+.container p{ color:var(--muted); margin:0 0 1rem 0; }
+
+/* Form elements */
+form{ display:block; }
+input[type="text"], input[type="file"], textarea, select{
+    width:100%;
+    padding:0.65rem 0.75rem;
+    margin:0.5rem 0 0.9rem 0;
+    border:1px solid #e6eef9;
+    border-radius:8px;
+    background:linear-gradient(180deg, #fff, #fcfdff);
+    font-size:0.95rem;
+    color:var(--text);
+}
+textarea{ min-height:100px; resize:vertical; }
+
+/* File input: keep default but make spacing consistent */
+input[type="file"]{ padding:0.35rem 0.5rem; }
+
+/* Buttons */
+button{
+    display:inline-block;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    padding:0.65rem 1rem;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+    transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+}
+button:hover{ transform:translateY(-1px); box-shadow:0 6px 18px rgba(37,99,235,0.12); background:#3b82f6; color:#fff; }
+button[disabled]{ opacity:0.6; cursor:not-allowed; transform:none; }
+
+/* Links inside containers */
+.container a{ color:var(--accent-strong); text-decoration:underline; }
+
+/* Utility */
+.center{ text-align:center; }
+.muted{ color:var(--muted); }
+
+/* Small responsive tweaks */
+@media (max-width:640px){
+    .container{ margin:1rem; padding:1rem; }
+    nav{ padding:0.5rem; }
+}
+
+/* Focus accessibility */
+:focus{ outline: 3px solid rgba(37,99,235,0.18); outline-offset:3px; }
+
+/* Redirect / success visual */
+.success{
+    border-left:4px solid var(--success);
+    padding-left:0.9rem;
+}
+
+/* File upload preview */
+.file-input-row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.file-box{
+    flex:1 1 240px;
+    border:1px dashed #dbeafe;
+    background: linear-gradient(180deg,#ffffff,#fbfdff);
+    padding:12px;
+    border-radius:8px;
+    display:flex;
+    gap:12px;
+    align-items:center;
+}
+.hidden{ display:none !important; }
+.file-input-control{ flex: 0 0 auto; }
+.file-thumb{ width:54px; height:54px; border-radius:6px; object-fit:cover; background:#f4f7fb; display:block; }
+.file-meta{ font-size:0.95rem; color:var(--muted); }
+.file-name{ color:var(--text); font-weight:600; display:block; }
+.file-size{ font-size:0.85rem; color:var(--muted); }
+
+/* Form layout helpers */
+.form-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start; }
+.form-row{ margin-bottom:0.8rem; }
+label.field-label{ display:block; font-weight:600; margin-bottom:0.35rem; color:var(--text); }
+fieldset{ border:none; padding:0; margin:0; }
+.radio-group{ display:flex; gap:12px; flex-wrap:wrap; }
+.radio-group input[type="radio"]{ accent-color: var(--accent); }
+.radio-label{ display:inline-flex; gap:8px; align-items:center; padding:6px 8px; border-radius:8px; background:#fff; border:1px solid #f1f5f9; }
+
+/* radio visual and select/number styling */
+.radio-label{ cursor:pointer; transition:transform .09s ease, box-shadow .09s ease; }
+.radio-label:hover{ transform:translateY(-2px); box-shadow:0 6px 14px rgba(2,6,23,0.06); }
+.radio-label input[type="radio"]{ margin:0 6px 0 0; }
+.radio-label input[type="radio"] + span{ color:var(--muted); }
+.radio-label input[type="radio"]:checked + span{ color:var(--accent-strong); font-weight:700; }
+
+input[type="number"]{ max-width:140px; padding:0.5rem 0.6rem; }
+.num-controls{ display:inline-flex; gap:6px; align-items:center; }
+.num-btn{ background:#fff; border:1px solid #e6eef9; padding:6px 8px; border-radius:8px; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; font-size:1.05rem; line-height:1; }
+.num-btn:hover{ background:#f1f5fb }
+
+.select-control{ width:100%; padding:0.6rem; border-radius:8px; border:1px solid #e6eef9; background:linear-gradient(180deg,#fff,#fcfdff); }
+.num-controls{ display:inline-flex; gap:6px; align-items:center; }
+
+/* Color variants for number controls */
+.num-btn.increment{ background: linear-gradient(180deg,var(--success), #059669); color:#fff; border-color: rgba(5,150,105,0.2); }
+.num-btn.increment:hover{ filter:brightness(1.02); box-shadow:0 6px 14px rgba(5,150,105,0.12); }
+.num-btn.decrement{ background: linear-gradient(180deg,#fee2e2,#fca5a5); color:#7f1d1d; border-color: rgba(244,63,94,0.12); }
+.num-btn.decrement:hover{ filter:brightness(0.98); box-shadow:0 6px 14px rgba(244,63,94,0.08); }
+
+/* increase spacing between each input field visually */
+.container .form-row{ margin-bottom:1.1rem; }
+
+/* Biodata textarea */
+.bio-textarea{ width:100%; min-height:240px; padding:1rem; border-radius:10px; border:1px solid #e6eef9; background:linear-gradient(180deg,#fff,#fcfdff); font-size:1rem; line-height:1.6; }
+
+/* small helper spacing */
+.help-text{ font-size:0.9rem; color:var(--muted); margin-top:6px; }
+/* Small footer area if used */
+footer{ text-align:center; color:var(--muted); font-size:0.9rem; margin:1rem 0; }

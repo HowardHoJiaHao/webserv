@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 14:16:35 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 17:15:54 by hho-jia-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -600,6 +600,8 @@ void Engine::processIncomingData(fd_set& readSet)
 			{
 				char buffer[1024];
 				Connection::CGIContext* cgi = conn->getCGI();
+				struct timeval start_time;
+				gettimeofday(&start_time, NULL);
 				while(true)
 				{
 					ssize_t bytes = read(cgi_fd, buffer, sizeof(buffer));
@@ -681,6 +683,28 @@ void Engine::processIncomingData(fd_set& readSet)
 					{
 						if (errno == EAGAIN || errno == EWOULDBLOCK)
 						{
+							struct timeval now;
+							gettimeofday(&now, NULL);
+							time_t elapsed_sec = now.tv_sec - start_time.tv_sec;
+							suseconds_t elapsed_usec = now.tv_usec - start_time.tv_usec;
+							if (elapsed_usec < 0)
+							{
+								elapsed_sec -= 1;
+								elapsed_usec += 1000000;
+							}
+							if (elapsed_sec >= 3)
+							{
+								pid_t pid = conn->getCGIPid();
+								if (pid > 0)
+									kill(pid, SIGKILL);
+								if (pid > 0)
+									waitpid(pid, NULL, 0);
+								conn->getWriteBuffer() = buildErrorResponse(504, "Gateway Timeout", conn->shouldClose(), NULL);
+								conn->setShouldClose(true);
+								conn->clearCGI();
+								conn->setState(Connection::WRITING);
+								break;
+							}
 							break;
 						}
 						perror("read CGI");
@@ -1106,12 +1130,20 @@ std::string Engine::buildResponse
 
 std::string Engine::buildErrorResponse(int code, const std::string& defaultMsg, bool shouldClose, const ServerConfig* serverConfig)
 {
-	if (serverConfig != NULL)
+	const ServerConfig* cfg = serverConfig;
+	if (cfg == NULL)
 	{
-		const std::string* pagePath = serverConfig->getErrorPage(code);
+		const std::vector<ServerConfig>& servers = _config.getServers();
+		if (!servers.empty())
+			cfg = &servers[0];
+	}
+
+	if (cfg != NULL)
+	{
+		const std::string* pagePath = cfg->getErrorPage(code);
 		if (pagePath != NULL)
 		{
-			std::string fullPath = serverConfig->getRoot() + *pagePath;
+			std::string fullPath = cfg->getRoot() + *pagePath;
 			if (FileHandler::fileExists(fullPath))
 			{
 				std::string body = FileHandler::readFile(fullPath);

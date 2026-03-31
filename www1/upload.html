@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <link rel="stylesheet" href="style.css">
+        <!-- styling moved to external style.css -->
+        <title>Upload File</title>
+</head>
+<body class="body-top">
+    <div id="header-placeholder"></div>
+    <script src="/header.js"></script>
+    <div class="hero-wrap">
+        <div class="container form-card">
+            <h2>File Upload</h2>
+            <form action="/cgi-bin/upload_script.py" method="POST" enctype="multipart/form-data">
+                <div class="form-row file-input-row">
+                    <div class="file-input-control">
+                        <label class="field-label" for="fileToUpload">Choose file</label>
+                        <input id="fileToUpload" type="file" name="file1" required>
+                    </div>
+                    <div id="filePreview" class="file-box hidden" aria-hidden="true">
+                        <img id="fileThumb" class="file-thumb hidden" src="" alt="preview">
+                        <div class="file-meta">
+                            <span id="fileName" class="file-name">No file selected</span>
+                            <span id="fileSize" class="file-size"></span>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit">Upload Now</button>
+            </form>
+        </div>
+    </div>
+        <script>
+            (function(){
+                const input = document.getElementById('fileToUpload');
+                const preview = document.getElementById('filePreview');
+                const nameEl = document.getElementById('fileName');
+                const sizeEl = document.getElementById('fileSize');
+                const thumb = document.getElementById('fileThumb');
+
+                function humanSize(n){
+                    if(n<1024) return n+' B';
+                    if(n<1024*1024) return (n/1024).toFixed(1)+' KB';
+                    return (n/1024/1024).toFixed(2)+' MB';
+                }
+
+                input.addEventListener('change', function(e){
+                    const f = this.files && this.files[0];
+                    if(!f){ preview.style.display='none'; preview.setAttribute('aria-hidden','true'); return; }
+                    nameEl.textContent = f.name;
+                    sizeEl.textContent = ' · ' + humanSize(f.size);
+                    preview.style.display='flex'; preview.setAttribute('aria-hidden','false');
+
+                    // show thumbnail if image
+                    if(f.type.startsWith('image/')){
+                        const reader = new FileReader();
+                        reader.onload = function(ev){ thumb.src = ev.target.result; thumb.style.display='block'; };
+                        reader.readAsDataURL(f);
+                    } else { thumb.style.display='none'; thumb.src=''; }
+                });
+            })();
+        </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+Starting CGI script
+Invalid request method: GET
+Starting CGI script
+Original filename: demo.txt
+Safe filename: demo_4a7ce5df.txt
+Save path: /home/hho-jia-/evaluation/webserver/wk/www1/archive/demo_4a7ce5df.txt
+File saved successfully. Size: 12 bytes
+Starting CGI script
+Original filename: Screenshot from 2026-03-31 15-56-46.png
+Safe filename: Screenshot from 2026-03-31 15-56-46_490b62b7.png
+Save path: /home/hho-jia-/evaluation/webserver/wk/www1/archive/Screenshot from 2026-03-31 15-56-46_490b62b7.png
+File saved successfully. Size: 42401 bytes
+[2026-03-31 18:34:59] [form.py] Request started
+[2026-03-31 18:34:59] [form.py] Saved quest log entry to /home/hho-jia-/evaluation/webserver/wk/www1/archive/quest_log_entry_20260331_183459.txt
+[2026-03-31 18:34:59] [form.py] Request completed successfully
+[2026-03-31 18:34:59] [delete.py] Request started method=GET query=format=json
+[2026-03-31 18:34:59] [delete.py] Returned archive list count=1

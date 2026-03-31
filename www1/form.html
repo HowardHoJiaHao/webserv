@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <link rel="stylesheet" href="style.css">
+        <!-- styling moved to external style.css -->
+        <title>Data Form</title>
+</head>
+<body class="body-top">
+    <div id="header-placeholder"></div>
+    <script src="/header.js"></script>
+    <div class="hero-wrap">
+        <div class="container form-card">
+            <h2 class="form-title">User Info</h2>
+            <form action="/cgi-bin/form.py" method="POST"> 
+                <div class="form-row">
+                    <label class="field-label" for="name">Full name</label>
+                    <input id="name" type="text" name="name" placeholder="Jane Chuck" required>
+                </div>
+
+                <div class="form-grid">
+                    <div>
+                        <label class="field-label" for="age">Age</label>
+                        <div class="num-controls">
+                            <button type="button" class="num-btn decrement" id="ageDec">&minus;</button>
+                            <input id="age" name="age" type="number" min="0" max="120" value="18" step="1" aria-label="Age">
+                            <button type="button" class="num-btn increment" id="ageInc">+</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="field-label" for="classSelect">Class</label>
+                        <select id="classSelect" name="class" class="select-control" aria-label="Class">
+                            <option value="A">A (Alpha Avengers)</option>
+                            <option value="B">B (Banana Bandits)</option>
+                            <option value="C">C (Cosmic Cooks)
+                            </option><option value="D">D (Daring Ducklings)</option>
+                            <option value="E">E (Electric Eels)</option>
+                            <option value="F">F (Funky Flamingos)</option>
+                            <option value="G">G (Galactic Goofballs)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <label class="field-label">Gender</label>
+                    <fieldset class="radio-group" aria-label="Gender">
+                        <label class="radio-label"><input type="radio" name="gender" value="male" required> <span>Male</span></label>
+                        <label class="radio-label"><input type="radio" name="gender" value="female"> <span>Female</span></label>
+                        <label class="radio-label"><input type="radio" name="gender" value="other"> <span>Other</span></label>
+                    </fieldset>
+                </div>
+
+                <div class="form-row">
+                    <label class="field-label" for="biodata">Bio / About you</label>
+                    <textarea id="biodata" name="biodata" class="bio-textarea" placeholder="Tell us a little about yourself: interests, experience, or a short introduction... (you can paste a longer passage here)"></textarea>
+                    <div class="help-text">Write freely (this field supports longer text.)  </div>
+                </div>
+
+                <div class="form-row">
+                    <button type="submit">Submit Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        (function(){
+            const inc = document.getElementById('ageInc');
+            const dec = document.getElementById('ageDec');
+            const input = document.getElementById('age');
+            inc && inc.addEventListener('click', ()=>{ input.value = Math.min(Number(input.value||0)+1, Number(input.max||120)); });
+            dec && dec.addEventListener('click', ()=>{ input.value = Math.max(Number(input.value||0)-1, Number(input.min||0)); });
+        })();
+    </script>
+</body>
+</html>
