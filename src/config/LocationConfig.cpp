@@ -19,6 +19,8 @@ LocationConfig::LocationConfig()
 	_uploadEnabled(false),
 	_uploadPath(""),
 	_autoindex(false),
+	_cgiEnabled(false),
+	_cgiExtensions(),
 	_hasReturn(false),
 	_returnStatus(0),
 	_returnTarget("")
@@ -52,6 +54,16 @@ void LocationConfig::setUploadPath(const std::string& path)
 void LocationConfig::setAutoindex(bool enabled)
 {
 	_autoindex = enabled;
+}
+
+void LocationConfig::setCgiEnabled(bool enabled)
+{
+	_cgiEnabled = enabled;
+}
+
+void LocationConfig::setCgiExtensions(const std::vector<std::string>& extensions)
+{
+	_cgiExtensions = extensions;
 }
 
 void LocationConfig::setReturnDirective(bool enabled, int status, const std::string& target)
@@ -89,6 +101,16 @@ const std::string& LocationConfig::getUploadPath() const
 bool LocationConfig::isAutoindex() const
 {
 	return _autoindex;
+}
+
+bool LocationConfig::isCgiEnabled() const
+{
+	return _cgiEnabled;
+}
+
+const std::vector<std::string>& LocationConfig::getCgiExtensions() const
+{
+	return _cgiExtensions;
 }
 
 bool LocationConfig::hasReturnDirective() const

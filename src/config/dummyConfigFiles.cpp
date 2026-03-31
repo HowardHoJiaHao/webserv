@@ -234,6 +234,22 @@ static void parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i
 			loc.setAutoindex(value == "on" || value == "true" || value == "1");
 			expectToken(tokens, i, ";");
 		}
+		else if (key == "cgi_enabled")
+		{
+			if (i >= tokens.size())
+				throw parseError(tokens[i - 1].line, "missing cgi_enabled value");
+			std::string value = tokens[i++].value;
+			loc.setCgiEnabled(value == "on" || value == "true" || value == "1");
+			expectToken(tokens, i, ";");
+		}
+		else if (key == "cgi_ext" || key == "cgi_extensions")
+		{
+			std::vector<std::string> extensions;
+			while (i < tokens.size() && tokens[i].value != ";")
+				extensions.push_back(tokens[i++].value);
+			expectToken(tokens, i, ";");
+			loc.setCgiExtensions(extensions);
+		}
 		else if (key == "return")
 		{
 			if (i >= tokens.size())

@@ -41,12 +41,30 @@ static bool hasSuffix(const std::string& value, const std::string& suffix)
 	return value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-static bool isCGIRequestPath(const std::string& path)
+static std::string normalizeCgiExtension(const std::string& ext)
 {
-	if (path.find("/cgi-bin/") == 0 || path == "/cgi-bin")
+	if (ext.empty())
+		return ext;
+	if (ext[0] == '.')
+		return ext;
+	return "." + ext;
+}
+
+static bool isCgiRequestForLocation(const std::string& path, const LocationConfig& location)
+{
+	if (!location.isCgiEnabled())
+		return false;
+
+	const std::vector<std::string>& exts = location.getCgiExtensions();
+	if (exts.empty())
 		return true;
-	if (hasSuffix(path, ".py") || hasSuffix(path, ".pl"))
-		return true;
+
+	for (size_t i = 0; i < exts.size(); ++i)
+	{
+		const std::string normalized = normalizeCgiExtension(exts[i]);
+		if (!normalized.empty() && hasSuffix(path, normalized))
+			return true;
+	}
 	return false;
 }
 
@@ -518,7 +536,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			return;
 		}
 
-		if (isCGIRequestPath(request.getPath()))
+		if (matchedLocation != NULL && isCgiRequestForLocation(request.getPath(), *matchedLocation))
 		{
 			if (!launchCGI(conn, request, *effectiveServer, conn->shouldClose()))
 				conn->setState(Connection::WRITING);
@@ -1182,6 +1200,15 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 		conn->setShouldClose(shouldClose);
 		conn->getWriteBuffer() = build404Response(conn->shouldClose(), &serverConfig);
 		return false;
+	}
+	{
+		struct stat st;
+		if (stat(scriptPath.c_str(), &st) != 0 || !S_ISREG(st.st_mode))
+		{
+			conn->setShouldClose(shouldClose);
+			conn->getWriteBuffer() = build404Response(conn->shouldClose(), &serverConfig);
+			return false;
+		}
 	}
 	if (access(scriptPath.c_str(), X_OK) != 0)
 	{

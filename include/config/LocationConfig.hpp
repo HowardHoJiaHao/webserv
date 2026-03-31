@@ -25,6 +25,8 @@ class LocationConfig
 		bool						_uploadEnabled;
 		std::string					_uploadPath;
 		bool						_autoindex;
+		bool						_cgiEnabled;
+		std::vector<std::string>	_cgiExtensions;
 		bool						_hasReturn;
 		int							_returnStatus;
 		std::string					_returnTarget;
@@ -38,6 +40,8 @@ class LocationConfig
 		void	setUploadEnabled(bool enabled);
 		void	setUploadPath(const std::string& path);
 		void	setAutoindex(bool enabled);
+		void	setCgiEnabled(bool enabled);
+		void	setCgiExtensions(const std::vector<std::string>& extensions);
 		void	setReturnDirective(bool enabled, int status, const std::string& target);
 
 		const	std::string& getPath() const;
@@ -46,6 +50,8 @@ class LocationConfig
 		bool	isUploadEnabled() const;
 		const	std::string& getUploadPath() const;
 		bool	isAutoindex() const;
+		bool	isCgiEnabled() const;
+		const	std::vector<std::string>& getCgiExtensions() const;
 		bool	hasReturnDirective() const;
 		int		getReturnStatus() const;
 		const	std::string& getReturnTarget() const;
