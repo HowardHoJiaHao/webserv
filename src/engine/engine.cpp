@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 16:48:21 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 18:21:57 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -95,32 +95,15 @@ static std::string trimAsciiEngine(const std::string& input)
 	return input.substr(start, end - start);
 }
 
-static bool isUploadFilenameCharEngine(char c)
+static bool isUnsafeUploadFilenameEngine(const std::string& name)
 {
-	unsigned char uc = static_cast<unsigned char>(c);
-	if (std::isalnum(uc))
+	if (name.empty())
 		return true;
-	return (c == '.' || c == '_' || c == '-');
-}
-
-static std::string sanitizeUploadFilenameEngine(const std::string& raw)
-{
-	std::string out;
-	out.reserve(raw.size());
-	for (size_t i = 0; i < raw.size(); ++i)
-	{
-		if (isUploadFilenameCharEngine(raw[i]))
-			out.push_back(raw[i]);
-		else if (raw[i] == '/' || raw[i] == '\\')
-			continue;
-		else
-			out.push_back('_');
-	}
-	if (out == "." || out == "..")
-		out.clear();
-	if (out.size() > 128)
-		out.erase(128);
-	return out;
+	if (name == "." || name == "..")
+		return true;
+	if (name.find('/') != std::string::npos || name.find('\\') != std::string::npos)
+		return true;
+	return false;
 }
 
 static std::string extractUploadFilenameEngine(const HttpRequest& request)
@@ -157,7 +140,9 @@ static std::string extractUploadFilenameEngine(const HttpRequest& request)
 		return "";
 
 	std::string extracted = trimAsciiEngine(headerValue.substr(valueStart, valueEnd - valueStart));
-	return sanitizeUploadFilenameEngine(extracted);
+	if (isUnsafeUploadFilenameEngine(extracted))
+		return "";
+	return extracted;
 }
 
 static std::string defaultUploadFilenameEngine()
@@ -266,12 +251,6 @@ void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, in
 	{
 		//std::cout << "tracking client fd=" << it->first << std::endl;
 		int fd = it->first;
-		// check if this fd is valid
-		if (fcntl(fd, F_GETFD) == -1)
-		{
-			perror("FD invalid");
-			continue ;
-		}
 		if (it->second->getState() == Connection::READING)
 			FD_SET(fd, &readSet);
 		if (it->second->getState() == Connection::WRITING)
@@ -350,7 +329,7 @@ const ServerConfig* Engine::findServerConfig(const std::string& host, int port) 
 	return &servers[0];
 }
 
-const ServerConfig* Engine::findServerConfigForConnection(int clientFd, const HttpRequest& request) const
+const ServerConfig* Engine::findServerConfigForConnection(int clientFd) const
 {
 	std::map<int, std::pair<std::string, int> >::const_iterator epIt = _clientListenEndpoints.find(clientFd);
 	if (epIt == _clientListenEndpoints.end())
@@ -358,26 +337,6 @@ const ServerConfig* Engine::findServerConfigForConnection(int clientFd, const Ht
 
 	std::string host = epIt->second.first;
 	int port = epIt->second.second;
-
-	const std::string* hostHeader = request.getHeader("host");
-	if (hostHeader != NULL && !hostHeader->empty())
-	{
-		std::string hostValue = *hostHeader;
-		size_t colon = hostValue.rfind(':');
-		if (colon != std::string::npos && colon + 1 < hostValue.size())
-		{
-			host = hostValue.substr(0, colon);
-			std::istringstream iss(hostValue.substr(colon + 1));
-			int parsedPort = port;
-			if (!(iss >> parsedPort).fail())
-				port = parsedPort;
-		}
-		else
-		{
-			host = hostValue;
-		}
-	}
-
 	return findServerConfig(host, port);
 }
 
@@ -531,7 +490,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			return;
 		}
 
-		const ServerConfig* serverConfig = findServerConfigForConnection(conn->getFd(), request);
+		const ServerConfig* serverConfig = findServerConfigForConnection(conn->getFd());
 		if (serverConfig != NULL && request.hasContentLength() && request.getContentLength() > serverConfig->getMaxBodySize())
 		{
 			conn->setShouldClose(true);
@@ -1065,20 +1024,17 @@ std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, con
 		return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
 
 	std::string filename = extractUploadFilenameEngine(request);
+	bool hadHeaderFilename = !filename.empty();
 	if (filename.empty())
 		filename = defaultUploadFilenameEngine();
 
-	int fd = -1;
-	std::string uploadPath;
-	for (int attempt = 0; attempt < 10; ++attempt)
+	std::string uploadPath = uploadDir + "/" + filename;
+	int fd = open(uploadPath.c_str(), O_CREAT | O_WRONLY | O_EXCL, 0644);
+	if (fd < 0 && errno == EEXIST && hadHeaderFilename)
 	{
+		filename = defaultUploadFilenameEngine();
 		uploadPath = uploadDir + "/" + filename;
 		fd = open(uploadPath.c_str(), O_CREAT | O_WRONLY | O_EXCL, 0644);
-		if (fd >= 0)
-			break;
-		if (errno != EEXIST)
-			return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
-		filename = defaultUploadFilenameEngine();
 	}
 	if (fd < 0)
 		return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
@@ -1204,11 +1160,6 @@ std::string Engine::build405Response(bool shouldClose, const ServerConfig* serve
 	}
 
 	return buildResponse("405 Method Not Allowed", "Method Not Allowed", "text/plain", shouldClose, headers);
-}
-
-std::string Engine::buildIndexResponse()
-{
-	return buildResponse("200 OK", "Hello, world!", "text/plain", false, std::vector<std::string>());
 }
 
 std::string Engine::build404Response(bool shouldClose, const ServerConfig* serverConfig)
