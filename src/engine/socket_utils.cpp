@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/24 17:20:00 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/24 11:51:59 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 16:01:22 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <fcntl.h>
+#include <cerrno>
 
 struct addrinfo* setupAddrInfoQuery(const std::string& host, int port)
 {
@@ -40,22 +41,27 @@ struct addrinfo* setupAddrInfoQuery(const std::string& host, int port)
 	return osRes;
 }
 
-int attemptBindingSocket(struct addrinfo* osRes)
+int attemptBindingSocket(struct addrinfo* osRes, int& lastErrno)
 {
 	struct addrinfo* ptr;
 	int sockfd = -1;
+	lastErrno = 0;
 
 	for (ptr = osRes; ptr != NULL; ptr = ptr->ai_next)
 	{
 		// create ipv4 tcp socket / standard tcp server socket
 		sockfd = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
 		if (sockfd < 0)
+		{
+			lastErrno = errno;
 			continue;
+		}
 
 		int opt = 1;
 		// ask kernel to allow this socket to reuse this address (ip:port), if restart happening
 		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
 		{
+			lastErrno = errno;
 			close(sockfd);
 			sockfd = -1;
 			continue;
@@ -63,6 +69,7 @@ int attemptBindingSocket(struct addrinfo* osRes)
 		// bind this sockfd to ai_addr
 		if (bind(sockfd, ptr->ai_addr, ptr->ai_addrlen) == 0)
 			break;
+		lastErrno = errno;
 		close(sockfd);
 		sockfd = -1;
 	}
@@ -100,10 +107,17 @@ void configureListeningNonblockingSocket(int& sockfd)
 int createListeningSocket(const std::string& host, int port)
 {
 	struct addrinfo* osRes = setupAddrInfoQuery(host, port);
-	int sockfd = attemptBindingSocket(osRes);
+	int lastErrno = 0;
+	int sockfd = attemptBindingSocket(osRes, lastErrno);
 	freeaddrinfo(osRes);
 	if (sockfd < 0)
-		throw std::runtime_error("bind failed");
+	{
+		std::ostringstream oss;
+		oss << "bind failed for " << host << ":" << port;
+		if (lastErrno != 0)
+			oss << ": " << std::strerror(lastErrno);
+		throw std::runtime_error(oss.str());
+	}
 	configureListeningNonblockingSocket(sockfd);
 	return sockfd;
 }

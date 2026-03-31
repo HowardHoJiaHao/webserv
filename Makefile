@@ -84,7 +84,7 @@ re: fclean
 	@$(MAKE) all
 
 # Phony targets
-.PHONY: all clean fclean re
+.PHONY: all clean fclean re help restart
 
 # Display help
 help:
@@ -93,4 +93,13 @@ help:
 	@echo "  clean  - Remove object files and dependencies"
 	@echo "  fclean - Remove object files, dependencies, and executable"
 	@echo "  re     - Rebuild everything"
+	@echo "  restart- Kill listeners on PORTS then rebuild"
 	@echo "  help   - Display this help message"
+
+PORTS ?= 8080 8081
+
+restart:
+	@echo "$(YELLOW)Freeing ports: $(PORTS)$(NC)"
+	@./scripts/free_ports.sh $(PORTS)
+	@echo "$(YELLOW)Rebuilding...$(NC)"
+	@$(MAKE) re

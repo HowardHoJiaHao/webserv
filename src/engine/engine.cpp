@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 14:16:35 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 16:01:22 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,12 +33,20 @@
 #include <ctime>
 #include "Webserv.hpp"
 #include <sys/wait.h>
+#include <csignal>
 
 static bool hasSuffix(const std::string& value, const std::string& suffix)
 {
 	if (value.size() < suffix.size())
 		return false;
 	return value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+static volatile sig_atomic_t g_engineStopRequested = 0;
+
+static void handleEngineStopSignal(int)
+{
+	g_engineStopRequested = 1;
 }
 
 static std::string normalizeCgiExtension(const std::string& ext)
@@ -183,6 +191,25 @@ Engine::Engine(const ConfigFiles& config) : _config(config){}
 //close fd, destructor
 Engine::~Engine()
 {
+	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
+		it != _clientConnections.end(); ++it)
+	{
+		Connection* conn = it->second;
+		if (!conn)
+			continue;
+		const pid_t pid = conn->getCGIPid();
+		if (pid > 0)
+		{
+			// Best-effort cleanup for CGI processes during shutdown.
+			if (waitpid(pid, NULL, WNOHANG) == 0)
+			{
+				kill(pid, SIGTERM);
+				waitpid(pid, NULL, WNOHANG);
+				kill(pid, SIGKILL);
+				waitpid(pid, NULL, WNOHANG);
+			}
+		}
+	}
 	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
 		it != _clientConnections.end(); ++it)
 	{
@@ -923,7 +950,11 @@ void Engine::checkTimeouts()
 void Engine::run()
 {
 	std::cout << "Server running..." << std::endl;
-	while (true)
+
+	std::signal(SIGINT, handleEngineStopSignal);
+	std::signal(SIGTERM, handleEngineStopSignal);
+
+	while (!g_engineStopRequested)
 	{
 		fd_set readSet;
 		FD_ZERO(&readSet);
@@ -942,7 +973,11 @@ void Engine::run()
 		if (readyFdCount < 0)
 		{
 			if (errno == EINTR)
+			{
+				if (g_engineStopRequested)
+					break;
 				continue;
+			}
 			perror("select");
 			break;
 		}
@@ -951,6 +986,7 @@ void Engine::run()
 		processIncomingData(readSet);
 		processOutgoingData(writeSet);
 	}
+	std::cout << "Server stopping..." << std::endl;
 }
 
 std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig)

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Upload test</title>
+</head>
+<body>
+	<h1>Upload test</h1>
+	<p>Select a file (e.g. an image) and upload it to <code>/Upload</code>.</p>
+
+	<form id="uploadForm">
+		<label>
+			File:
+			<input id="file" name="file" type="file" accept="image/*" required />
+		</label>
+		<button type="submit">Upload</button>
+	</form>
+
+	<pre id="result" style="white-space: pre-wrap;"></pre>
+
+	<script>
+		const form = document.getElementById('uploadForm');
+		const fileInput = document.getElementById('file');
+		const result = document.getElementById('result');
+
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			result.textContent = '';
+
+			const file = fileInput.files && fileInput.files[0];
+			if (!file) {
+				result.textContent = 'No file selected.';
+				return;
+			}
+
+			try {
+				const resp = await fetch('/Upload', {
+					method: 'POST',
+					headers: {
+						// The server extracts filename from this *request* header.
+						'Content-Disposition': `attachment; filename="${file.name.replace(/"/g, '')}"`,
+						'Content-Type': file.type || 'application/octet-stream',
+					},
+					body: file,
+				});
+
+				const text = await resp.text();
+				result.textContent = `HTTP ${resp.status} ${resp.statusText}\n\n${text}`;
+			} catch (err) {
+				result.textContent = String(err);
+			}
+		});
+	</script>
+</body>
+</html>
