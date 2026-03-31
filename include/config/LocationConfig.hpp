@@ -25,6 +25,9 @@ class LocationConfig
 		bool						_uploadEnabled;
 		std::string					_uploadPath;
 		bool						_autoindex;
+		bool						_hasReturn;
+		int							_returnStatus;
+		std::string					_returnTarget;
 
 	public:
 		LocationConfig();
@@ -35,6 +38,7 @@ class LocationConfig
 		void	setUploadEnabled(bool enabled);
 		void	setUploadPath(const std::string& path);
 		void	setAutoindex(bool enabled);
+		void	setReturnDirective(bool enabled, int status, const std::string& target);
 
 		const	std::string& getPath() const;
 		const	std::vector<std::string>& getAllowedMethods() const;
@@ -42,6 +46,9 @@ class LocationConfig
 		bool	isUploadEnabled() const;
 		const	std::string& getUploadPath() const;
 		bool	isAutoindex() const;
+		bool	hasReturnDirective() const;
+		int		getReturnStatus() const;
+		const	std::string& getReturnTarget() const;
 };
 
 #endif
