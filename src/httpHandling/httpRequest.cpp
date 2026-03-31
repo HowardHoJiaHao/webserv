@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/29 15:09:27 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,6 +27,7 @@ static std::string toLowerAscii(const std::string& input)
 HttpRequest::HttpRequest()
 	: _method(""),
 	  _path(""),
+	  _query(""),
 	  _version(""),
 	  _body(""),
 	  _contentLength(0),
@@ -42,6 +43,11 @@ const std::string& HttpRequest::getMethod() const
 const std::string& HttpRequest::getPath() const
 {
 	return _path;
+}
+
+const std::string& HttpRequest::getQuery() const
+{
+	return _query;
 }
 
 const std::string& HttpRequest::getVersion() const
@@ -83,6 +89,7 @@ void HttpRequest::parse(const std::string& rawRequest, size_t maxBodySize)
 {
 	_method.clear();
 	_path.clear();
+	_query.clear();
 	_version.clear();
 	_body.clear();
 	_cookies.clear();
@@ -103,6 +110,14 @@ void HttpRequest::parse(const std::string& rawRequest, size_t maxBodySize)
 		// split by empty line
 	if (!(iss >> _method >> _path >> _version))
 		throw std::runtime_error("Malformed request line");
+
+	size_t queryPos = _path.find('?');
+	if (queryPos != std::string::npos)
+	{
+		if (queryPos + 1 < _path.size())
+			_query = _path.substr(queryPos + 1);
+		_path = _path.substr(0, queryPos);
+	}
 	
 	// validation
 	if (_path.empty() || _path[0] != '/')

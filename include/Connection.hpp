@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Connection.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/31 01:50:45 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,9 +32,14 @@ class Connection
 			int stdin_fd;
 			int stdout_fd;
 			bool stdin_closed;
+			std::string stdin_buffer;
+			size_t stdin_offset;
+			std::string stdout_buffer;
+			time_t start_time;
 
 			CGIContext()
-				: pid(-1), stdin_fd(-1), stdout_fd(-1), stdin_closed(false){}
+				: pid(-1), stdin_fd(-1), stdout_fd(-1), stdin_closed(false),
+				  stdin_buffer(), stdin_offset(0), stdout_buffer(), start_time(0){}
 		};
 
 		enum RequestState

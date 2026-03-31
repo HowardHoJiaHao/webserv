@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:37:17 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/29 15:10:08 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,7 @@ class HttpRequest
 	private:
 		std::string _method;
 		std::string _path;
+		std::string _query;
 		std::string _version;
 		//std::map<std::string, std::string> _headers;
 		std::string _body;
@@ -38,6 +39,7 @@ class HttpRequest
 		//getter only(i only do read only acccess)
 		const std::string& getMethod() const;
 		const std::string& getPath() const;
+		const std::string& getQuery() const;
 		const std::string& getVersion() const;
 		const std::string* getHeader(const std::string& key) const;
 		const std::string& getBody() const;

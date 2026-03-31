@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   FileHandler.cpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/23 01:54:02 by ho                #+#    #+#             */
-/*   Updated: 2026/03/28 00:34:18 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,6 +52,20 @@ std::string FileHandler::getMimeType(const std::string& path)
 		return "text/html";
 	if (path.size() >= 4 && path.substr(path.size() - 4) == ".txt")
 		return "text/plain";
+	if (path.size() >= 4 && path.substr(path.size() - 4) == ".css")
+		return "text/css";
+	if (path.size() >= 3 && path.substr(path.size() - 3) == ".js")
+		return "application/javascript";
+	if (path.size() >= 4 && path.substr(path.size() - 4) == ".png")
+		return "image/png";
+	if (path.size() >= 4 && path.substr(path.size() - 4) == ".jpg")
+		return "image/jpeg";
+	if (path.size() >= 5 && path.substr(path.size() - 5) == ".jpeg")
+		return "image/jpeg";
+	if (path.size() >= 4 && path.substr(path.size() - 4) == ".gif")
+		return "image/gif";
+	if (path.size() >= 5 && path.substr(path.size() - 5) == ".json")
+		return "application/json";
 	return "application/octet-stream";
 }
 

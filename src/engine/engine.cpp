@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 13:12:07 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>
+#include <cctype>
 #include "httpHandling/httpRequest.hpp"
 #include "FileHandler.hpp"
 #include <sys/stat.h>
@@ -32,6 +33,41 @@
 #include <ctime>
 #include "Webserv.hpp"
 #include <sys/wait.h>
+
+static bool hasSuffix(const std::string& value, const std::string& suffix)
+{
+	if (value.size() < suffix.size())
+		return false;
+	return value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+static bool isCGIRequestPath(const std::string& path)
+{
+	if (path.find("/cgi-bin/") == 0 || path == "/cgi-bin")
+		return true;
+	if (hasSuffix(path, ".py") || hasSuffix(path, ".pl"))
+		return true;
+	return false;
+}
+
+static std::string toLowerAsciiEngine(const std::string& input)
+{
+	std::string lowered = input;
+	for (size_t i = 0; i < lowered.size(); ++i)
+		lowered[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(lowered[i])));
+	return lowered;
+}
+
+static std::string trimAsciiEngine(const std::string& input)
+{
+	size_t start = 0;
+	while (start < input.size() && std::isspace(static_cast<unsigned char>(input[start])))
+		++start;
+	size_t end = input.size();
+	while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1])))
+		--end;
+	return input.substr(start, end - start);
+}
 
 
 
@@ -342,25 +378,6 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		try
 		{
 			request.parse(rawRequest, maxBodySize);
-
-			std::string sessionId = request.getCookie("sessionId");
-			
-
-			if (sessionId.empty() || _sessions.find(sessionId) == _sessions.end())
-			{
-				std::cout << "New User\n";
-				std::stringstream ss;
-				ss << std::rand() << std::time(NULL);
-				sessionId = ss.str();
-
-				_sessions[sessionId] = 1;
-				extraHeaders.push_back("Set-Cookie: sessionId=" + sessionId + "; Path=/");
-			}
-			else
-			{
-				_sessions[sessionId]++;
-				std::cout << "Returning user: " << sessionId << " (visit " << _sessions[sessionId] << ")\n";
-			}
 		}
 		catch (const std::exception& e)
 		{
@@ -396,6 +413,40 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			conn->setState(Connection::WRITING);
 			return;
 		}
+
+		const LocationConfig* matchedLocation = findBestLocation(*effectiveServer, request.getPath());
+		if (!isMethodAllowed(request.getMethod(), matchedLocation))
+		{
+			conn->getWriteBuffer() = build405Response(conn->shouldClose(), effectiveServer, matchedLocation);
+			conn->setState(Connection::WRITING);
+			return;
+		}
+
+		if (isCGIRequestPath(request.getPath()))
+		{
+			if (!launchCGI(conn, request, *effectiveServer, conn->shouldClose()))
+				conn->setState(Connection::WRITING);
+			return;
+		}
+
+		std::string sessionId = request.getCookie("sessionId");
+
+		if (sessionId.empty() || _sessions.find(sessionId) == _sessions.end())
+		{
+			std::cout << "New User\n";
+			std::stringstream ss;
+			ss << std::rand() << std::time(NULL);
+			sessionId = ss.str();
+
+			_sessions[sessionId] = 1;
+			extraHeaders.push_back("Set-Cookie: sessionId=" + sessionId + "; Path=/");
+		}
+		else
+		{
+			_sessions[sessionId]++;
+			std::cout << "Returning user: " << sessionId << " (visit " << _sessions[sessionId] << ")\n";
+		}
+
 		std::string response = routeRequest(request, shouldClose, *effectiveServer);
 		if (!extraHeaders.empty())
 		{
@@ -436,18 +487,80 @@ void Engine::processIncomingData(fd_set& readSet)
 			if (cgi_fd != -1 && FD_ISSET(cgi_fd, &readSet))
 			{
 				char buffer[1024];
+				Connection::CGIContext* cgi = conn->getCGI();
 				while(true)
 				{
 					ssize_t bytes = read(cgi_fd, buffer, sizeof(buffer));
 					if (bytes > 0)
 					{
-						conn->getWriteBuffer().append(buffer, bytes);
+						if (cgi != NULL)
+							cgi->stdout_buffer.append(buffer, bytes);
+						conn->updateActivity();
 					}
 					else if (bytes == 0)
 					{
 						pid_t pid = conn->getCGIPid();
 						if (pid > 0)
-							waitpid(pid, NULL, WNOHANG);
+							waitpid(pid, NULL, 0);
+
+						std::string cgiOutput;
+						if (cgi != NULL)
+							cgiOutput = cgi->stdout_buffer;
+
+						if (cgiOutput.find("HTTP/1.") == 0)
+						{
+							conn->getWriteBuffer().append(cgiOutput);
+						}
+						else
+						{
+							std::string status = "200 OK";
+							std::string contentType = "text/plain";
+							std::vector<std::string> extraHeaders;
+							std::string body = cgiOutput;
+
+							size_t headerEnd = cgiOutput.find("\r\n\r\n");
+							size_t headerBodySepLen = 4;
+							if (headerEnd == std::string::npos)
+							{
+								headerEnd = cgiOutput.find("\n\n");
+								headerBodySepLen = 2;
+							}
+							if (headerEnd != std::string::npos)
+							{
+								std::string headerSection = cgiOutput.substr(0, headerEnd);
+								body = cgiOutput.substr(headerEnd + headerBodySepLen);
+								std::istringstream headerStream(headerSection);
+								std::string line;
+								while (std::getline(headerStream, line))
+								{
+									if (!line.empty() && line[line.size() - 1] == '\r')
+										line.erase(line.size() - 1);
+									if (line.empty())
+										continue;
+
+									size_t colon = line.find(':');
+									if (colon == std::string::npos)
+										continue;
+
+									std::string originalKey = trimAsciiEngine(line.substr(0, colon));
+									std::string loweredKey = toLowerAsciiEngine(originalKey);
+									std::string value = trimAsciiEngine(line.substr(colon + 1));
+
+									if (value.empty())
+										continue;
+									if (loweredKey == "status")
+										status = value;
+									else if (loweredKey == "content-type")
+										contentType = value;
+									else if (loweredKey != "content-length" && loweredKey != "connection")
+										extraHeaders.push_back(originalKey + ": " + value);
+								}
+							}
+
+							conn->getWriteBuffer().append(
+								buildResponse(status, body, contentType, conn->shouldClose(), extraHeaders)
+							);
+						}
 						conn->clearCGI();
 						conn->setState(Connection::WRITING);
 						break;
@@ -459,6 +572,8 @@ void Engine::processIncomingData(fd_set& readSet)
 							break;
 						}
 						perror("read CGI");
+						conn->setShouldClose(true);
+						conn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", conn->shouldClose(), NULL);
 						conn->clearCGI();
 						conn->setState(Connection::WRITING);
 						break;
@@ -513,26 +628,36 @@ void Engine::processOutgoingData(fd_set& writeSet)
 
 		if (conn->getState() == Connection::CGI_RUNNING)
 		{
+			Connection::CGIContext* cgi = conn->getCGI();
 			int cgi_in = conn->getCGIStdinFd();
-			if (cgi_in != -1 && !conn->isCGIStdinClosed())
+			if (cgi != NULL && cgi_in != -1 && !conn->isCGIStdinClosed())
 			{
-				std::string& body = conn->getReadBuffer();
-				if (!body.empty())
+				if (cgi->stdin_offset < cgi->stdin_buffer.size())
 				{
-					ssize_t written = write(cgi_in, body.c_str(), body.size());
+					const char* data = cgi->stdin_buffer.data() + cgi->stdin_offset;
+					size_t remaining = cgi->stdin_buffer.size() - cgi->stdin_offset;
+					ssize_t written = write(cgi_in, data, remaining);
 					if (written > 0)
 					{
-						body.erase(0, written);
+						cgi->stdin_offset += static_cast<size_t>(written);
+						conn->updateActivity();
 					}
 					else if (written < 0)
 					{
-						if (errno != EAGAIN && errno != EWOULDBLOCK)
+						if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EPIPE)
 						{
 							perror("write CGI stdin");
+							close(cgi_in);
+							conn->setCGIStdinClosed(true);
+						}
+						else if (errno == EPIPE)
+						{
+							close(cgi_in);
+							conn->setCGIStdinClosed(true);
 						}
 					}
 				}
-				if (body.empty())
+				if (cgi->stdin_offset >= cgi->stdin_buffer.size() && !conn->isCGIStdinClosed())
 				{
 					close(cgi_in);
 					conn->setCGIStdinClosed(true);
@@ -606,25 +731,61 @@ void Engine::processOutgoingData(fd_set& writeSet)
 
 void Engine::checkTimeouts()
 {
+	const time_t headerTimeoutSec = 5;
+	const time_t idleTimeoutSec = 30;
+	const time_t cgiTimeoutSec = 10;
+
 	time_t now = std::time(NULL);
 	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
 			it != _clientConnections.end();)
 	{
+		int fd = it->first;
 		Connection* conn = it->second;
 		time_t elapsed = now - conn->getLastActivity();
-		bool timedOut = false;
+		if (conn->getState() == Connection::WRITING)
+		{
+			++it;
+			continue;
+		}
 
-		if (conn->getRequestState() == Connection::READING_HEADERS && elapsed > 5)
+		std::map<int, std::pair<std::string, int> >::const_iterator epIt = _clientListenEndpoints.find(fd);
+		const ServerConfig* serverConfig = NULL;
+		if (epIt != _clientListenEndpoints.end())
+			serverConfig = findServerConfig(epIt->second.first, epIt->second.second);
+
+		if (conn->getState() == Connection::CGI_RUNNING)
+		{
+			Connection::CGIContext* cgi = conn->getCGI();
+			if (cgi != NULL && cgi->start_time > 0 && (now - cgi->start_time) > cgiTimeoutSec)
+			{
+				pid_t pid = conn->getCGIPid();
+				if (pid > 0)
+				{
+					kill(pid, SIGKILL);
+					waitpid(pid, NULL, 0);
+				}
+				conn->clearCGI();
+				conn->setShouldClose(true);
+				conn->getWriteBuffer() = buildErrorResponse(504, "Gateway Timeout", true, serverConfig);
+				conn->setState(Connection::WRITING);
+			}
+			++it;
+			continue;
+		}
+
+		bool timedOut = false;
+		if (conn->getRequestState() == Connection::READING_HEADERS && elapsed > headerTimeoutSec)
 			timedOut = true;
-		else if (elapsed > 30)
+		else if (conn->getState() == Connection::READING && elapsed > idleTimeoutSec)
 			timedOut = true;
 
 		if (timedOut)
 		{
-			int fd = it->first;
-			delete conn;
-			_clientListenEndpoints.erase(fd);
-			_clientConnections.erase(it++);
+			conn->setShouldClose(true);
+			conn->getReadBuffer().clear();
+			conn->getWriteBuffer() = buildErrorResponse(408, "Request Timeout", true, serverConfig);
+			conn->setRequestState(Connection::COMPLETE);
+			conn->setState(Connection::WRITING);
 			continue;
 		}
 		++it;
@@ -687,7 +848,7 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 		return buildResponse(status, "", "text/plain", shouldClose, headers);
 	}
 	if (!isMethodAllowed(request.getMethod(), location))
-		return build405Response(shouldClose, &serverConfig);
+		return build405Response(shouldClose, &serverConfig, location);
 
 	std::string root = serverConfig.getRoot();
 	if (location != NULL && !location->getRoot().empty())
@@ -725,7 +886,7 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 		return handlePost(request, shouldClose, serverConfig, location);
 	if (request.getMethod() == "DELETE")
 		return handleDelete(request, shouldClose, serverConfig);
-	return build405Response(shouldClose, &serverConfig);
+	return build405Response(shouldClose, &serverConfig, location);
 }
 
 std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location)
@@ -823,9 +984,42 @@ std::string Engine::buildErrorResponse(int code, const std::string& defaultMsg, 
 	return buildResponse(status.str(), defaultMsg, "text/plain", shouldClose, std::vector<std::string>());
 }
 
-std::string Engine::build405Response(bool shouldClose, const ServerConfig* serverConfig)
+std::string Engine::build405Response(bool shouldClose, const ServerConfig* serverConfig, const LocationConfig* location)
 {
-	return buildErrorResponse(405, "Method Not Allowed", shouldClose, serverConfig);
+	std::string allowValue = "GET, POST, DELETE";
+	if (location != NULL)
+	{
+		const std::vector<std::string>& allowed = location->getAllowedMethods();
+		if (!allowed.empty())
+		{
+			allowValue.clear();
+			for (size_t i = 0; i < allowed.size(); ++i)
+			{
+				if (i > 0)
+					allowValue += ", ";
+				allowValue += allowed[i];
+			}
+		}
+	}
+
+	std::vector<std::string> headers;
+	headers.push_back("Allow: " + allowValue);
+
+	if (serverConfig != NULL)
+	{
+		const std::string* pagePath = serverConfig->getErrorPage(405);
+		if (pagePath != NULL)
+		{
+			std::string fullPath = serverConfig->getRoot() + *pagePath;
+			if (FileHandler::fileExists(fullPath))
+			{
+				std::string body = FileHandler::readFile(fullPath);
+				return buildResponse("405 Method Not Allowed", body, "text/html", shouldClose, headers);
+			}
+		}
+	}
+
+	return buildResponse("405 Method Not Allowed", "Method Not Allowed", "text/plain", shouldClose, headers);
 }
 
 std::string Engine::buildIndexResponse()
@@ -843,16 +1037,43 @@ std::string Engine::build400Response(bool shouldClose, const ServerConfig* serve
 	return buildErrorResponse(400, "Bad Request", shouldClose, serverConfig);
 }
 
-void	Engine::launchCGI(Connection* conn, const HttpRequest& request)
+bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, bool shouldClose)
 {
+	if (request.getPath().find("..") != std::string::npos)
+	{
+		conn->setShouldClose(true);
+		conn->getWriteBuffer() = buildErrorResponse(403, "Forbidden", true, &serverConfig);
+		return false;
+	}
+
+	std::string root = serverConfig.getRoot();
+	const LocationConfig* location = findBestLocation(serverConfig, request.getPath());
+	if (location != NULL && !location->getRoot().empty())
+		root = location->getRoot();
+
+	std::string scriptPath = root + request.getPath();
+	if (!FileHandler::fileExists(scriptPath))
+	{
+		conn->setShouldClose(shouldClose);
+		conn->getWriteBuffer() = build404Response(conn->shouldClose(), &serverConfig);
+		return false;
+	}
+	if (access(scriptPath.c_str(), X_OK) != 0)
+	{
+		conn->setShouldClose(true);
+		conn->getWriteBuffer() = buildErrorResponse(403, "Forbidden", true, &serverConfig);
+		return false;
+	}
+
 	int in_pipe[2];
 	int out_pipe[2];
 
-	(void )request;
 	if (pipe(in_pipe) < 0)
 	{
 		perror("pipe in_pipe failed");
-		return;
+		conn->setShouldClose(true);
+		conn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", true, &serverConfig);
+		return false;
 	}
 
 	if (pipe(out_pipe) < 0)
@@ -860,7 +1081,9 @@ void	Engine::launchCGI(Connection* conn, const HttpRequest& request)
 		perror("pipe out_pip failed");
 		close(in_pipe[0]);
 		close(in_pipe[1]);
-		return;
+		conn->setShouldClose(true);
+		conn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", true, &serverConfig);
+		return false;
 	}
 	pid_t pid = fork();
 	if (pid < 0)
@@ -870,47 +1093,85 @@ void	Engine::launchCGI(Connection* conn, const HttpRequest& request)
 		close(in_pipe[1]);
 		close(out_pipe[0]);
 		close(out_pipe[1]);
-		return;
+		conn->setShouldClose(true);
+		conn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", true, &serverConfig);
+		return false;
 	}
 	if (pid == 0)
 	{
 		if (dup2(in_pipe[0], STDIN_FILENO) < 0)
 		{
 			perror("dup2 stdin failed");
-			exit(1);
+			_exit(1);
 		}
 		if (dup2(out_pipe[1], STDOUT_FILENO) < 0)
 		{
 			perror("dup2 stdout failed");
-			exit(1);
+			_exit(1);
 		}
 		close(in_pipe[0]);
 		close(in_pipe[1]);
 		close(out_pipe[0]);
 		close(out_pipe[1]);
 
-		char* argv[] = { (char*)"/bin/ls", NULL};
-		char* envp[] = { NULL };
+		std::vector<std::string> envStrings;
+		envStrings.push_back("REQUEST_METHOD=" + request.getMethod());
+		envStrings.push_back("QUERY_STRING=" + request.getQuery());
+		envStrings.push_back("SCRIPT_NAME=" + request.getPath());
+		envStrings.push_back("PATH_INFO=" + request.getPath());
+		envStrings.push_back("SERVER_PROTOCOL=" + request.getVersion());
+		envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
 
-		execve("/bin/ls", argv, envp);
+		std::ostringstream contentLength;
+		contentLength << request.getBody().size();
+		envStrings.push_back("CONTENT_LENGTH=" + contentLength.str());
+
+		const std::string* hostHeader = request.getHeader("host");
+		if (hostHeader != NULL)
+			envStrings.push_back("HTTP_HOST=" + *hostHeader);
+
+		std::vector<char*> envp;
+		for (size_t i = 0; i < envStrings.size(); ++i)
+			envp.push_back(const_cast<char*>(envStrings[i].c_str()));
+		envp.push_back(NULL);
+
+		char* argv[] = { const_cast<char*>(scriptPath.c_str()), NULL};
+
+		execve(scriptPath.c_str(), argv, &envp[0]);
 		perror("execve failed");
-		exit(1);
+		_exit(1);
 	}
-	else
+
+	close(in_pipe[0]);
+	close(out_pipe[1]);
+
+	Connection::CGIContext* cgi = new Connection::CGIContext();
+	cgi->pid = pid;
+	cgi->stdin_fd = in_pipe[1];
+	cgi->stdout_fd = out_pipe[0];
+	cgi->stdin_closed = false;
+	cgi->stdin_buffer = request.getBody();
+	cgi->stdin_offset = 0;
+	cgi->stdout_buffer.clear();
+	cgi->start_time = std::time(NULL);
+
+	int stdinFlags = fcntl(cgi->stdin_fd, F_GETFL, 0);
+	if (stdinFlags != -1)
+		fcntl(cgi->stdin_fd, F_SETFL, stdinFlags | O_NONBLOCK);
+	int stdoutFlags = fcntl(cgi->stdout_fd, F_GETFL, 0);
+	if (stdoutFlags != -1)
+		fcntl(cgi->stdout_fd, F_SETFL, stdoutFlags | O_NONBLOCK);
+
+	if (cgi->stdin_buffer.empty())
 	{
-		close(in_pipe[0]);
-		close(out_pipe[1]);
-
-		Connection::CGIContext* cgi = new Connection::CGIContext();
-
-		cgi->pid = pid;
-		cgi->stdin_fd = in_pipe[1];
-		cgi->stdout_fd = out_pipe[0];
-		cgi->stdin_closed = false;
-		fcntl(cgi->stdin_fd, F_SETFL, O_NONBLOCK);
-		fcntl(cgi->stdout_fd, F_SETFL, O_NONBLOCK);
-		
-		conn->setCGI(cgi);
-		conn->setState(Connection::CGI_RUNNING);
+		close(cgi->stdin_fd);
+		cgi->stdin_fd = -1;
+		cgi->stdin_closed = true;
 	}
+
+	conn->setCGI(cgi);
+	conn->setShouldClose(shouldClose);
+	conn->setState(Connection::CGI_RUNNING);
+	conn->updateActivity();
+	return true;
 }

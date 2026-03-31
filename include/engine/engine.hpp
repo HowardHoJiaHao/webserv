@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 02:07:48 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,8 +52,7 @@ class Engine
 		~Engine();
 		void	setupListeningSockets();
 		void	run();
-		std::string buildMinimalResponse();
-		std::string build405Response(bool shouldClose, const ServerConfig* serverConfig);
+		std::string build405Response(bool shouldClose, const ServerConfig* serverConfig, const LocationConfig* location);
 		std::string buildIndexResponse();
 		std::string build404Response(bool shouldClose, const ServerConfig* serverConfig);
 		std::string build400Response(bool shouldClose, const ServerConfig* serverConfig);
@@ -62,7 +61,7 @@ class Engine
 		std::string handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);
 		std::string handleDelete(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);
 
-		void 		launchCGI(Connection* conn, const HttpRequest& request);
+		bool 		launchCGI(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, bool shouldClose);
 
 };
 

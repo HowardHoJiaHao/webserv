@@ -3,16 +3,19 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:23:54 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/28 01:00:13 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Webserv.hpp"
 #include "ConfigFiles.hpp"
 #include "engine.hpp"
+#include <csignal>
+#include <ctime>
+#include <cstdlib>
 
 void	printServerStatus(const std::vector<ServerConfig>& servers)
 {
@@ -26,6 +29,9 @@ void	printServerStatus(const std::vector<ServerConfig>& servers)
 
 int	main(int argc, char **argv)
 {
+	signal(SIGPIPE, SIG_IGN);
+	std::srand(static_cast<unsigned int>(std::time(NULL)));
+
 	if (argc == 1 || argc == 2)
 	{
 		try
