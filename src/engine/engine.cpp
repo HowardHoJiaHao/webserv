@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 16:01:22 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 16:48:21 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -640,7 +640,7 @@ void Engine::processIncomingData(fd_set& readSet)
 					{
 						pid_t pid = conn->getCGIPid();
 						if (pid > 0)
-							waitpid(pid, NULL, 0);
+							waitpid(pid, NULL, WNOHANG);
 
 						std::string cgiOutput;
 						if (cgi != NULL)
@@ -913,7 +913,7 @@ void Engine::checkTimeouts()
 				if (pid > 0)
 				{
 					kill(pid, SIGKILL);
-					waitpid(pid, NULL, 0);
+					waitpid(pid, NULL, WNOHANG);
 				}
 				conn->clearCGI();
 				conn->setShouldClose(true);
@@ -937,6 +937,7 @@ void Engine::checkTimeouts()
 			conn->getWriteBuffer() = buildErrorResponse(408, "Request Timeout", true, serverConfig);
 			conn->setRequestState(Connection::COMPLETE);
 			conn->setState(Connection::WRITING);
+			++it;
 			continue;
 		}
 		++it;
@@ -985,6 +986,10 @@ void Engine::run()
 		acceptPendingClientConnections(readSet);
 		processIncomingData(readSet);
 		processOutgoingData(writeSet);
+
+		// Reap any finished CGI child processes without blocking.
+		while (waitpid(-1, NULL, WNOHANG) > 0)
+			;
 	}
 	std::cout << "Server stopping..." << std::endl;
 }

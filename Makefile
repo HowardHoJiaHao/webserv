@@ -84,7 +84,7 @@ re: fclean
 	@$(MAKE) all
 
 # Phony targets
-.PHONY: all clean fclean re help restart
+.PHONY: all clean fclean re help restart stress
 
 # Display help
 help:
@@ -94,6 +94,7 @@ help:
 	@echo "  fclean - Remove object files, dependencies, and executable"
 	@echo "  re     - Rebuild everything"
 	@echo "  restart- Kill listeners on PORTS then rebuild"
+	@echo "  stress - Run CGI/event-loop stress test"
 	@echo "  help   - Display this help message"
 
 PORTS ?= 8080 8081
@@ -103,3 +104,6 @@ restart:
 	@./scripts/free_ports.sh $(PORTS)
 	@echo "$(YELLOW)Rebuilding...$(NC)"
 	@$(MAKE) re
+
+stress:
+	@./scripts/stress_cgi.sh
