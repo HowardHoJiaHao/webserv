@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 14:16:35 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -67,6 +67,95 @@ static std::string trimAsciiEngine(const std::string& input)
 	while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1])))
 		--end;
 	return input.substr(start, end - start);
+}
+
+static bool isUploadFilenameCharEngine(char c)
+{
+	unsigned char uc = static_cast<unsigned char>(c);
+	if (std::isalnum(uc))
+		return true;
+	return (c == '.' || c == '_' || c == '-');
+}
+
+static std::string sanitizeUploadFilenameEngine(const std::string& raw)
+{
+	std::string out;
+	out.reserve(raw.size());
+	for (size_t i = 0; i < raw.size(); ++i)
+	{
+		if (isUploadFilenameCharEngine(raw[i]))
+			out.push_back(raw[i]);
+		else if (raw[i] == '/' || raw[i] == '\\')
+			continue;
+		else
+			out.push_back('_');
+	}
+	if (out == "." || out == "..")
+		out.clear();
+	if (out.size() > 128)
+		out.erase(128);
+	return out;
+}
+
+static std::string extractUploadFilenameEngine(const HttpRequest& request)
+{
+	const std::string* contentDisposition = request.getHeader("content-disposition");
+	if (contentDisposition == NULL || contentDisposition->empty())
+		return "";
+
+	const std::string& headerValue = *contentDisposition;
+	std::string lowered = toLowerAsciiEngine(headerValue);
+	size_t keyPos = lowered.find("filename=");
+	if (keyPos == std::string::npos)
+		return "";
+
+	size_t valueStart = keyPos + 9;
+	if (valueStart >= headerValue.size())
+		return "";
+
+	size_t valueEnd = std::string::npos;
+	if (headerValue[valueStart] == '"' || headerValue[valueStart] == '\'')
+	{
+		char quote = headerValue[valueStart];
+		++valueStart;
+		valueEnd = headerValue.find(quote, valueStart);
+	}
+	else
+	{
+		valueEnd = headerValue.find(';', valueStart);
+	}
+
+	if (valueEnd == std::string::npos)
+		valueEnd = headerValue.size();
+	if (valueEnd <= valueStart)
+		return "";
+
+	std::string extracted = trimAsciiEngine(headerValue.substr(valueStart, valueEnd - valueStart));
+	return sanitizeUploadFilenameEngine(extracted);
+}
+
+static std::string defaultUploadFilenameEngine()
+{
+	std::ostringstream oss;
+	oss << "upload_" << std::time(NULL) << "_" << std::rand() << ".bin";
+	return oss.str();
+}
+
+static bool ensureDirectoryExistsEngine(const std::string& path)
+{
+	if (path.empty())
+		return false;
+
+	struct stat st;
+	if (stat(path.c_str(), &st) == 0)
+		return S_ISDIR(st.st_mode);
+
+	if (mkdir(path.c_str(), 0755) == 0)
+		return true;
+
+	if (errno == EEXIST && stat(path.c_str(), &st) == 0)
+		return S_ISDIR(st.st_mode);
+	return false;
 }
 
 
@@ -144,12 +233,22 @@ void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, in
 			FD_SET(fd, &writeSet);
 		if (it->second->getState() == Connection::CGI_RUNNING)
 		{
+			Connection::CGIContext* cgi = it->second->getCGI();
 			int cgi_fd = it->second->getCGIStdoutFd();
 			if (cgi_fd != -1)
 			{
 				FD_SET(cgi_fd, &readSet);
 				if (cgi_fd > maxFd)
 					maxFd = cgi_fd;
+			}
+			if (cgi != NULL
+				&& cgi->stdin_fd != -1
+				&& !it->second->isCGIStdinClosed()
+				&& cgi->stdin_offset < cgi->stdin_buffer.size())
+			{
+				FD_SET(cgi->stdin_fd, &writeSet);
+				if (cgi->stdin_fd > maxFd)
+					maxFd = cgi->stdin_fd;
 			}
 		}
 		if (fd > maxFd)
@@ -246,7 +345,13 @@ const LocationConfig* Engine::findBestLocation(const ServerConfig& serverConfig,
 	for (size_t i = 0; i < locations.size(); ++i)
 	{
 		const std::string& locPath = locations[i].getPath();
-		if (path.find(locPath) == 0 && locPath.size() >= bestLen)
+		if (path.find(locPath) != 0)
+			continue;
+
+		bool boundaryMatch = (locPath == "/"
+			|| path.size() == locPath.size()
+			|| path[locPath.size()] == '/');
+		if (boundaryMatch && locPath.size() >= bestLen)
 		{
 			best = &locations[i];
 			bestLen = locPath.size();
@@ -286,6 +391,14 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 
 	std::string& readBuffer = conn->getReadBuffer();
 	size_t headerEnd = readBuffer.find("\r\n\r\n");
+	const ServerConfig* defaultServerForLimit = findServerConfig(
+		_clientListenEndpoints[conn->getFd()].first,
+		_clientListenEndpoints[conn->getFd()].second
+	);
+	size_t maxBodySizeLimit = MAX_REQUEST_SIZE;
+	if (defaultServerForLimit != NULL)
+		maxBodySizeLimit = defaultServerForLimit->getMaxBodySize();
+	size_t maxBufferedRequestSize = maxBodySizeLimit + maxHeaderSize;
 	if (headerEnd == std::string::npos)
 	{
 		if(readBuffer.size() > maxHeaderSize)
@@ -306,7 +419,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	}
 
 
-	if (conn->getReadBuffer().size() > MAX_REQUEST_SIZE)
+	if (conn->getReadBuffer().size() > maxBufferedRequestSize)
 	{
 		conn->setShouldClose(true);
 		conn->getReadBuffer().clear();
@@ -325,31 +438,9 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	std::string rawRequest;
 	bool producedResponse = false;
 	if (headerEnd == std::string::npos)
-	{
 		conn->setRequestState(Connection::READING_HEADERS);
-	}
 	else
-	{
-		std::string testBuffer = readBuffer;
-		std::string dummy;
-		bool malformed = false;
-
-		if (extractRequest(testBuffer, dummy, &malformed))
-		{
-			conn->setRequestState(Connection::COMPLETE);
-		}
-		else if (malformed)
-		{
-			conn->setShouldClose(true);
-			conn->getWriteBuffer() = build400Response(conn->shouldClose(), NULL);
-			conn->setState(Connection::WRITING);
-			return;
-		}
-		else
-		{
-			conn->setRequestState(Connection::READING_BODY);
-		}
-	}
+		conn->setRequestState(Connection::READING_BODY);
 
 	while (true)
 	{
@@ -363,8 +454,13 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 				conn->setState(Connection::WRITING);
 				return;
 			}
+			if (readBuffer.find("\r\n\r\n") == std::string::npos)
+				conn->setRequestState(Connection::READING_HEADERS);
+			else
+				conn->setRequestState(Connection::READING_BODY);
 			break;
 		}
+		conn->setRequestState(Connection::COMPLETE);
 
 		HttpRequest request;
 		std::vector<std::string> extraHeaders;
@@ -433,7 +529,6 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 
 		if (sessionId.empty() || _sessions.find(sessionId) == _sessions.end())
 		{
-			std::cout << "New User\n";
 			std::stringstream ss;
 			ss << std::rand() << std::time(NULL);
 			sessionId = ss.str();
@@ -444,7 +539,6 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		else
 		{
 			_sessions[sessionId]++;
-			std::cout << "Returning user: " << sessionId << " (visit " << _sessions[sessionId] << ")\n";
 		}
 
 		std::string response = routeRequest(request, shouldClose, *effectiveServer);
@@ -586,7 +680,7 @@ void Engine::processIncomingData(fd_set& readSet)
 
 		if (FD_ISSET(clientFd, &readSet))
 		{
-			char buffer[1024];
+			char buffer[8192];
 			ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
 			if (bytes > 0)
 			{
@@ -630,7 +724,7 @@ void Engine::processOutgoingData(fd_set& writeSet)
 		{
 			Connection::CGIContext* cgi = conn->getCGI();
 			int cgi_in = conn->getCGIStdinFd();
-			if (cgi != NULL && cgi_in != -1 && !conn->isCGIStdinClosed())
+			if (cgi != NULL && cgi_in != -1 && !conn->isCGIStdinClosed() && FD_ISSET(cgi_in, &writeSet))
 			{
 				if (cgi->stdin_offset < cgi->stdin_buffer.size())
 				{
@@ -648,11 +742,13 @@ void Engine::processOutgoingData(fd_set& writeSet)
 						{
 							perror("write CGI stdin");
 							close(cgi_in);
+							conn->setCGIStdinFd(-1);
 							conn->setCGIStdinClosed(true);
 						}
 						else if (errno == EPIPE)
 						{
 							close(cgi_in);
+							conn->setCGIStdinFd(-1);
 							conn->setCGIStdinClosed(true);
 						}
 					}
@@ -660,6 +756,7 @@ void Engine::processOutgoingData(fd_set& writeSet)
 				if (cgi->stdin_offset >= cgi->stdin_buffer.size() && !conn->isCGIStdinClosed())
 				{
 					close(cgi_in);
+					conn->setCGIStdinFd(-1);
 					conn->setCGIStdinClosed(true);
 				}
 			}
@@ -733,6 +830,7 @@ void Engine::checkTimeouts()
 {
 	const time_t headerTimeoutSec = 5;
 	const time_t idleTimeoutSec = 30;
+	const time_t writeTimeoutSec = 60;
 	const time_t cgiTimeoutSec = 10;
 
 	time_t now = std::time(NULL);
@@ -742,6 +840,14 @@ void Engine::checkTimeouts()
 		int fd = it->first;
 		Connection* conn = it->second;
 		time_t elapsed = now - conn->getLastActivity();
+		if (conn->getState() == Connection::WRITING && elapsed > writeTimeoutSec)
+		{
+			delete conn;
+			_clientListenEndpoints.erase(fd);
+			_clientConnections.erase(it++);
+			continue;
+		}
+
 		if (conn->getState() == Connection::WRITING)
 		{
 			++it;
@@ -892,13 +998,32 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location)
 {
 	const std::string& body = request.getBody();
-	std::string uploadPath = serverConfig.getRoot() + "/upload.txt";
+	std::string uploadDir = serverConfig.getRoot();
 	if (location != NULL && location->isUploadEnabled() && !location->getUploadPath().empty())
-		uploadPath = location->getUploadPath() + "/upload.txt";
+		uploadDir = location->getUploadPath();
 
-	int fd = open(uploadPath.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
+	if (!ensureDirectoryExistsEngine(uploadDir))
+		return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
+
+	std::string filename = extractUploadFilenameEngine(request);
+	if (filename.empty())
+		filename = defaultUploadFilenameEngine();
+
+	int fd = -1;
+	std::string uploadPath;
+	for (int attempt = 0; attempt < 10; ++attempt)
+	{
+		uploadPath = uploadDir + "/" + filename;
+		fd = open(uploadPath.c_str(), O_CREAT | O_WRONLY | O_EXCL, 0644);
+		if (fd >= 0)
+			break;
+		if (errno != EEXIST)
+			return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
+		filename = defaultUploadFilenameEngine();
+	}
 	if (fd < 0)
 		return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
+
 	size_t total = 0;
 	while (total < body.size())
 	{
@@ -1125,6 +1250,12 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 		std::ostringstream contentLength;
 		contentLength << request.getBody().size();
 		envStrings.push_back("CONTENT_LENGTH=" + contentLength.str());
+
+		const std::string* contentTypeHeader = request.getHeader("content-type");
+		if (contentTypeHeader != NULL && !contentTypeHeader->empty())
+			envStrings.push_back("CONTENT_TYPE=" + *contentTypeHeader);
+		else if (request.getMethod() == "POST")
+			envStrings.push_back("CONTENT_TYPE=application/octet-stream");
 
 		const std::string* hostHeader = request.getHeader("host");
 		if (hostHeader != NULL)

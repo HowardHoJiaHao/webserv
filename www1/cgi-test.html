@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CGI Test</title>
+</head>
+<body>
+  <h1>CGI Test Page</h1>
+
+  <p><a href="/cgi-bin/test.py?hello=world">Run GET /cgi-bin/test.py?hello=world</a></p>
+
+  <h2>POST test</h2>
+  <form action="/cgi-bin/test.py" method="post">
+    <label for="payload">Body:</label><br>
+    <textarea id="payload" name="payload" rows="6" cols="60">hello from form</textarea><br><br>
+    <button type="submit">Send POST</button>
+  </form>
+</body>
+</html>
