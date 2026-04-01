@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/24 17:20:00 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 16:01:22 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/01 13:52:30 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,11 +36,13 @@ struct addrinfo* setupAddrInfoQuery(const std::string& host, int port)
 	oss << port;
 	std::string portStr = oss.str();
 
+	//create this osRes, whiuch is linked list of possible addresses
 	if (getaddrinfo(host.c_str(), portStr.c_str(), &addressQuery, &osRes) != 0)
 		throw std::runtime_error("getaddrinfo failed");
 	return osRes;
 }
 
+// try each node until it works
 int attemptBindingSocket(struct addrinfo* osRes, int& lastErrno)
 {
 	struct addrinfo* ptr;
@@ -56,8 +58,8 @@ int attemptBindingSocket(struct addrinfo* osRes, int& lastErrno)
 			lastErrno = errno;
 			continue;
 		}
-
-		int opt = 1;
+		//Sol_socket means, enable to modifying the socket
+		int opt = 1; // turn on the resue address
 		// ask kernel to allow this socket to reuse this address (ip:port), if restart happening
 		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
 		{
@@ -66,7 +68,7 @@ int attemptBindingSocket(struct addrinfo* osRes, int& lastErrno)
 			sockfd = -1;
 			continue;
 		}
-		// bind this sockfd to ai_addr
+		// bind this sockfd to ai_addr(address)
 		if (bind(sockfd, ptr->ai_addr, ptr->ai_addrlen) == 0)
 			break;
 		lastErrno = errno;
@@ -92,7 +94,7 @@ void configureListeningNonblockingSocket(int& sockfd)
 		close(sockfd);
 		throw std::runtime_error("fcntl F_GETFL failed");
 	}
-	// enable the nonblock mode
+	// enable the nonblock mode, surgically
 	if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1)
 	{
 		close(sockfd);
@@ -109,6 +111,7 @@ int createListeningSocket(const std::string& host, int port)
 	struct addrinfo* osRes = setupAddrInfoQuery(host, port);
 	int lastErrno = 0;
 	int sockfd = attemptBindingSocket(osRes, lastErrno);
+	// osRes is heap allocated linked list
 	freeaddrinfo(osRes);
 	if (sockfd < 0)
 	{
