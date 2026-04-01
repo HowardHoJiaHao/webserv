@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/01 16:42:43 by hho-jia-         ###   ########.fr       */
+/*   Updated: 2026/04/02 02:46:56 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,7 +29,7 @@ class Engine
 	private:
 		const ConfigFiles& 								_config;
 		std::map<std::pair<std::string,int>, int> 		_listenSockets;
-		std::map<int, Connection*> 						_clientConnections;
+		std::map<int, Connection*> 						_clientConnections; // <- client socket + state + buffer
 		std::map<int, std::pair<std::string, int> > 	_clientListenEndpoints;
 		std::map<std::string, int> 						_sessions;
 

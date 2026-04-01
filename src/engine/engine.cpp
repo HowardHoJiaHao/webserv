@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/01 16:44:35 by hho-jia-         ###   ########.fr       */
+/*   Updated: 2026/04/02 02:45:25 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -490,7 +490,7 @@ void Engine::processOutgoingData(fd_set& writeSet)
 void Engine::checkTimeouts()
 {
 	const time_t headerTimeoutSec = 5;
-	const time_t idleTimeoutSec = 30;
+	const time_t bodyReadTimeout = 30;
 	const time_t writeTimeoutSec = 60;
 	const time_t cgiTimeoutSec = 10;
 
@@ -543,7 +543,7 @@ void Engine::checkTimeouts()
 		bool timedOut = false;
 		if (conn->getRequestState() == Connection::READING_HEADERS && elapsed > headerTimeoutSec)
 			timedOut = true;
-		else if (conn->getState() == Connection::READING && elapsed > idleTimeoutSec)
+		else if (conn->getState() == Connection::READING && elapsed > bodyReadTimeout)
 			timedOut = true;
 
 		if (timedOut)
