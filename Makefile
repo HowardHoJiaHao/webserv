@@ -28,6 +28,9 @@ SRCS		= $(SRC_DIR)/main.cpp \
 			  $(SRC_DIR)/config/LocationConfig.cpp \
 			  $(SRC_DIR)/config/ServerConfig.cpp \
 			  $(SRC_DIR)/engine/engine.cpp \
+		      $(SRC_DIR)/engine/engine_string_utils.cpp \
+		      $(SRC_DIR)/engine/engine_request.cpp \
+		      $(SRC_DIR)/engine/engine_cgi.cpp \
 			  $(SRC_DIR)/engine/socket_utils.cpp \
 			  $(SRC_DIR)/connection/connection.cpp \
 		      $(SRC_DIR)/httpHandling/httpRequest.cpp \
@@ -84,7 +87,7 @@ re: fclean
 	@$(MAKE) all
 
 # Phony targets
-.PHONY: all clean fclean re
+.PHONY: all clean fclean re help restart stress
 
 # Display help
 help:
@@ -93,4 +96,17 @@ help:
 	@echo "  clean  - Remove object files and dependencies"
 	@echo "  fclean - Remove object files, dependencies, and executable"
 	@echo "  re     - Rebuild everything"
+	@echo "  restart- Kill listeners on PORTS then rebuild"
+	@echo "  stress - Run CGI/event-loop stress test"
 	@echo "  help   - Display this help message"
+
+PORTS ?= 8080 8081
+
+restart:
+	@echo "$(YELLOW)Freeing ports: $(PORTS)$(NC)"
+	@./scripts/free_ports.sh $(PORTS)
+	@echo "$(YELLOW)Rebuilding...$(NC)"
+	@$(MAKE) re
+
+stress:
+	@./scripts/stress_cgi.sh

@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:23:54 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 14:07:48 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/03/31 16:48:21 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,8 +37,6 @@ int	main(int argc, char **argv)
 		try
 		{
 			ConfigFiles		config(argc == 2 ? argv[1] : "");
-			if (argc == 2)
-				std::cout << "compile with config" << std::endl;
 			Engine	engine(config);
 			engine.setupListeningSockets();
 			engine.run();

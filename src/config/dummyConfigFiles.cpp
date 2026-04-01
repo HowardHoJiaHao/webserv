@@ -135,7 +135,7 @@ static unsigned long parseUnsigned(const std::string& value, const std::string& 
 
 static bool isSupportedReturnStatus(int code)
 {
-	return (code == 301 || code == 302 || code == 303 || code == 307 || code == 308);
+	return (code >= 300 && code <= 399);
 }
 
 static bool isDirectoryPath(const std::string& path)

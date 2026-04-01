@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   extractRequest.cpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/27 00:59:08 by ho                #+#    #+#             */
-/*   Updated: 2026/03/28 00:52:08 by ho               ###   ########.fr       */
+/*   Updated: 2026/03/31 18:21:57 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,7 +15,6 @@
 #include <cstdlib>
 #include <cctype>
 #include <cerrno>
-#include <limits>
 
 static std::string toLowerAscii(const std::string& input)
 {
@@ -155,12 +154,6 @@ bool extractRequest(std::string& buffer, std::string& rawRequest, bool* malforme
 			char* endptr = NULL;
 			unsigned long parsed = std::strtoul(value.c_str(), &endptr, 10);
 			if (endptr == value.c_str() || *endptr != '\0' || errno == ERANGE)
-			{
-				if (malformed != NULL)
-					*malformed = true;
-				return false;
-			}
-			if (parsed > std::numeric_limits<size_t>::max())
 			{
 				if (malformed != NULL)
 					*malformed = true;

@@ -6,7 +6,7 @@
 /*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/01 13:41:37 by hho-jia-         ###   ########.fr       */
+/*   Updated: 2026/04/01 16:42:43 by hho-jia-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,7 +42,7 @@ class Engine
 		void checkTimeouts();
 
 		const ServerConfig* findServerConfig(const std::string& host, int port) const;
-		const ServerConfig* findServerConfigForConnection(int clientFd, const HttpRequest& request) const;
+		const ServerConfig* findServerConfigForConnection(int clientFd) const;
 		const LocationConfig* findBestLocation(const ServerConfig& serverConfig, const std::string& path) const;
 		bool isMethodAllowed(const std::string& method, const LocationConfig* location) const;
 		std::string buildErrorResponse(int code, const std::string& defaultMsg, bool shouldClose, const ServerConfig* serverConfig);
@@ -53,7 +53,6 @@ class Engine
 		void	setupListeningSockets();
 		void	run();
 		std::string build405Response(bool shouldClose, const ServerConfig* serverConfig, const LocationConfig* location);
-		std::string buildIndexResponse();
 		std::string build404Response(bool shouldClose, const ServerConfig* serverConfig);
 		std::string build400Response(bool shouldClose, const ServerConfig* serverConfig);
 		std::string buildResponse(const std::string& status, const std::string& body, const std::string& contentType, bool shouldClose, const std::vector<std::string>& extraHeaders);
