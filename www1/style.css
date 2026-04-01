@@ -70,6 +70,14 @@ nav a{
 
 nav a:first-child{ border-left: none; }
 nav a:hover{ background: rgba(255,255,255,0.12); color:#fff; }
+nav a.nav-active{
+    background: #ffffff;
+    color: var(--accent-strong);
+}
+nav a.nav-active:hover{
+    background: #eef4ff;
+    color: var(--accent-strong);
+}
 
 /* allow pages to opt-in to a top-left nav (e.g., form page) */
 .top-left-nav{ justify-content:flex-start; padding-left:1rem; position:fixed; top:0; left:0; right:0; z-index:90; background:var(--accent); border-bottom:1px solid rgba(0,0,0,0.08); box-shadow:0 4px 12px rgba(0,0,0,0.06); }

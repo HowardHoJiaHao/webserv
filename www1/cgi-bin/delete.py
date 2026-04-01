@@ -94,7 +94,7 @@ def render_page(files):
     <script src=\"/header.js\"></script>
     <div class=\"hero-wrap\">
         <div class=\"container form-card\">
-            <h2 class=\"form-title\">Archive</h2>
+            <h2 class=\"form-title\">Archive (Python CGI)</h2>
             <p class=\"muted\">Uploaded files stored on the server. Fetches live data from the archive endpoint.</p>
             <div class=\"table-wrapper\">
                 <table class=\"archive-table\" id=\"archive-table\">

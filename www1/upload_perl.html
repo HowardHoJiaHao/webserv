@@ -2,16 +2,15 @@
 <html lang="en">
 <head>
         <link rel="stylesheet" href="style.css">
-        <!-- styling moved to external style.css -->
-        <title>Upload File</title>
+        <title>Upload File (Perl CGI)</title>
 </head>
 <body class="body-top">
     <div id="header-placeholder"></div>
     <script src="/header.js"></script>
     <div class="hero-wrap">
         <div class="container form-card">
-            <h2>File Upload (Python CGI)</h2>
-            <form action="/cgi-bin/upload_script.py" method="POST" enctype="multipart/form-data">
+            <h2>File Upload (Perl CGI)</h2>
+            <form action="/cgi-bin/upload_script.pl" method="POST" enctype="multipart/form-data">
                 <div class="form-row file-input-row">
                     <div class="file-input-control">
                         <label class="field-label" for="fileToUpload">Choose file</label>
@@ -43,14 +42,13 @@
                     return (n/1024/1024).toFixed(2)+' MB';
                 }
 
-                input.addEventListener('change', function(e){
+                input.addEventListener('change', function(){
                     const f = this.files && this.files[0];
                     if(!f){ preview.style.display='none'; preview.setAttribute('aria-hidden','true'); return; }
                     nameEl.textContent = f.name;
                     sizeEl.textContent = ' · ' + humanSize(f.size);
                     preview.style.display='flex'; preview.setAttribute('aria-hidden','false');
 
-                    // show thumbnail if image
                     if(f.type.startsWith('image/')){
                         const reader = new FileReader();
                         reader.onload = function(ev){ thumb.src = ev.target.result; thumb.style.display='block'; };

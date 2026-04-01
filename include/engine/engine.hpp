@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/01 13:41:37 by hho-jia-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,11 +27,11 @@
 class Engine
 {
 	private:
-		const ConfigFiles& _config;
-		std::map<std::pair<std::string,int>, int> _listenSockets;
-		std::map<int, Connection*> _clientConnections;
-		std::map<int, std::pair<std::string, int> > _clientListenEndpoints;
-		std::map<std::string, int> _sessions;
+		const ConfigFiles& 								_config;
+		std::map<std::pair<std::string,int>, int> 		_listenSockets;
+		std::map<int, Connection*> 						_clientConnections;
+		std::map<int, std::pair<std::string, int> > 	_clientListenEndpoints;
+		std::map<std::string, int> 						_sessions;
 
 		void registerListenSocketsForSelect(fd_set& readSet, int& maxFd);
 		void registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, int& maxFd);

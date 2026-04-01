@@ -15,3 +15,95 @@ File saved successfully. Size: 42401 bytes
 [2026-03-31 18:34:59] [form.py] Request completed successfully
 [2026-03-31 18:34:59] [delete.py] Request started method=GET query=format=json
 [2026-03-31 18:34:59] [delete.py] Returned archive list count=1
+[2026-04-01 08:39:07] [upload_script.pl] Request started
+[2026-04-01 08:39:07] [upload_script.pl] Saved file: perl_demo_b691e9ed.txt size=22
+[2026-04-01 08:39:07] [delete.pl] Request started method=GET query=format=json
+[2026-04-01 08:39:07] [delete.pl] Returned list count=2
+[2026-04-01 08:39:13] [delete.pl] Request started method=POST query=
+[2026-04-01 08:39:13] [delete.pl] Deleted file: perl_demo_b691e9ed.txt
+[2026-04-01 10:53:32] [upload_script.pl] Request started
+[2026-04-01 10:53:32] [upload_script.pl] Saved file: perl1_07028d3f.png size=101735
+[2026-04-01 10:53:46] [delete.pl] Request started method=GET query=
+[2026-04-01 10:53:46] [delete.pl] Request started method=GET query=format=json
+[2026-04-01 10:53:46] [delete.pl] Returned list count=2
+[2026-04-01 10:53:52] [delete.py] Request started method=GET query=
+[2026-04-01 10:53:52] [delete.py] Rendered archive page
+[2026-04-01 10:53:52] [delete.py] Request started method=GET query=format=json
+[2026-04-01 10:53:52] [delete.py] Returned archive list count=2
+[2026-04-01 10:53:55] [delete.pl] Request started method=GET query=
+[2026-04-01 10:53:55] [delete.pl] Request started method=GET query=format=json
+[2026-04-01 10:53:55] [delete.pl] Returned list count=2
+[2026-04-01 10:53:59] [delete.pl] Request started method=GET query=
+[2026-04-01 10:53:59] [delete.pl] Request started method=GET query=format=json
+[2026-04-01 10:53:59] [delete.pl] Returned list count=2
+[2026-04-01 10:54:09] [upload_script.pl] Request started
+[2026-04-01 10:54:09] [upload_script.pl] Saved file: perl2_10a08f2b.png size=246702
+[2026-04-01 10:54:10] [delete.pl] Request started method=GET query=
+[2026-04-01 10:54:10] [delete.pl] Request started method=GET query=format=json
+[2026-04-01 10:54:10] [delete.pl] Returned list count=3
+[2026-04-01 10:54:13] [delete.pl] Request started method=POST query=
+[2026-04-01 10:54:13] [delete.pl] Deleted file: perl1_07028d3f.png
+[2026-04-01 10:54:13] [delete.pl] Request started method=GET query=format=json
+[2026-04-01 10:54:13] [delete.pl] Returned list count=2
+Starting CGI script
+Original filename: py1.png
+Safe filename: py1_f8574cfb.png
+Save path: /home/hho-jia-/evaluation/webserver/wk/www1/archive/py1_f8574cfb.png
+File saved successfully. Size: 890267 bytes
+[2026-04-01 10:56:00] [delete.py] Request started method=GET query=
+[2026-04-01 10:56:00] [delete.py] Rendered archive page
+[2026-04-01 10:56:00] [delete.py] Request started method=GET query=format=json
+[2026-04-01 10:56:00] [delete.py] Returned archive list count=3
+Starting CGI script
+Original filename: py2.png
+Safe filename: py2_cb81e99f.png
+Save path: /home/hho-jia-/evaluation/webserver/wk/www1/archive/py2_cb81e99f.png
+File saved successfully. Size: 549108 bytes
+[2026-04-01 10:56:14] [delete.py] Request started method=GET query=
+[2026-04-01 10:56:14] [delete.py] Rendered archive page
+[2026-04-01 10:56:14] [delete.py] Request started method=GET query=format=json
+[2026-04-01 10:56:14] [delete.py] Returned archive list count=4
+[2026-04-01 10:56:17] [delete.py] Request started method=GET query=
+[2026-04-01 10:56:17] [delete.py] Rendered archive page
+[2026-04-01 10:56:17] [delete.py] Request started method=GET query=format=json
+[2026-04-01 10:56:17] [delete.py] Returned archive list count=4
+[2026-04-01 10:56:19] [delete.pl] Request started method=GET query=
+[2026-04-01 10:56:20] [delete.pl] Request started method=GET query=format=json
+[2026-04-01 10:56:20] [delete.pl] Returned list count=4
+[2026-04-01 10:56:23] [delete.pl] Request started method=GET query=
+[2026-04-01 10:56:23] [delete.pl] Request started method=GET query=format=json
+[2026-04-01 10:56:23] [delete.pl] Returned list count=4
+[2026-04-01 10:56:25] [delete.py] Request started method=GET query=
+[2026-04-01 10:56:25] [delete.py] Rendered archive page
+[2026-04-01 10:56:25] [delete.py] Request started method=GET query=format=json
+[2026-04-01 10:56:25] [delete.py] Returned archive list count=4
+[2026-04-01 10:57:07] [delete.py] Request started method=GET query=
+[2026-04-01 10:57:07] [delete.py] Rendered archive page
+[2026-04-01 10:57:07] [delete.py] Request started method=GET query=format=json
+[2026-04-01 10:57:07] [delete.py] Returned archive list count=4
+[2026-04-01 10:58:06] [delete.py] Request started method=GET query=
+[2026-04-01 10:58:06] [delete.py] Rendered archive page
+[2026-04-01 10:58:06] [delete.py] Request started method=GET query=format=json
+[2026-04-01 10:58:06] [delete.py] Returned archive list count=4
+[2026-04-01 10:58:06] [delete.py] Request started method=GET query=
+[2026-04-01 10:58:06] [delete.py] Rendered archive page
+[2026-04-01 10:58:06] [delete.py] Request started method=GET query=format=json
+[2026-04-01 10:58:06] [delete.py] Returned archive list count=4
+[2026-04-01 10:58:07] [delete.py] Request started method=GET query=
+[2026-04-01 10:58:07] [delete.py] Rendered archive page
+[2026-04-01 10:58:08] [delete.py] Request started method=GET query=format=json
+[2026-04-01 10:58:08] [delete.py] Returned archive list count=4
+[2026-04-01 10:58:09] [delete.pl] Request started method=GET query=
+[2026-04-01 10:58:09] [delete.pl] Request started method=GET query=format=json
+[2026-04-01 10:58:09] [delete.pl] Returned list count=4
+[2026-04-01 10:58:30] [delete.py] Request started method=GET query=
+[2026-04-01 10:58:30] [delete.py] Rendered archive page
+[2026-04-01 10:58:30] [delete.py] Request started method=GET query=format=json
+[2026-04-01 10:58:30] [delete.py] Returned archive list count=4
+[2026-04-01 11:15:39] [delete.py] Request started method=GET query=
+[2026-04-01 11:15:39] [delete.py] Rendered archive page
+[2026-04-01 11:15:39] [delete.py] Request started method=GET query=format=json
+[2026-04-01 11:15:39] [delete.py] Returned archive list count=4
+[2026-04-01 11:15:41] [delete.pl] Request started method=GET query=
+[2026-04-01 11:15:41] [delete.pl] Request started method=GET query=format=json
+[2026-04-01 11:15:41] [delete.pl] Returned list count=4
