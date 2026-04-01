@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/01 13:15:36 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/01 16:34:08 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -544,6 +544,7 @@ void Engine::run()
 {
 	std::cout << "Server running..." << std::endl;
 
+	// sigint is ctrl + c, sigterm is system asked program to terminate
 	std::signal(SIGINT, handleEngineStopSignal);
 	std::signal(SIGTERM, handleEngineStopSignal);
 
@@ -554,22 +555,26 @@ void Engine::run()
 		fd_set writeSet;
 		FD_ZERO(&writeSet);
 
+		// range of fd to check for select
 		int maxFd = 0;
 
 		registerListenSocketsForSelect(readSet, maxFd);
 		registerClientSocketForSelect(readSet, writeSet, maxFd);
 
+		//wake up every 1 second (sleep up to 1 second) for checkTimeouts
+		//time out is max sleep time
 		struct timeval timeout;
 		timeout.tv_sec = 1;
 		timeout.tv_usec = 0;
 		int readyFdCount = select(maxFd + 1, &readSet, &writeSet, NULL, &timeout);
+		// if select was interrupted by a signal, eg: ctrl + c, sigterm...
 		if (readyFdCount < 0)
 		{
 			if (errno == EINTR)
 			{
-				if (g_engineStopRequested)
+				if (g_engineStopRequested) //only sigint sigterm stop it
 					break;
-				continue;
+				continue; //eg: sigchld should not stop this loop
 			}
 			perror("select");
 			break;
@@ -580,8 +585,7 @@ void Engine::run()
 		processOutgoingData(writeSet);
 
 		// Reap any finished CGI child processes without blocking.
-		while (waitpid(-1, NULL, WNOHANG) > 0)
-			;
+		while (waitpid(-1, NULL, WNOHANG) > 0);
 	}
 	std::cout << "Server stopping..." << std::endl;
 }
