@@ -11,6 +11,7 @@
 /* ************************************************************************** */
 
 #include "Webserv.hpp"
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
@@ -236,18 +237,45 @@ static void parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i
 		}
 		else if (key == "cgi_enabled")
 		{
-			if (i >= tokens.size())
+			if (i >= tokens.size() || tokens[i].value == ";")
 				throw parseError(tokens[i - 1].line, "missing cgi_enabled value");
 			std::string value = tokens[i++].value;
+			std::vector<std::string> validOn;
+			validOn.push_back("on");
+			validOn.push_back("true");
+			validOn.push_back("1");
+			std::vector<std::string> validOff;
+			validOn.push_back("off");
+			validOn.push_back("false");
+			validOn.push_back("0");
+			if (std::find(validOn.begin(), validOn.end(), value) != validOn.end())
+				loc.setCgiEnabled(true);
+			else if (std::find(validOff.begin(), validOff.end(), value) != validOff.end())
+				loc.setCgiEnabled(false);
+			else
+				throw parseError(tokens[i - 1].line, "cgi_enabled must be 'on/true/1' or 'off/false/0'");
 			loc.setCgiEnabled(value == "on" || value == "true" || value == "1");
 			expectToken(tokens, i, ";");
 		}
 		else if (key == "cgi_ext" || key == "cgi_extensions")
 		{
+			if (i >= tokens.size())
+				throw parseError(tokens[i - 1].line, "missing cgi_ext values");
 			std::vector<std::string> extensions;
 			while (i < tokens.size() && tokens[i].value != ";")
-				extensions.push_back(tokens[i++].value);
+			{
+				const std::string& ext = tokens[i++].value;
+				if (ext.size() < 2 || ext[0] != '.')
+					throw parseError(tokens[i - 1].line, "invalid cgi_ext extension: " + ext);
+				if (ext.find('/') != std::string::npos)
+					throw parseError(tokens[i - 1].line, "invalid cgi_ext extension (contains '/'): " + ext);
+				if (std::find(extensions.begin(), extensions.end(), ext) != extensions.end())
+					throw parseError(tokens[i - 1].line, "duplicate cgi_ext extension: " + ext);
+				extensions.push_back(ext);
+			}
 			expectToken(tokens, i, ";");
+			if (extensions.empty())
+				throw parseError(tokens[i - 1].line, "cgi_ext requires at least one extension");
 			loc.setCgiExtensions(extensions);
 		}
 		else if (key == "return")
