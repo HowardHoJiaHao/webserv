@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/02 02:45:25 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/02 16:20:38 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,10 +44,10 @@ Engine::~Engine()
 	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
 		it != _clientConnections.end(); ++it)
 	{
-		Connection* conn = it->second;
-		if (!conn)
+		Connection* currentConn = it->second;
+		if (!currentConn)
 			continue;
-		const pid_t pid = conn->getCGIPid();
+		const pid_t pid = currentConn->getCGIPid();
 		if (pid > 0)
 		{
 			// Best-effort cleanup for CGI processes during shutdown.
@@ -211,15 +211,15 @@ void Engine::processIncomingData(fd_set& readSet)
 	{
 		int clientFd = it->first;
 
-		Connection* conn = it->second;
+		Connection* currentConn = it->second;
 
-		if (conn->getState() == Connection::CGI_RUNNING)
+		if (currentConn->getState() == Connection::CGI_RUNNING)
 		{
-			int cgi_fd = conn->getCGIStdoutFd();
+			int cgi_fd = currentConn->getCGIStdoutFd();
 			if (cgi_fd != -1 && FD_ISSET(cgi_fd, &readSet))
 			{
 				char buffer[1024];
-				Connection::CGIContext* cgi = conn->getCGI();
+				Connection::CGIContext* cgi = currentConn->getCGI();
 				struct timeval start_time;
 				gettimeofday(&start_time, NULL);
 				while(true)
@@ -229,11 +229,11 @@ void Engine::processIncomingData(fd_set& readSet)
 					{
 						if (cgi != NULL)
 							cgi->stdout_buffer.append(buffer, bytes);
-						conn->updateActivity();
+						currentConn->updateActivity();
 					}
 					else if (bytes == 0)
 					{
-						pid_t pid = conn->getCGIPid();
+						pid_t pid = currentConn->getCGIPid();
 						if (pid > 0)
 							waitpid(pid, NULL, WNOHANG);
 
@@ -243,7 +243,7 @@ void Engine::processIncomingData(fd_set& readSet)
 
 						if (cgiOutput.find("HTTP/1.") == 0)
 						{
-							conn->getWriteBuffer().append(cgiOutput);
+							currentConn->getWriteBuffer().append(cgiOutput);
 						}
 						else
 						{
@@ -291,12 +291,12 @@ void Engine::processIncomingData(fd_set& readSet)
 								}
 							}
 
-							conn->getWriteBuffer().append(
-								buildResponse(status, body, contentType, conn->shouldClose(), extraHeaders)
+							currentConn->getWriteBuffer().append(
+								buildResponse(status, body, contentType, currentConn->shouldClose(), extraHeaders)
 							);
 						}
-						conn->clearCGI();
-						conn->setState(Connection::WRITING);
+						currentConn->clearCGI();
+						currentConn->setState(Connection::WRITING);
 						break;
 					}
 					else
@@ -314,24 +314,24 @@ void Engine::processIncomingData(fd_set& readSet)
 							}
 							if (elapsed_sec >= 3)
 							{
-								pid_t pid = conn->getCGIPid();
+								pid_t pid = currentConn->getCGIPid();
 								if (pid > 0)
 									kill(pid, SIGKILL);
 								if (pid > 0)
 									waitpid(pid, NULL, 0);
-								conn->getWriteBuffer() = buildErrorResponse(504, "Gateway Timeout", conn->shouldClose(), NULL);
-								conn->setShouldClose(true);
-								conn->clearCGI();
-								conn->setState(Connection::WRITING);
+								currentConn->getWriteBuffer() = buildErrorResponse(504, "Gateway Timeout", currentConn->shouldClose(), NULL);
+								currentConn->setShouldClose(true);
+								currentConn->clearCGI();
+								currentConn->setState(Connection::WRITING);
 								break;
 							}
 							break;
 						}
 						perror("read CGI");
-						conn->setShouldClose(true);
-						conn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", conn->shouldClose(), NULL);
-						conn->clearCGI();
-						conn->setState(Connection::WRITING);
+						currentConn->setShouldClose(true);
+						currentConn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", currentConn->shouldClose(), NULL);
+						currentConn->clearCGI();
+						currentConn->setState(Connection::WRITING);
 						break;
 					}
 				}
@@ -380,13 +380,13 @@ void Engine::processOutgoingData(fd_set& writeSet)
 			it != _clientConnections.end();)
 	{
 		int clientFd = it->first;
-		Connection* conn = it->second;
+		Connection* currentConn = it->second;
 
-		if (conn->getState() == Connection::CGI_RUNNING)
+		if (currentConn->getState() == Connection::CGI_RUNNING)
 		{
-			Connection::CGIContext* cgi = conn->getCGI();
-			int cgi_in = conn->getCGIStdinFd();
-			if (cgi != NULL && cgi_in != -1 && !conn->isCGIStdinClosed() && FD_ISSET(cgi_in, &writeSet))
+			Connection::CGIContext* cgi = currentConn->getCGI();
+			int cgi_in = currentConn->getCGIStdinFd();
+			if (cgi != NULL && cgi_in != -1 && !currentConn->isCGIStdinClosed() && FD_ISSET(cgi_in, &writeSet))
 			{
 				if (cgi->stdin_offset < cgi->stdin_buffer.size())
 				{
@@ -396,7 +396,7 @@ void Engine::processOutgoingData(fd_set& writeSet)
 					if (written > 0)
 					{
 						cgi->stdin_offset += static_cast<size_t>(written);
-						conn->updateActivity();
+						currentConn->updateActivity();
 					}
 					else if (written < 0)
 					{
@@ -404,22 +404,22 @@ void Engine::processOutgoingData(fd_set& writeSet)
 						{
 							perror("write CGI stdin");
 							close(cgi_in);
-							conn->setCGIStdinFd(-1);
-							conn->setCGIStdinClosed(true);
+							currentConn->setCGIStdinFd(-1);
+							currentConn->setCGIStdinClosed(true);
 						}
 						else if (errno == EPIPE)
 						{
 							close(cgi_in);
-							conn->setCGIStdinFd(-1);
-							conn->setCGIStdinClosed(true);
+							currentConn->setCGIStdinFd(-1);
+							currentConn->setCGIStdinClosed(true);
 						}
 					}
 				}
-				if (cgi->stdin_offset >= cgi->stdin_buffer.size() && !conn->isCGIStdinClosed())
+				if (cgi->stdin_offset >= cgi->stdin_buffer.size() && !currentConn->isCGIStdinClosed())
 				{
 					close(cgi_in);
-					conn->setCGIStdinFd(-1);
-					conn->setCGIStdinClosed(true);
+					currentConn->setCGIStdinFd(-1);
+					currentConn->setCGIStdinClosed(true);
 				}
 			}
 		}
@@ -430,19 +430,19 @@ void Engine::processOutgoingData(fd_set& writeSet)
 			continue;
 		}
 
-		std::string& writebuffer = conn->getWriteBuffer();
+		std::string& writebuffer = currentConn->getWriteBuffer();
 		if (writebuffer.empty())
 		{
-			if (conn->shouldClose())
+			if (currentConn->shouldClose())
 			{
-				delete conn;
+				delete currentConn;
 				_clientListenEndpoints.erase(clientFd);
 				_clientConnections.erase(it++);
 				continue;
 			}
 
-			conn->setRequestState(Connection::READING_HEADERS);
-			conn->setState(Connection::READING);
+			currentConn->setRequestState(Connection::READING_HEADERS);
+			currentConn->setState(Connection::READING);
 			++it;
 			continue;
 		}
@@ -452,26 +452,26 @@ void Engine::processOutgoingData(fd_set& writeSet)
 		if (sentByte > 0)
 		{
 			writebuffer.erase(0, sentByte);
-			conn->updateActivity();
+			currentConn->updateActivity();
 
 			if (writebuffer.empty())
 			{
-				if (conn->shouldClose())
+				if (currentConn->shouldClose())
 				{
-					delete conn;
+					delete currentConn;
 					_clientListenEndpoints.erase(clientFd);
 					_clientConnections.erase(it++);
 					continue;
 				}
-				conn->setRequestState(Connection::READING_HEADERS);
-				conn->setState(Connection::READING);
+				currentConn->setRequestState(Connection::READING_HEADERS);
+				currentConn->setState(Connection::READING);
 			}
 			++it;
 			continue;
 		}
 		if (sentByte == 0)
 		{
-			delete conn;
+			delete currentConn;
 			_clientListenEndpoints.erase(clientFd);
 			_clientConnections.erase(it++);
 			continue;
@@ -482,7 +482,7 @@ void Engine::processOutgoingData(fd_set& writeSet)
 			continue;
 		}
 		perror("send");
-		delete conn;
+		delete currentConn;
 		_clientListenEndpoints.erase(clientFd);
 		_clientConnections.erase(it++);
 	}
@@ -500,57 +500,58 @@ void Engine::checkTimeouts()
 			it != _clientConnections.end();)
 	{
 		int fd = it->first;
-		Connection* conn = it->second;
-		time_t elapsed = now - conn->getLastActivity();
-		if (conn->getState() == Connection::WRITING && elapsed > writeTimeoutSec)
+		Connection* currentConn = it->second;
+		time_t elapsed = now - currentConn->getLastActivity();
+		if (currentConn->getState() == Connection::WRITING && elapsed > writeTimeoutSec)
 		{
-			delete conn;
+			delete currentConn;
 			_clientListenEndpoints.erase(fd);
 			_clientConnections.erase(it++);
 			continue;
 		}
 
-		if (conn->getState() == Connection::WRITING)
+		if (currentConn->getState() == Connection::WRITING)
 		{
 			++it;
 			continue;
 		}
+		// for buildErrorResponse
+		const ServerConfig* serverConfig = currentConn->getServerConfig();
 
-		const ServerConfig* serverConfig = conn->getServerConfig();
-
-		if (conn->getState() == Connection::CGI_RUNNING)
+		// if cgi script run too long, kill it, clean up, send 504 eror
+		if (currentConn->getState() == Connection::CGI_RUNNING)
 		{
-			Connection::CGIContext* cgi = conn->getCGI();
+			Connection::CGIContext* cgi = currentConn->getCGI();
 			if (cgi != NULL && cgi->start_time > 0 && (now - cgi->start_time) > cgiTimeoutSec)
 			{
-				pid_t pid = conn->getCGIPid();
+				pid_t pid = currentConn->getCGIPid();
 				if (pid > 0)
 				{
 					kill(pid, SIGKILL);
 					waitpid(pid, NULL, WNOHANG);
 				}
-				conn->clearCGI();
-				conn->setShouldClose(true);
-				conn->getWriteBuffer() = buildErrorResponse(504, "Gateway Timeout", true, serverConfig);
-				conn->setState(Connection::WRITING);
+				currentConn->clearCGI();
+				currentConn->setShouldClose(true);
+				currentConn->getWriteBuffer() = buildErrorResponse(504, "Gateway Timeout", true, serverConfig);
+				currentConn->setState(Connection::WRITING);
 			}
 			++it;
 			continue;
 		}
 
 		bool timedOut = false;
-		if (conn->getRequestState() == Connection::READING_HEADERS && elapsed > headerTimeoutSec)
+		if (currentConn->getRequestState() == Connection::READING_HEADERS && elapsed > headerTimeoutSec)
 			timedOut = true;
-		else if (conn->getState() == Connection::READING && elapsed > bodyReadTimeout)
+		else if (currentConn->getState() == Connection::READING && elapsed > bodyReadTimeout)
 			timedOut = true;
 
 		if (timedOut)
 		{
-			conn->setShouldClose(true);
-			conn->getReadBuffer().clear();
-			conn->getWriteBuffer() = buildErrorResponse(408, "Request Timeout", true, serverConfig);
-			conn->setRequestState(Connection::COMPLETE);
-			conn->setState(Connection::WRITING);
+			currentConn->setShouldClose(true);
+			currentConn->getReadBuffer().clear();
+			currentConn->getWriteBuffer() = buildErrorResponse(408, "Request Timeout", true, serverConfig);
+			currentConn->setRequestState(Connection::COMPLETE);
+			currentConn->setState(Connection::WRITING);
 			++it;
 			continue;
 		}
