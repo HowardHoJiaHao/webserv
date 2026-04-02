@@ -532,7 +532,7 @@ void Engine::checkTimeouts()
 				conn->clearCGI();
 				conn->setShouldClose(true);
 				conn->getWriteBuffer() = buildErrorResponse(504, "Gateway Timeout", true, serverConfig);
-				// conn->setState(Connection::WRITING);
+				conn->setState(Connection::WRITING);
 			}
 			++it;
 			continue;
