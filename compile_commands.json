@@ -1,0 +1,67 @@
+[
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/main.cpp -o objs/main.o",
+    "file": "src/main.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/config/dummyConfigFiles.cpp -o objs/config/dummyConfigFiles.o",
+    "file": "src/config/dummyConfigFiles.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/config/LocationConfig.cpp -o objs/config/LocationConfig.o",
+    "file": "src/config/LocationConfig.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/config/ServerConfig.cpp -o objs/config/ServerConfig.o",
+    "file": "src/config/ServerConfig.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/engine/engine.cpp -o objs/engine/engine.o",
+    "file": "src/engine/engine.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/engine/engine_string_utils.cpp -o objs/engine/engine_string_utils.o",
+    "file": "src/engine/engine_string_utils.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/engine/engine_request.cpp -o objs/engine/engine_request.o",
+    "file": "src/engine/engine_request.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/engine/engine_cgi.cpp -o objs/engine/engine_cgi.o",
+    "file": "src/engine/engine_cgi.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/engine/socket_utils.cpp -o objs/engine/socket_utils.o",
+    "file": "src/engine/socket_utils.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/connection/connection.cpp -o objs/connection/connection.o",
+    "file": "src/connection/connection.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/httpHandling/httpRequest.cpp -o objs/httpHandling/httpRequest.o",
+    "file": "src/httpHandling/httpRequest.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/httpHandling/extractRequest.cpp -o objs/httpHandling/extractRequest.o",
+    "file": "src/httpHandling/extractRequest.cpp"
+  },
+  {
+    "directory": "/home/hwai-keo/webserv",
+    "command": "c++ -Wall -Wextra -Werror -std=c++98 -I./include -I./include/config -I./include/engine -I./include/httpHandling -c src/FileHandler.cpp -o objs/FileHandler.o",
+    "file": "src/FileHandler.cpp"
+  }
+]

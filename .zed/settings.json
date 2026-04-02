@@ -1,0 +1,24 @@
+{
+  "lsp": {
+    "clangd": {
+      "initialization_options": {
+        "fallbackFlags": [
+          "-I/home/hwai-keo/webserv/include",
+          "-I/home/hwai-keo/webserv/include/config",
+          "-I/home/hwai-keo/webserv/include/engine",
+          "-I/home/hwai-keo/webserv/include/httpHandling",
+          "-std=c++98",
+        ],
+      },
+    },
+  },
+  "languages": {
+    "C++": {
+      "tab_size": 4,
+      "hard_tabs": false,
+    },
+  },
+  "inlay_hints": {
+    "enabled": true,
+  },
+}

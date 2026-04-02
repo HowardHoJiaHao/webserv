@@ -1,0 +1,11 @@
+CompileFlags:
+  Add:
+    - "-I/home/hwai-keo/webserv/include"
+    - "-I/home/hwai-keo/webserv/include/config"
+    - "-I/home/hwai-keo/webserv/include/engine"
+    - "-I/home/hwai-keo/webserv/include/httpHandling"
+    - "-std=c++98"
+  Compiler: clang++
+
+Diagnostics:
+  UnusedIncludes: None

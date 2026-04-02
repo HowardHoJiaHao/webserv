@@ -11,6 +11,7 @@
 /* ************************************************************************** */
 
 #include "Connection.hpp"
+#include "config/ServerConfig.hpp"
 #include <unistd.h>
 #include <sys/types.h>
 #include <ctime>
@@ -24,7 +25,8 @@ Connection::Connection(int fd)
 	_requestState(READING_HEADERS),
 	_shouldClose(false),
 	_lastActivity(std::time(NULL)),
-	_cgi(NULL)
+	_cgi(NULL),
+	_serverConfig(NULL)
 	{}
 
 Connection::~Connection()
@@ -165,6 +167,16 @@ void Connection::setCGIStdoutFd(int fd)
 {
 	if (_cgi)
 		_cgi->stdout_fd = fd;
+}
+
+const ServerConfig* Connection::getServerConfig() const
+{
+	return _serverConfig;
+}
+
+void Connection::setServerConfig(const ServerConfig* config)
+{
+	_serverConfig = config;
 }
 
 void Connection::setCGIStdinClosed(bool value)

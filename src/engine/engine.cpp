@@ -65,7 +65,7 @@ Engine::~Engine()
 	{
 		delete it->second;
 	}
-	for(std::map<std::pair<std::string, int>, int>::iterator it = _listenSockets.begin(); 
+	for(std::map<std::pair<std::string, int>, int>::iterator it = _listenSockets.begin();
 		it != _listenSockets.end(); ++it)
 		close(it->second);
 		//delete it->second;
@@ -169,6 +169,7 @@ void Engine::acceptPendingClientConnections(fd_set& readSet)
 				}
 				_clientConnections[clientFd] = new Connection(clientFd);
 				_clientListenEndpoints[clientFd] = it->first;
+				_clientConnections[clientFd]->setServerConfig(findServerConfig(it->first.first, it->first.second));
 			}
 		}
 	}
@@ -422,7 +423,7 @@ void Engine::processOutgoingData(fd_set& writeSet)
 				}
 			}
 		}
-		
+
 		if (!FD_ISSET(clientFd, &writeSet))
 		{
 			++it;
@@ -446,7 +447,7 @@ void Engine::processOutgoingData(fd_set& writeSet)
 			continue;
 		}
 
-		
+
 		ssize_t sentByte = send(clientFd, writebuffer.data(), writebuffer.size(), 0);
 		if (sentByte > 0)
 		{
@@ -515,10 +516,7 @@ void Engine::checkTimeouts()
 			continue;
 		}
 
-		std::map<int, std::pair<std::string, int> >::const_iterator epIt = _clientListenEndpoints.find(fd);
-		const ServerConfig* serverConfig = NULL;
-		if (epIt != _clientListenEndpoints.end())
-			serverConfig = findServerConfig(epIt->second.first, epIt->second.second);
+		const ServerConfig* serverConfig = conn->getServerConfig();
 
 		if (conn->getState() == Connection::CGI_RUNNING)
 		{
@@ -534,7 +532,7 @@ void Engine::checkTimeouts()
 				conn->clearCGI();
 				conn->setShouldClose(true);
 				conn->getWriteBuffer() = buildErrorResponse(504, "Gateway Timeout", true, serverConfig);
-				conn->setState(Connection::WRITING);
+				// conn->setState(Connection::WRITING);
 			}
 			++it;
 			continue;
@@ -561,7 +559,7 @@ void Engine::checkTimeouts()
 }
 
 // fd_set is a box of switches indexed by fd number
-// the program will sleep when it reach select function until at least one signal with readset or 
+// the program will sleep when it reach select function until at least one signal with readset or
 // writeset is ready
 
 void Engine::run()

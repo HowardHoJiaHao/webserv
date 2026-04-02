@@ -29,6 +29,7 @@ void	printServerStatus(const std::vector<ServerConfig>& servers)
 
 int	main(int argc, char **argv)
 {
+    //when a client disconnects, SIGPIPE is sent, but we ignore it to avoid crashing
 	signal(SIGPIPE, SIG_IGN);
 	std::srand(static_cast<unsigned int>(std::time(NULL)));
 
@@ -42,8 +43,8 @@ int	main(int argc, char **argv)
 			engine.run();
 			// const std::vector<ServerConfig>& servers = config.getServers();
 			// printServerStatus(servers); //debug testing
-			
-			
+
+
 		}
 		catch (std::exception &e)
 		{

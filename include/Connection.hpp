@@ -15,6 +15,7 @@
 
 #include <string>
 #include <sys/types.h> // ssize_t
+#include "config/ServerConfig.hpp"
 
 class Connection
 {
@@ -86,6 +87,9 @@ class Connection
 		void setCGIStdinClosed(bool value);
 		void clearCGI();
 
+		const ServerConfig* getServerConfig() const;
+		void setServerConfig(const ServerConfig* config);
+
 	private:
 		int 		_fd;
 		std::string _readBuffer;
@@ -102,8 +106,7 @@ class Connection
 		Connection& operator=(const Connection&);
 
 		CGIContext*	_cgi;
-
-
+		const ServerConfig* _serverConfig;
 };
 
 #endif
