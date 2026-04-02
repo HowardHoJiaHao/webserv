@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/02 16:20:38 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/02 18:46:33 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -560,6 +560,7 @@ void Engine::checkTimeouts()
 }
 
 // fd_set is a box of switches indexed by fd number
+// ft_set is a bitmask(array of bits)
 // the program will sleep when it reach select function until at least one signal with readset or
 // writeset is ready
 
