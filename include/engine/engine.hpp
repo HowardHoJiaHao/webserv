@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/02 02:46:56 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/03 18:29:39 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,12 +37,21 @@ class Engine
 		void registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, int& maxFd);
 		void acceptPendingClientConnections(fd_set& readSet);
 		void handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes);
-		void processIncomingData(fd_set& readSet);
+
+		// ========			engineIncomingData.cpp			==========
+
+		void	processIncomingData(fd_set& readSet);
+		bool	processCGIOutput(Connection* currentConn, fd_set& readSet);
+		void	parseCGIHeaders(const std::string& headerSection, std::string& status, std::string& contentType, std::vector<std::string>& extraHeaders);
+		void	buildResponseFromCGIOutput(Connection* currentConn, const std::string& cgiOutput);
+		bool	handleCGIWouldBlock(Connection* currentConn, struct timeval& startTime);
+		void	handleCGIReadError(Connection* currentConn);
+
 		void processOutgoingData(fd_set& writeSet);
 		void checkTimeouts();
 
 		const ServerConfig* findServerConfig(const std::string& host, int port) const;
-		const ServerConfig* findServerConfigForConnection(int clientFd) const;
+		//const ServerConfig* findServerConfigForConnection(int clientFd) const;
 		const LocationConfig* findBestLocation(const ServerConfig& serverConfig, const std::string& path) const;
 		bool isMethodAllowed(const std::string& method, const LocationConfig* location) const;
 		std::string buildErrorResponse(int code, const std::string& defaultMsg, bool shouldClose, const ServerConfig* serverConfig);

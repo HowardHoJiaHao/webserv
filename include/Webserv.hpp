@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Webserv.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:29:16 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/27 21:58:41 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/03 17:25:19 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,23 @@
 #include <stdexcept>
 #include "ConfigFiles.hpp"
 #include "engine.hpp"
+#include "engine_string_utils.hpp"
+#include "socket_utils.hpp"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <iostream>
+#include <stdexcept>
+#include <signal.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <fcntl.h>
+#include <sstream>
+#include <cstdio>
+#include <cerrno>
+#include <ctime>
+#include <sys/wait.h>
+#include <csignal>
 
 
 #endif

@@ -271,7 +271,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			return;
 		}
 
-		const ServerConfig* serverConfig = findServerConfigForConnection(conn->getFd());
+		const ServerConfig* serverConfig = conn->getServerConfig();
 		if (serverConfig != NULL && request.hasContentLength() && request.getContentLength() > serverConfig->getMaxBodySize())
 		{
 			conn->setShouldClose(true);

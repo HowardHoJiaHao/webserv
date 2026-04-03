@@ -9,7 +9,7 @@
                 "${workspaceFolder}/include/httpHandling"
             ],
             "defines": [],
-            "compilerPath": "/usr/bin/g++",
+            "compilerPath": "/usr/bin/clang",
             "cStandard": "c11",
             "cppStandard": "c++98",
             "intelliSenseMode": "gcc-x64",

@@ -28,6 +28,8 @@ SRCS		= $(SRC_DIR)/main.cpp \
 			  $(SRC_DIR)/config/LocationConfig.cpp \
 			  $(SRC_DIR)/config/ServerConfig.cpp \
 			  $(SRC_DIR)/engine/engine.cpp \
+		      $(SRC_DIR)/engine/engineIncomingData.cpp \
+		      $(SRC_DIR)/engine/engineOutgoingData.cpp \
 		      $(SRC_DIR)/engine/engine_string_utils.cpp \
 		      $(SRC_DIR)/engine/engine_request.cpp \
 		      $(SRC_DIR)/engine/engine_cgi.cpp \
