@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/05 02:03:41 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/05 02:52:58 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,6 +63,11 @@ class Engine
 		bool prepareConnection(Connection* conn, const char* buffer, ssize_t bytes, size_t& headerEnd);
 		bool processBufferedRequests(Connection* conn, bool& producedResponse);
 		bool enforceRequestSizeLimits(Connection* conn, size_t headerEnd);
+		bool handleRequestExtraction(Connection* conn, std::string& rawRequest, bool& extracted);
+		bool handleRequestParsing(Connection* conn, const std::string& rawRequest, HttpRequest& request, const ServerConfig* defaultServer);
+		bool handleRequestValidation(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig);
+		void handleSession(const HttpRequest& request, std::vector<std::string>& extraHeaders);
+		bool handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* defaultServer, const ServerConfig* serverConfig, bool shouldClose, bool& producedResponse);
 		std::string handleGet(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);
 
 		// ==================== 			build response			========================

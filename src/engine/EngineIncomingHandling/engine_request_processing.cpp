@@ -63,6 +63,142 @@ static std::vector<std::string> methodNotAllowedHeadersEngine(const LocationConf
 	return headers;
 }
 
+bool Engine::handleRequestExtraction(Connection* conn, std::string& rawRequest, bool& extracted)
+{
+	extracted = false;
+	std::string& readBuffer = conn->getReadBuffer();
+	bool malformed = false;
+
+	if (!extractRequest(readBuffer, rawRequest, &malformed))
+	{
+		if (malformed)
+		{
+			conn->setShouldClose(true);
+			conn->getWriteBuffer() = buildErrorResponse(400, conn->shouldClose(), NULL);
+			conn->setState(Connection::WRITING);
+			return false;
+		}
+
+		size_t headerEnd = readBuffer.find("\r\n\r\n");
+		if (headerEnd == std::string::npos)
+			conn->setRequestState(Connection::READING_HEADERS);
+		else
+			conn->setRequestState(Connection::READING_BODY);
+		return true;
+	}
+
+	conn->setRequestState(Connection::COMPLETE);
+	extracted = true;
+	return true;
+}
+
+bool Engine::handleRequestParsing(Connection* conn, const std::string& rawRequest, HttpRequest& request, const ServerConfig* defaultServer)
+{
+	size_t maxBodySize = MAX_REQUEST_SIZE;
+	if (defaultServer != NULL)
+		maxBodySize = defaultServer->getMaxBodySize();
+
+	try
+	{
+		request.parse(rawRequest, maxBodySize);
+	}
+	catch (const std::exception& e)
+	{
+		conn->setShouldClose(true);
+		if (std::string(e.what()) == "Body too large")
+			conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), defaultServer);
+		else
+			conn->getWriteBuffer() = buildErrorResponse(400, conn->shouldClose(), defaultServer);
+		conn->setState(Connection::WRITING);
+		return false;
+	}
+
+	return true;
+}
+
+bool Engine::handleRequestValidation(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig)
+{
+	if (serverConfig != NULL && request.hasContentLength() && request.getContentLength() > serverConfig->getMaxBodySize())
+	{
+		conn->setShouldClose(true);
+		conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), serverConfig);
+		conn->setState(Connection::WRITING);
+		return false;
+	}
+
+	return true;
+}
+
+void Engine::handleSession(const HttpRequest& request, std::vector<std::string>& extraHeaders)
+{
+	std::string sessionId = request.getCookie("sessionId");
+
+	if (sessionId.empty() || _sessions.find(sessionId) == _sessions.end())
+	{
+		std::stringstream ss;
+		ss << std::rand() << std::time(NULL);
+		sessionId = ss.str();
+
+		_sessions[sessionId] = 1;
+		extraHeaders.push_back("Set-Cookie: sessionId=" + sessionId + "; Path=/");
+	}
+	else
+	{
+		_sessions[sessionId]++;
+	}
+}
+
+bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* defaultServer, const ServerConfig* serverConfig, bool shouldClose, bool& producedResponse)
+{
+	const ServerConfig* effectiveServer = defaultServer;
+	if (serverConfig != NULL)
+		effectiveServer = serverConfig;
+	if (effectiveServer == NULL)
+	{
+		conn->setShouldClose(true);
+		conn->getWriteBuffer() = buildErrorResponse(500, conn->shouldClose(), NULL);
+		conn->setState(Connection::WRITING);
+		return false;
+	}
+
+	const LocationConfig* matchedLocation = findBestLocation(*effectiveServer, request.getPath());
+	if (!isMethodAllowed(request.getMethod(), matchedLocation))
+	{
+		conn->getWriteBuffer() = buildErrorResponse(405, conn->shouldClose(), effectiveServer, methodNotAllowedHeadersEngine(matchedLocation));
+		conn->setState(Connection::WRITING);
+		return false;
+	}
+
+	if (matchedLocation != NULL && isCgiRequestForLocation(request.getPath(), *matchedLocation))
+	{
+		if (!launchCGI(conn, request, *effectiveServer, conn->shouldClose()))
+			conn->setState(Connection::WRITING);
+		return false;
+	}
+
+	std::vector<std::string> extraHeaders;
+	handleSession(request, extraHeaders);
+
+	std::string response = routeRequest(request, shouldClose, *effectiveServer);
+	if (!extraHeaders.empty())
+	{
+		size_t pos = response.find("\r\n\r\n");
+		if (pos != std::string::npos)
+		{
+			std::string headerPart = response.substr(0, pos);
+			std::string bodyPart = response.substr(pos);
+
+			for (size_t i = 0; i < extraHeaders.size(); i++)
+				headerPart += "\r\n" + extraHeaders[i];
+
+			response = headerPart + bodyPart;
+		}
+	}
+	conn->getWriteBuffer() += response;
+	producedResponse = true;
+	return true;
+}
+
 bool Engine::prepareConnection(Connection* conn, const char* buffer, ssize_t bytes, size_t& headerEnd)
 {
 	conn->appendToReadBuffer(buffer, bytes);
@@ -82,126 +218,34 @@ bool Engine::prepareConnection(Connection* conn, const char* buffer, ssize_t byt
 
 bool Engine::processBufferedRequests(Connection* conn, bool& producedResponse)
 {
-	std::string& readBuffer = conn->getReadBuffer();
 	std::string rawRequest;
 
 	while (true)
 	{
-		bool malformed = false;
-		if (!extractRequest(readBuffer, rawRequest, &malformed))
-		{
-			if (malformed)
-			{
-				conn->setShouldClose(true);
-				conn->getWriteBuffer() = buildErrorResponse(400, conn->shouldClose(), NULL);
-				conn->setState(Connection::WRITING);
-				return false;
-			}
-			size_t headerEnd = readBuffer.find("\r\n\r\n");
-			if (headerEnd == std::string::npos)
-				conn->setRequestState(Connection::READING_HEADERS);
-			else
-				conn->setRequestState(Connection::READING_BODY);
+		bool extracted = false;
+		if (!handleRequestExtraction(conn, rawRequest, extracted))
+			return false;
+		if (!extracted)
 			break;
-		}
-		conn->setRequestState(Connection::COMPLETE);
 
 		HttpRequest request;
-		std::vector<std::string> extraHeaders;
 		const ServerConfig* defaultServer = findServerConfig(
 			_clientListenEndpoints[conn->getFd()].first,
 			_clientListenEndpoints[conn->getFd()].second
 		);
-		size_t maxBodySize = MAX_REQUEST_SIZE;
-		if (defaultServer != NULL)
-			maxBodySize = defaultServer->getMaxBodySize();
-		try
-		{
-			request.parse(rawRequest, maxBodySize);
-		}
-		catch (const std::exception& e)
-		{
-			conn->setShouldClose(true);
-			if (std::string(e.what()) == "Body too large")
-				conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), defaultServer);
-			else
-				conn->getWriteBuffer() = buildErrorResponse(400, conn->shouldClose(), defaultServer);
-			conn->setState(Connection::WRITING);
+		if (!handleRequestParsing(conn, rawRequest, request, defaultServer))
 			return false;
-		}
 
 		const ServerConfig* serverConfig = conn->getServerConfig();
-		if (serverConfig != NULL && request.hasContentLength() && request.getContentLength() > serverConfig->getMaxBodySize())
-		{
-			conn->setShouldClose(true);
-			conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), serverConfig);
-			conn->setState(Connection::WRITING);
+		if (!handleRequestValidation(conn, request, serverConfig))
 			return false;
-		}
 
 		bool shouldClose = request.shouldCloseConnection();
 		if (shouldClose)
 			conn->setShouldClose(true);
 
-		const ServerConfig* effectiveServer = defaultServer;
-		if (serverConfig != NULL)
-			effectiveServer = serverConfig;
-		if (effectiveServer == NULL)
-		{
-			conn->setShouldClose(true);
-			conn->getWriteBuffer() = buildErrorResponse(500, conn->shouldClose(), NULL);
-			conn->setState(Connection::WRITING);
+		if (!handleRequestExecution(conn, request, defaultServer, serverConfig, shouldClose, producedResponse))
 			return false;
-		}
-
-		const LocationConfig* matchedLocation = findBestLocation(*effectiveServer, request.getPath());
-		if (!isMethodAllowed(request.getMethod(), matchedLocation))
-		{
-			conn->getWriteBuffer() = buildErrorResponse(405, conn->shouldClose(), effectiveServer, methodNotAllowedHeadersEngine(matchedLocation));
-			conn->setState(Connection::WRITING);
-			return false;
-		}
-
-		if (matchedLocation != NULL && isCgiRequestForLocation(request.getPath(), *matchedLocation))
-		{
-			if (!launchCGI(conn, request, *effectiveServer, conn->shouldClose()))
-				conn->setState(Connection::WRITING);
-			return false;
-		}
-
-		std::string sessionId = request.getCookie("sessionId");
-
-		if (sessionId.empty() || _sessions.find(sessionId) == _sessions.end())
-		{
-			std::stringstream ss;
-			ss << std::rand() << std::time(NULL);
-			sessionId = ss.str();
-
-			_sessions[sessionId] = 1;
-			extraHeaders.push_back("Set-Cookie: sessionId=" + sessionId + "; Path=/");
-		}
-		else
-		{
-			_sessions[sessionId]++;
-		}
-
-		std::string response = routeRequest(request, shouldClose, *effectiveServer);
-		if (!extraHeaders.empty())
-		{
-			size_t pos = response.find("\r\n\r\n");
-			if (pos != std::string::npos)
-			{
-				std::string headerPart = response.substr(0, pos);
-				std::string bodyPart = response.substr(pos);
-
-				for (size_t i = 0; i < extraHeaders.size(); i++)
-					headerPart += "\r\n" + extraHeaders[i];
-
-				response = headerPart + bodyPart;
-			}
-		}
-		conn->getWriteBuffer() += response;
-		producedResponse = true;
 	}
 
 	return true;
