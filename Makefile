@@ -28,10 +28,11 @@ SRCS		= $(SRC_DIR)/main.cpp \
 			  $(SRC_DIR)/config/LocationConfig.cpp \
 			  $(SRC_DIR)/config/ServerConfig.cpp \
 			  $(SRC_DIR)/engine/engine.cpp \
-		      $(SRC_DIR)/engine/engineIncomingData.cpp \
+		      $(SRC_DIR)/engine/EngineIncomingHandling/engineIncomingData.cpp \
 		      $(SRC_DIR)/engine/engineOutgoingData.cpp \
 		      $(SRC_DIR)/engine/engine_string_utils.cpp \
-		      $(SRC_DIR)/engine/engine_request.cpp \
+		      $(SRC_DIR)/engine/EngineIncomingHandling/engine_request_processing.cpp \
+		      $(SRC_DIR)/engine/EngineIncomingHandling/engine_routing.cpp \
 		      $(SRC_DIR)/engine/engine_response.cpp \
 		      $(SRC_DIR)/engine/engine_cgi.cpp \
 			  $(SRC_DIR)/engine/socket_utils.cpp \
