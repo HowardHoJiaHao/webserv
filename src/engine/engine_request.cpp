@@ -104,6 +104,45 @@ static std::string defaultUploadFilenameEngine()
 	return oss.str();
 }
 
+static std::string reasonPhraseForStatusCodeEngine(int code)
+{
+	switch (code)
+	{
+		case 400: return "Bad Request";
+		case 403: return "Forbidden";
+		case 404: return "Not Found";
+		case 405: return "Method Not Allowed";
+		case 408: return "Request Timeout";
+		case 413: return "Payload Too Large";
+		case 500: return "Internal Server Error";
+		case 504: return "Gateway Timeout";
+		default: return "Internal Server Error";
+	}
+}
+
+static std::vector<std::string> methodNotAllowedHeadersEngine(const LocationConfig* location)
+{
+	std::string allowValue = "GET, POST, DELETE";
+	if (location != NULL)
+	{
+		const std::vector<std::string>& allowed = location->getAllowedMethods();
+		if (!allowed.empty())
+		{
+			allowValue.clear();
+			for (size_t i = 0; i < allowed.size(); ++i)
+			{
+				if (i > 0)
+					allowValue += ", ";
+				allowValue += allowed[i];
+			}
+		}
+	}
+
+	std::vector<std::string> headers;
+	headers.push_back("Allow: " + allowValue);
+	return headers;
+}
+
 static bool ensureDirectoryExistsEngine(const std::string& path)
 {
 	if (path.empty())
@@ -235,7 +274,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			if (malformed)
 			{
 				conn->setShouldClose(true);
-				conn->getWriteBuffer() = build400Response(conn->shouldClose(), NULL);
+				conn->getWriteBuffer() = buildErrorResponse(400, conn->shouldClose(), NULL);
 				conn->setState(Connection::WRITING);
 				return;
 			}
@@ -264,9 +303,9 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		{
 			conn->setShouldClose(true);
 			if (std::string(e.what()) == "Body too large")
-				conn->getWriteBuffer() = buildErrorResponse(413, "Payload Too Large", conn->shouldClose(), defaultServer);
+				conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), defaultServer);
 			else
-				conn->getWriteBuffer() = build400Response(conn->shouldClose(), defaultServer);
+				conn->getWriteBuffer() = buildErrorResponse(400, conn->shouldClose(), defaultServer);
 			conn->setState(Connection::WRITING);
 			return;
 		}
@@ -275,7 +314,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		if (serverConfig != NULL && request.hasContentLength() && request.getContentLength() > serverConfig->getMaxBodySize())
 		{
 			conn->setShouldClose(true);
-			conn->getWriteBuffer() = buildErrorResponse(413, "Payload Too Large", conn->shouldClose(), serverConfig);
+			conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), serverConfig);
 			conn->setState(Connection::WRITING);
 			return;
 		}
@@ -290,7 +329,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		if (effectiveServer == NULL)
 		{
 			conn->setShouldClose(true);
-			conn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", conn->shouldClose(), NULL);
+			conn->getWriteBuffer() = buildErrorResponse(500, conn->shouldClose(), NULL);
 			conn->setState(Connection::WRITING);
 			return;
 		}
@@ -298,7 +337,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		const LocationConfig* matchedLocation = findBestLocation(*effectiveServer, request.getPath());
 		if (!isMethodAllowed(request.getMethod(), matchedLocation))
 		{
-			conn->getWriteBuffer() = build405Response(conn->shouldClose(), effectiveServer, matchedLocation);
+			conn->getWriteBuffer() = buildErrorResponse(405, conn->shouldClose(), effectiveServer, methodNotAllowedHeadersEngine(matchedLocation));
 			conn->setState(Connection::WRITING);
 			return;
 		}
@@ -370,7 +409,7 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 		return buildResponse(status, "", "text/plain", shouldClose, headers);
 	}
 	if (!isMethodAllowed(request.getMethod(), location))
-		return build405Response(shouldClose, &serverConfig, location);
+		return buildErrorResponse(405, shouldClose, &serverConfig, methodNotAllowedHeadersEngine(location));
 
 	std::string root = serverConfig.getRoot();
 	if (location != NULL && !location->getRoot().empty())
@@ -379,7 +418,7 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 	if (request.getMethod() == "GET")
 	{
 		if (request.getPath().find("..") != std::string::npos)
-			return buildErrorResponse(403, "Forbidden", shouldClose, &serverConfig);
+			return buildErrorResponse(403, shouldClose, &serverConfig);
 		std::string path = FileHandler::resolvePath(request.getPath(), root, serverConfig.getIndex());
 		struct stat s;
 		if (stat(path.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
@@ -391,15 +430,15 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 			{
 				std::string listing = FileHandler::generateDirectoryListing(request.getPath(), path);
 				if (listing.empty())
-					return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
+					return buildErrorResponse(500, shouldClose, &serverConfig);
 				return buildResponse("200 OK", listing, "text/html", shouldClose, std::vector<std::string>());
 			}
 			else
-				return buildErrorResponse(403, "Forbidden", shouldClose, &serverConfig);
+				return buildErrorResponse(403, shouldClose, &serverConfig);
 		}
 
 		if (!FileHandler::fileExists(path))
-			return build404Response(shouldClose, &serverConfig);
+			return buildErrorResponse(404, shouldClose, &serverConfig);
 		std::string content = FileHandler::readFile(path);
 		std::string mime = FileHandler::getMimeType(path);
 		return buildResponse("200 OK", content, mime, shouldClose, std::vector<std::string>());
@@ -408,7 +447,7 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 		return handlePost(request, shouldClose, serverConfig, location);
 	if (request.getMethod() == "DELETE")
 		return handleDelete(request, shouldClose, serverConfig);
-	return build405Response(shouldClose, &serverConfig, location);
+	return buildErrorResponse(405, shouldClose, &serverConfig, methodNotAllowedHeadersEngine(location));
 }
 
 std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location)
@@ -419,7 +458,7 @@ std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, con
 		uploadDir = location->getUploadPath();
 
 	if (!ensureDirectoryExistsEngine(uploadDir))
-		return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
+		return buildErrorResponse(500, shouldClose, &serverConfig);
 
 	std::string filename = extractUploadFilenameEngine(request);
 	bool hadHeaderFilename = !filename.empty();
@@ -435,7 +474,7 @@ std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, con
 		fd = open(uploadPath.c_str(), O_CREAT | O_WRONLY | O_EXCL, 0644);
 	}
 	if (fd < 0)
-		return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
+		return buildErrorResponse(500, shouldClose, &serverConfig);
 
 	size_t total = 0;
 	while (total < body.size())
@@ -444,7 +483,7 @@ std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, con
 		if (written <= 0)
 		{
 			close(fd);
-			return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
+			return buildErrorResponse(500, shouldClose, &serverConfig);
 		}
 		total += written;
 	}
@@ -455,7 +494,7 @@ std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, con
 std::string Engine::handleDelete(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig)
 {
 	if (request.getPath().find("..") != std::string::npos)
-		return buildErrorResponse(403, "Forbidden", shouldClose, &serverConfig);
+		return buildErrorResponse(403, shouldClose, &serverConfig);
 
 	const LocationConfig* location = findBestLocation(serverConfig, request.getPath());
 	std::string root = serverConfig.getRoot();
@@ -464,10 +503,10 @@ std::string Engine::handleDelete(const HttpRequest& request, bool shouldClose, c
 
 	std::string path = FileHandler::resolvePath(request.getPath(), root, serverConfig.getIndex());
 	if (!FileHandler::fileExists(path))
-		return build404Response(shouldClose, &serverConfig);
+		return buildErrorResponse(404, shouldClose, &serverConfig);
 
 	if (std::remove(path.c_str()) != 0)
-		return buildErrorResponse(500, "Internal Server Error", shouldClose, &serverConfig);
+		return buildErrorResponse(500, shouldClose, &serverConfig);
 
 	return buildResponse("204 No Content", "", "text/plain", shouldClose, std::vector<std::string>());
 }
@@ -499,8 +538,16 @@ std::string Engine::buildResponse
 	return ss.str();
 }
 
-std::string Engine::buildErrorResponse(int code, const std::string& defaultMsg, bool shouldClose, const ServerConfig* serverConfig)
+std::string Engine::buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig)
 {
+	// the last parameter is an empty parameters
+	return buildErrorResponse(code, shouldClose, serverConfig, std::vector<std::string>());
+}
+
+std::string Engine::buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig, const std::vector<std::string>& extraHeaders)
+{
+	const std::string reason = reasonPhraseForStatusCodeEngine(code);
+
 	if (serverConfig != NULL)
 	{
 		const std::string* pagePath = serverConfig->getErrorPage(code);
@@ -511,61 +558,13 @@ std::string Engine::buildErrorResponse(int code, const std::string& defaultMsg, 
 			{
 				std::string body = FileHandler::readFile(fullPath);
 				std::ostringstream status;
-				status << code << " " << defaultMsg;
-				return buildResponse(status.str(), body, "text/html", shouldClose, std::vector<std::string>());
+				status << code << " " << reason;
+				return buildResponse(status.str(), body, "text/html", shouldClose, extraHeaders);
 			}
 		}
 	}
 
 	std::ostringstream status;
-	status << code << " " << defaultMsg;
-	return buildResponse(status.str(), defaultMsg, "text/plain", shouldClose, std::vector<std::string>());
-}
-
-std::string Engine::build405Response(bool shouldClose, const ServerConfig* serverConfig, const LocationConfig* location)
-{
-	std::string allowValue = "GET, POST, DELETE";
-	if (location != NULL)
-	{
-		const std::vector<std::string>& allowed = location->getAllowedMethods();
-		if (!allowed.empty())
-		{
-			allowValue.clear();
-			for (size_t i = 0; i < allowed.size(); ++i)
-			{
-				if (i > 0)
-					allowValue += ", ";
-				allowValue += allowed[i];
-			}
-		}
-	}
-
-	std::vector<std::string> headers;
-	headers.push_back("Allow: " + allowValue);
-
-	if (serverConfig != NULL)
-	{
-		const std::string* pagePath = serverConfig->getErrorPage(405);
-		if (pagePath != NULL)
-		{
-			std::string fullPath = serverConfig->getRoot() + *pagePath;
-			if (FileHandler::fileExists(fullPath))
-			{
-				std::string body = FileHandler::readFile(fullPath);
-				return buildResponse("405 Method Not Allowed", body, "text/html", shouldClose, headers);
-			}
-		}
-	}
-
-	return buildResponse("405 Method Not Allowed", "Method Not Allowed", "text/plain", shouldClose, headers);
-}
-
-std::string Engine::build404Response(bool shouldClose, const ServerConfig* serverConfig)
-{
-	return buildErrorResponse(404, "Not Found", shouldClose, serverConfig);
-}
-
-std::string Engine::build400Response(bool shouldClose, const ServerConfig* serverConfig)
-{
-	return buildErrorResponse(400, "Bad Request", shouldClose, serverConfig);
+	status << code << " " << reason;
+	return buildResponse(status.str(), reason, "text/plain", shouldClose, extraHeaders);
 }

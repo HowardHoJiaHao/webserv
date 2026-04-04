@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/04 23:48:00 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/05 00:02:49 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -252,7 +252,7 @@ void Engine::checkTimeouts()
 				}
 				currentConn->clearCGI();
 				currentConn->setShouldClose(true);
-				currentConn->getWriteBuffer() = buildErrorResponse(504, "Gateway Timeout", true, serverConfig);
+				currentConn->getWriteBuffer() = buildErrorResponse(504, true, serverConfig);
 				currentConn->setState(Connection::WRITING);
 			}
 			++it;
@@ -269,7 +269,7 @@ void Engine::checkTimeouts()
 		{
 			currentConn->setShouldClose(true);
 			currentConn->getReadBuffer().clear();
-			currentConn->getWriteBuffer() = buildErrorResponse(408, "Request Timeout", true, serverConfig);
+			currentConn->getWriteBuffer() = buildErrorResponse(408, true, serverConfig);
 			currentConn->setRequestState(Connection::COMPLETE);
 			currentConn->setState(Connection::WRITING);
 			++it;

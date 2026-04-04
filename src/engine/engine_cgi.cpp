@@ -15,7 +15,7 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 	if (request.getPath().find("..") != std::string::npos)
 	{
 		conn->setShouldClose(true);
-		conn->getWriteBuffer() = buildErrorResponse(403, "Forbidden", true, &serverConfig);
+		conn->getWriteBuffer() = buildErrorResponse(403, true, &serverConfig);
 		return false;
 	}
 
@@ -28,7 +28,7 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 	if (!FileHandler::fileExists(scriptPath))
 	{
 		conn->setShouldClose(shouldClose);
-		conn->getWriteBuffer() = build404Response(conn->shouldClose(), &serverConfig);
+		conn->getWriteBuffer() = buildErrorResponse(404, conn->shouldClose(), &serverConfig);
 		return false;
 	}
 	{
@@ -36,14 +36,14 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 		if (stat(scriptPath.c_str(), &st) != 0 || !S_ISREG(st.st_mode))
 		{
 			conn->setShouldClose(shouldClose);
-			conn->getWriteBuffer() = build404Response(conn->shouldClose(), &serverConfig);
+			conn->getWriteBuffer() = buildErrorResponse(404, conn->shouldClose(), &serverConfig);
 			return false;
 		}
 	}
 	if (access(scriptPath.c_str(), X_OK) != 0)
 	{
 		conn->setShouldClose(true);
-		conn->getWriteBuffer() = buildErrorResponse(403, "Forbidden", true, &serverConfig);
+		conn->getWriteBuffer() = buildErrorResponse(403, true, &serverConfig);
 		return false;
 	}
 
@@ -54,7 +54,7 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 	{
 		perror("pipe in_pipe failed");
 		conn->setShouldClose(true);
-		conn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", true, &serverConfig);
+		conn->getWriteBuffer() = buildErrorResponse(500, true, &serverConfig);
 		return false;
 	}
 
@@ -64,7 +64,7 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 		close(in_pipe[0]);
 		close(in_pipe[1]);
 		conn->setShouldClose(true);
-		conn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", true, &serverConfig);
+		conn->getWriteBuffer() = buildErrorResponse(500, true, &serverConfig);
 		return false;
 	}
 	pid_t pid = fork();
@@ -76,7 +76,7 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 		close(out_pipe[0]);
 		close(out_pipe[1]);
 		conn->setShouldClose(true);
-		conn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", true, &serverConfig);
+		conn->getWriteBuffer() = buildErrorResponse(500, true, &serverConfig);
 		return false;
 	}
 	if (pid == 0)

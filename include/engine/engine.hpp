@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/04 17:24:24 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/05 00:02:48 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,16 +55,14 @@ class Engine
 		//const ServerConfig* findServerConfigForConnection(int clientFd) const;
 		const LocationConfig* findBestLocation(const ServerConfig& serverConfig, const std::string& path) const;
 		bool isMethodAllowed(const std::string& method, const LocationConfig* location) const;
-		std::string buildErrorResponse(int code, const std::string& defaultMsg, bool shouldClose, const ServerConfig* serverConfig);
+		std::string buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig);
+		std::string buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig, const std::vector<std::string>& extraHeaders);
 
 	public:
 		Engine(const ConfigFiles& _config);
 		~Engine();
 		void	setupListeningSockets();
 		void	run();
-		std::string build405Response(bool shouldClose, const ServerConfig* serverConfig, const LocationConfig* location);
-		std::string build404Response(bool shouldClose, const ServerConfig* serverConfig);
-		std::string build400Response(bool shouldClose, const ServerConfig* serverConfig);
 		std::string buildResponse(const std::string& status, const std::string& body, const std::string& contentType, bool shouldClose, const std::vector<std::string>& extraHeaders);
 		std::string routeRequest(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);
 		std::string handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);
