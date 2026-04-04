@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/05 00:02:48 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/05 00:23:23 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,19 +55,24 @@ class Engine
 		//const ServerConfig* findServerConfigForConnection(int clientFd) const;
 		const LocationConfig* findBestLocation(const ServerConfig& serverConfig, const std::string& path) const;
 		bool isMethodAllowed(const std::string& method, const LocationConfig* location) const;
+
+		// ==================== 			build response			========================
+
+		std::string buildResponse(const std::string& status, const std::string& body, const std::string& contentType, bool shouldClose, const std::vector<std::string>& extraHeaders);
+		std::string buildStandardResponse(int code, const std::string& body, const std::string& contentType, bool shouldClose);
+		std::string buildRedirectResponse(int code, const std::string& target, bool shouldClose);
 		std::string buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig);
 		std::string buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig, const std::vector<std::string>& extraHeaders);
 
 	public:
 		Engine(const ConfigFiles& _config);
 		~Engine();
-		void	setupListeningSockets();
-		void	run();
-		std::string buildResponse(const std::string& status, const std::string& body, const std::string& contentType, bool shouldClose, const std::vector<std::string>& extraHeaders);
+
+		void		setupListeningSockets();
+		void		run();
 		std::string routeRequest(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);
 		std::string handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);
 		std::string handleDelete(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);
-
 		bool 		launchCGI(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, bool shouldClose);
 
 };

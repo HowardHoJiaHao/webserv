@@ -108,6 +108,14 @@ static std::string reasonPhraseForStatusCodeEngine(int code)
 {
 	switch (code)
 	{
+		case 200: return "OK";
+		case 201: return "Created";
+		case 204: return "No Content";
+		case 301: return "Moved Permanently";
+		case 302: return "Found";
+		case 303: return "See Other";
+		case 307: return "Temporary Redirect";
+		case 308: return "Permanent Redirect";
 		case 400: return "Bad Request";
 		case 403: return "Forbidden";
 		case 404: return "Not Found";
@@ -229,14 +237,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		{
 			conn->setShouldClose(true);
 			conn->getReadBuffer().clear();
-			conn->getWriteBuffer() = buildResponse
-			(
-				"413 Payload Too Large",
-				"Header Too Large",
-				"text/plain",
-				conn->shouldClose(),
-				std::vector<std::string>()
-			);
+			conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), defaultServerForLimit);
 			conn->setState(Connection::WRITING);
 			return;
 		}
@@ -247,14 +248,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	{
 		conn->setShouldClose(true);
 		conn->getReadBuffer().clear();
-		conn->getWriteBuffer() = buildResponse
-		(
-			"413 Payload Too Large",
-			"Payload Too Large",
-			"text/plain",
-			conn->shouldClose(),
-			std::vector<std::string>()
-		);
+		conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), defaultServerForLimit);
 		conn->setState(Connection::WRITING);
 		return;
 	}
@@ -394,20 +388,7 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 {
 	const LocationConfig* location = findBestLocation(serverConfig, request.getPath());
 	if (location != NULL && location->hasReturnDirective())
-	{
-		std::vector<std::string> headers;
-		headers.push_back("Location: " + location->getReturnTarget());
-		std::string status = "302 Found";
-		if (location->getReturnStatus() == 301)
-			status = "301 Moved Permanently";
-		else if (location->getReturnStatus() == 303)
-			status = "303 See Other";
-		else if (location->getReturnStatus() == 307)
-			status = "307 Temporary Redirect";
-		else if (location->getReturnStatus() == 308)
-			status = "308 Permanent Redirect";
-		return buildResponse(status, "", "text/plain", shouldClose, headers);
-	}
+		return buildRedirectResponse(location->getReturnStatus(), location->getReturnTarget(), shouldClose);
 	if (!isMethodAllowed(request.getMethod(), location))
 		return buildErrorResponse(405, shouldClose, &serverConfig, methodNotAllowedHeadersEngine(location));
 
@@ -431,7 +412,7 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 				std::string listing = FileHandler::generateDirectoryListing(request.getPath(), path);
 				if (listing.empty())
 					return buildErrorResponse(500, shouldClose, &serverConfig);
-				return buildResponse("200 OK", listing, "text/html", shouldClose, std::vector<std::string>());
+				return buildStandardResponse(200, listing, "text/html", shouldClose);
 			}
 			else
 				return buildErrorResponse(403, shouldClose, &serverConfig);
@@ -441,7 +422,7 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 			return buildErrorResponse(404, shouldClose, &serverConfig);
 		std::string content = FileHandler::readFile(path);
 		std::string mime = FileHandler::getMimeType(path);
-		return buildResponse("200 OK", content, mime, shouldClose, std::vector<std::string>());
+		return buildStandardResponse(200, content, mime, shouldClose);
 	}
 	if (request.getMethod() == "POST")
 		return handlePost(request, shouldClose, serverConfig, location);
@@ -488,7 +469,7 @@ std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, con
 		total += written;
 	}
 	close(fd);
-	return buildResponse("201 Created", "Upload OK", "text/plain", shouldClose, std::vector<std::string>());
+	return buildStandardResponse(201, "Upload OK", "text/plain", shouldClose);
 }
 
 std::string Engine::handleDelete(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig)
@@ -508,7 +489,27 @@ std::string Engine::handleDelete(const HttpRequest& request, bool shouldClose, c
 	if (std::remove(path.c_str()) != 0)
 		return buildErrorResponse(500, shouldClose, &serverConfig);
 
-	return buildResponse("204 No Content", "", "text/plain", shouldClose, std::vector<std::string>());
+	return buildStandardResponse(204, "", "text/plain", shouldClose);
+}
+
+std::string Engine::buildStandardResponse(int code, const std::string& body, const std::string& contentType, bool shouldClose)
+{
+	std::ostringstream status;
+	status << code << " " << reasonPhraseForStatusCodeEngine(code);
+	return buildResponse(status.str(), body, contentType, shouldClose, std::vector<std::string>());
+}
+
+std::string Engine::buildRedirectResponse(int code, const std::string& target, bool shouldClose)
+{
+	if (code != 301 && code != 302 && code != 303 && code != 307 && code != 308)
+		code = 302;
+
+	std::vector<std::string> headers;
+	headers.push_back("Location: " + target);
+
+	std::ostringstream status;
+	status << code << " " << reasonPhraseForStatusCodeEngine(code);
+	return buildResponse(status.str(), "", "text/plain", shouldClose, headers);
 }
 
 std::string Engine::buildResponse
