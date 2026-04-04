@@ -32,6 +32,7 @@ SRCS		= $(SRC_DIR)/main.cpp \
 		      $(SRC_DIR)/engine/engineOutgoingData.cpp \
 		      $(SRC_DIR)/engine/engine_string_utils.cpp \
 		      $(SRC_DIR)/engine/engine_request.cpp \
+		      $(SRC_DIR)/engine/engine_response.cpp \
 		      $(SRC_DIR)/engine/engine_cgi.cpp \
 			  $(SRC_DIR)/engine/socket_utils.cpp \
 			  $(SRC_DIR)/connection/connection.cpp \

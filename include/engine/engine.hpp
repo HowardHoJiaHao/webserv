@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/05 00:23:23 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/05 01:37:32 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,11 +36,11 @@ class Engine
 		void registerListenSocketsForSelect(fd_set& readSet, int& maxFd);
 		void registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, int& maxFd);
 		void acceptPendingClientConnections(fd_set& readSet);
-		void handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes);
 
 		// ========			engineIncomingData.cpp			==========
 
 		void	processIncomingData(fd_set& readSet);
+		
 		void	handleClientSocketRead(std::map<int, Connection*>::iterator& it, int clientFd, fd_set& readSet);
 		bool	processCGIOutput(Connection* currentConn, fd_set& readSet);
 		void	parseCGIHeaders(const std::string& headerSection, std::string& status, std::string& contentType, std::vector<std::string>& extraHeaders);
@@ -56,9 +56,18 @@ class Engine
 		const LocationConfig* findBestLocation(const ServerConfig& serverConfig, const std::string& path) const;
 		bool isMethodAllowed(const std::string& method, const LocationConfig* location) const;
 
+		// ===================				handleClientRequest		========================
+		
+		void handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes);
+
+		bool prepareConnection(Connection* conn, const char* buffer, ssize_t bytes, size_t& headerEnd);
+		bool processBufferedRequests(Connection* conn, bool& producedResponse);
+		bool enforceRequestSizeLimits(Connection* conn, size_t headerEnd);
+
 		// ==================== 			build response			========================
 
 		std::string buildResponse(const std::string& status, const std::string& body, const std::string& contentType, bool shouldClose, const std::vector<std::string>& extraHeaders);
+		
 		std::string buildStandardResponse(int code, const std::string& body, const std::string& contentType, bool shouldClose);
 		std::string buildRedirectResponse(int code, const std::string& target, bool shouldClose);
 		std::string buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig);

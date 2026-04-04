@@ -104,30 +104,6 @@ static std::string defaultUploadFilenameEngine()
 	return oss.str();
 }
 
-static std::string reasonPhraseForStatusCodeEngine(int code)
-{
-	switch (code)
-	{
-		case 200: return "OK";
-		case 201: return "Created";
-		case 204: return "No Content";
-		case 301: return "Moved Permanently";
-		case 302: return "Found";
-		case 303: return "See Other";
-		case 307: return "Temporary Redirect";
-		case 308: return "Permanent Redirect";
-		case 400: return "Bad Request";
-		case 403: return "Forbidden";
-		case 404: return "Not Found";
-		case 405: return "Method Not Allowed";
-		case 408: return "Request Timeout";
-		case 413: return "Payload Too Large";
-		case 500: return "Internal Server Error";
-		case 504: return "Gateway Timeout";
-		default: return "Internal Server Error";
-	}
-}
-
 static std::vector<std::string> methodNotAllowedHeadersEngine(const LocationConfig* location)
 {
 	std::string allowValue = "GET, POST, DELETE";
@@ -209,56 +185,30 @@ bool Engine::isMethodAllowed(const std::string& method, const LocationConfig* lo
 	return false;
 }
 
-// request line : 1) method, 2) path, 3) version, eg: GET / HTTP/1.1 \r\n
-// header : 1) localhost, 2) content-length
-// empty line
-// body (optional)
-
-void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes)
+bool Engine::prepareConnection(Connection* conn, const char* buffer, ssize_t bytes, size_t& headerEnd)
 {
 	conn->appendToReadBuffer(buffer, bytes);
 	conn->updateActivity();
 
-	const size_t maxHeaderSize = 8192;
-
 	std::string& readBuffer = conn->getReadBuffer();
-	size_t headerEnd = readBuffer.find("\r\n\r\n");
-	const ServerConfig* defaultServerForLimit = findServerConfig(
-		_clientListenEndpoints[conn->getFd()].first,
-		_clientListenEndpoints[conn->getFd()].second
-	);
-	size_t maxBodySizeLimit = MAX_REQUEST_SIZE;
-	if (defaultServerForLimit != NULL)
-		maxBodySizeLimit = defaultServerForLimit->getMaxBodySize();
-	size_t maxBufferedRequestSize = maxBodySizeLimit + maxHeaderSize;
-	if (headerEnd == std::string::npos)
-	{
-		if(readBuffer.size() > maxHeaderSize)
-		{
-			conn->setShouldClose(true);
-			conn->getReadBuffer().clear();
-			conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), defaultServerForLimit);
-			conn->setState(Connection::WRITING);
-			return;
-		}
-	}
+	headerEnd = readBuffer.find("\r\n\r\n");
+	if (!enforceRequestSizeLimits(conn, headerEnd))
+		return false;
 
-
-	if (conn->getReadBuffer().size() > maxBufferedRequestSize)
-	{
-		conn->setShouldClose(true);
-		conn->getReadBuffer().clear();
-		conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), defaultServerForLimit);
-		conn->setState(Connection::WRITING);
-		return;
-	}
-
-	std::string rawRequest;
-	bool producedResponse = false;
+	// update request state
 	if (headerEnd == std::string::npos)
 		conn->setRequestState(Connection::READING_HEADERS);
 	else
 		conn->setRequestState(Connection::READING_BODY);
+	return true;
+}
+
+
+
+bool Engine::processBufferedRequests(Connection* conn, bool& producedResponse)
+{
+	std::string& readBuffer = conn->getReadBuffer();
+	std::string rawRequest;
 
 	while (true)
 	{
@@ -270,9 +220,10 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 				conn->setShouldClose(true);
 				conn->getWriteBuffer() = buildErrorResponse(400, conn->shouldClose(), NULL);
 				conn->setState(Connection::WRITING);
-				return;
+				return false;
 			}
-			if (readBuffer.find("\r\n\r\n") == std::string::npos)
+			size_t headerEnd = readBuffer.find("\r\n\r\n");
+			if (headerEnd == std::string::npos)
 				conn->setRequestState(Connection::READING_HEADERS);
 			else
 				conn->setRequestState(Connection::READING_BODY);
@@ -301,7 +252,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			else
 				conn->getWriteBuffer() = buildErrorResponse(400, conn->shouldClose(), defaultServer);
 			conn->setState(Connection::WRITING);
-			return;
+			return false;
 		}
 
 		const ServerConfig* serverConfig = conn->getServerConfig();
@@ -310,7 +261,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			conn->setShouldClose(true);
 			conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), serverConfig);
 			conn->setState(Connection::WRITING);
-			return;
+			return false;
 		}
 
 		bool shouldClose = request.shouldCloseConnection();
@@ -325,7 +276,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 			conn->setShouldClose(true);
 			conn->getWriteBuffer() = buildErrorResponse(500, conn->shouldClose(), NULL);
 			conn->setState(Connection::WRITING);
-			return;
+			return false;
 		}
 
 		const LocationConfig* matchedLocation = findBestLocation(*effectiveServer, request.getPath());
@@ -333,14 +284,14 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		{
 			conn->getWriteBuffer() = buildErrorResponse(405, conn->shouldClose(), effectiveServer, methodNotAllowedHeadersEngine(matchedLocation));
 			conn->setState(Connection::WRITING);
-			return;
+			return false;
 		}
 
 		if (matchedLocation != NULL && isCgiRequestForLocation(request.getPath(), *matchedLocation))
 		{
 			if (!launchCGI(conn, request, *effectiveServer, conn->shouldClose()))
 				conn->setState(Connection::WRITING);
-			return;
+			return false;
 		}
 
 		std::string sessionId = request.getCookie("sessionId");
@@ -378,6 +329,61 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 		producedResponse = true;
 	}
 
+	return true;
+}
+
+
+bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEnd)
+{
+	const size_t maxHeaderSize = 8192;
+
+	std::string& readBuffer = conn->getReadBuffer();
+	const ServerConfig* defaultServerForLimit = findServerConfig(
+		_clientListenEndpoints[conn->getFd()].first,
+		_clientListenEndpoints[conn->getFd()].second
+	);
+	size_t maxBodySizeLimit = MAX_REQUEST_SIZE;
+	if (defaultServerForLimit != NULL)
+		maxBodySizeLimit = defaultServerForLimit->getMaxBodySize();
+	size_t maxBufferedRequestSize = maxBodySizeLimit + maxHeaderSize;
+
+	if (headerEnd == std::string::npos && readBuffer.size() > maxHeaderSize)
+	{
+		conn->setShouldClose(true);
+		readBuffer.clear();
+		conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), defaultServerForLimit);
+		conn->setState(Connection::WRITING);
+		return false;
+	}
+
+	if (readBuffer.size() > maxBufferedRequestSize)
+	{
+		conn->setShouldClose(true);
+		readBuffer.clear();
+		conn->getWriteBuffer() = buildErrorResponse(413, conn->shouldClose(), defaultServerForLimit);
+		conn->setState(Connection::WRITING);
+		return false;
+	}
+
+	return true;
+}
+
+// request line : 1) method, 2) path, 3) version, eg: GET / HTTP/1.1 \r\n
+// header : 1) localhost, 2) content-length
+// empty line
+// body (optional)
+
+void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes)
+{
+	size_t headerEnd = std::string::npos;
+	if (!prepareConnection(conn, buffer, bytes, headerEnd))
+		return;
+
+	bool producedResponse = false;
+	if (!processBufferedRequests(conn, producedResponse))
+		return;
+
+	//finalizeConnection
 	if (producedResponse)
 		conn->setState(Connection::WRITING);
 	else
@@ -490,82 +496,4 @@ std::string Engine::handleDelete(const HttpRequest& request, bool shouldClose, c
 		return buildErrorResponse(500, shouldClose, &serverConfig);
 
 	return buildStandardResponse(204, "", "text/plain", shouldClose);
-}
-
-std::string Engine::buildStandardResponse(int code, const std::string& body, const std::string& contentType, bool shouldClose)
-{
-	std::ostringstream status;
-	status << code << " " << reasonPhraseForStatusCodeEngine(code);
-	return buildResponse(status.str(), body, contentType, shouldClose, std::vector<std::string>());
-}
-
-std::string Engine::buildRedirectResponse(int code, const std::string& target, bool shouldClose)
-{
-	if (code != 301 && code != 302 && code != 303 && code != 307 && code != 308)
-		code = 302;
-
-	std::vector<std::string> headers;
-	headers.push_back("Location: " + target);
-
-	std::ostringstream status;
-	status << code << " " << reasonPhraseForStatusCodeEngine(code);
-	return buildResponse(status.str(), "", "text/plain", shouldClose, headers);
-}
-
-std::string Engine::buildResponse
-(
-	const std::string& status,
-	const std::string& body,
-	const std::string& contentType,
-	bool shouldClose,
-	const std::vector<std::string>& extraHeaders
-)
-{
-	std::stringstream ss;
-	ss << "HTTP/1.1 " << status << "\r\n";
-	ss << "Content-Length: " << body.size() << "\r\n";
-	ss << "Content-Type: " << contentType << "\r\n";
-
-	for (size_t i = 0; i < extraHeaders.size(); i++)
-	{
-		ss << extraHeaders[i] << "\r\n";
-	}
-	if (shouldClose)
-		ss << "Connection: close\r\n";
-	else
-		ss << "Connection: keep-alive\r\n";
-	ss << "\r\n";
-	ss << body;
-	return ss.str();
-}
-
-std::string Engine::buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig)
-{
-	// the last parameter is an empty parameters
-	return buildErrorResponse(code, shouldClose, serverConfig, std::vector<std::string>());
-}
-
-std::string Engine::buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig, const std::vector<std::string>& extraHeaders)
-{
-	const std::string reason = reasonPhraseForStatusCodeEngine(code);
-
-	if (serverConfig != NULL)
-	{
-		const std::string* pagePath = serverConfig->getErrorPage(code);
-		if (pagePath != NULL)
-		{
-			std::string fullPath = serverConfig->getRoot() + *pagePath;
-			if (FileHandler::fileExists(fullPath))
-			{
-				std::string body = FileHandler::readFile(fullPath);
-				std::ostringstream status;
-				status << code << " " << reason;
-				return buildResponse(status.str(), body, "text/html", shouldClose, extraHeaders);
-			}
-		}
-	}
-
-	std::ostringstream status;
-	status << code << " " << reason;
-	return buildResponse(status.str(), reason, "text/plain", shouldClose, extraHeaders);
 }
