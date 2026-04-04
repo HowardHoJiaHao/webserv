@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/03 17:30:56 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/04 23:48:00 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -178,6 +178,7 @@ void Engine::acceptPendingClientConnections(fd_set& readSet)
 	}
 }
 
+// util
 const ServerConfig* Engine::findServerConfig(const std::string& host, int port) const
 {
 	const std::vector<ServerConfig>& servers = _config.getServers();

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/03 18:29:39 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/04 17:24:24 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,6 +41,7 @@ class Engine
 		// ========			engineIncomingData.cpp			==========
 
 		void	processIncomingData(fd_set& readSet);
+		void	handleClientSocketRead(std::map<int, Connection*>::iterator& it, int clientFd, fd_set& readSet);
 		bool	processCGIOutput(Connection* currentConn, fd_set& readSet);
 		void	parseCGIHeaders(const std::string& headerSection, std::string& status, std::string& contentType, std::vector<std::string>& extraHeaders);
 		void	buildResponseFromCGIOutput(Connection* currentConn, const std::string& cgiOutput);

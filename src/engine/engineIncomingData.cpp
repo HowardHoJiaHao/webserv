@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engineIncomingData.cpp                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/03 18:58:06 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/04 23:33:42 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -155,8 +155,53 @@ bool Engine::processCGIOutput(Connection* currentConn, fd_set& readSet)
 	}
 }
 
+// input: http request from client, get, post, delete
+// GET / HTTP/1.1
+// Host: localhost:8080
+// User-Agent: Mozilla/5.0
+// Accept: text/html
 
-// webserve(parent process) -> fork() -> cgi process(child) -> stdout (pipe) -> webserv reads
+
+void Engine::handleClientSocketRead(std::map<int, Connection*>::iterator& it, int clientFd, fd_set& readSet)
+{
+	if (FD_ISSET(clientFd, &readSet))
+	{
+		char buffer[8192];
+		// received whatever is currently available
+		ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
+		if (bytes > 0)
+		{
+			handleClientRequest(it->second, buffer, bytes);
+			++it;
+		}
+		else if (bytes == 0)
+		{
+			delete it->second;
+			_clientListenEndpoints.erase(clientFd);
+			_clientConnections.erase(it++);
+		}
+		else
+		{
+			// recv return -1 and set errno
+			// nothing to read at this moment, but the connection is still open
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+			{
+				++it;
+			}
+			else
+			{
+				perror("recv");
+				delete it->second;
+				_clientListenEndpoints.erase(clientFd);
+				_clientConnections.erase(it++);
+			}
+		}
+	}
+	// this socket is not ready for reading, skip it
+	else
+		++it;
+}
+
 void Engine::processIncomingData(fd_set& readSet)
 {
 	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
@@ -168,6 +213,7 @@ void Engine::processIncomingData(fd_set& readSet)
 		if (currentConn->getState() == Connection::CGI_RUNNING)
 		{
 			// cgi processing is done
+			// webserve(parent process) -> fork() -> cgi process(child) -> stdout (pipe) -> webserv reads
 			if (processCGIOutput(currentConn, readSet))
 			{
 				++it;
@@ -180,37 +226,6 @@ void Engine::processIncomingData(fd_set& readSet)
 				continue;
 			}
 		}
-
-		if (FD_ISSET(clientFd, &readSet))
-		{
-			char buffer[8192];
-			ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
-			if (bytes > 0)
-			{
-				handleClientRequest(it->second, buffer, bytes);
-				++it;
-				continue;
-			}
-			else if (bytes == 0)
-			{
-				delete it->second;
-				_clientListenEndpoints.erase(clientFd);
-				_clientConnections.erase(it++);
-			}
-			else
-			{
-				if (errno == EAGAIN || errno == EWOULDBLOCK)
-				{
-					++it;
-					continue;
-				}
-				perror("recv");
-				delete it->second;
-				_clientListenEndpoints.erase(clientFd);
-				_clientConnections.erase(it++);
-			}
-		}
-		else
-			++it;
+		handleClientSocketRead(it, clientFd, readSet);
 	}
 }
