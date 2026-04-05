@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/05 02:52:58 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/05 11:18:07 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,6 +43,8 @@ class Engine
 		
 		void	handleClientSocketRead(std::map<int, Connection*>::iterator& it, int clientFd, fd_set& readSet);
 		bool	processCGIOutput(Connection* currentConn, fd_set& readSet);
+		void	handleCGIStdinWrite(Connection* conn, fd_set& writeSet);
+		void	handleClientWrite(std::map<int, Connection*>::iterator& it, int clientFd, fd_set& writeSet);
 		void	parseCGIHeaders(const std::string& headerSection, std::string& status, std::string& contentType, std::vector<std::string>& extraHeaders);
 		void	buildResponseFromCGIOutput(Connection* currentConn, const std::string& cgiOutput);
 		bool	handleCGIWouldBlock(Connection* currentConn, struct timeval& startTime);
@@ -78,6 +80,14 @@ class Engine
 		std::string buildRedirectResponse(int code, const std::string& target, bool shouldClose);
 		std::string buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig);
 		std::string buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig, const std::vector<std::string>& extraHeaders);
+
+		// ====================				launchCGI				========================
+		
+		bool		resolveCGIScriptPath(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, bool shouldClose, std::string& scriptPath);
+		bool		validateCGIScript(Connection* conn, const std::string& scriptPath, const ServerConfig& serverConfig, bool shouldClose);
+		bool		createCGIProcess(Connection* conn, const ServerConfig& serverConfig, int in_pipe[2], int out_pipe[2], pid_t& pid);
+		void		setupCGIChildProcess(int in_pipe[2], int out_pipe[2], const std::string& scriptPath, const HttpRequest& request);
+		void		setupCGIParent(Connection* conn, const HttpRequest& request, int in_pipe[2], int out_pipe[2], pid_t pid, bool shouldClose);
 
 	public:
 		Engine(const ConfigFiles& _config);

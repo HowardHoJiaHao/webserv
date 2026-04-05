@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   httpRequest.hpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:37:17 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/05 11:35:39 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,6 +32,11 @@ class HttpRequest
 		std::map<std::string, std::string> _headers;
 		std::map<std::string, std::string> _cookies;
 		std::string trim(const std::string& str);
+		void reset();
+		void parseRequestLine(const std::string& requestLine);
+		void parseHeaders(const std::string& headerSection);
+		void validateHeaders(size_t maxBodySize);
+		void extractBody(const std::string& rawRequest, size_t headerEnd);
 
 	public:
 		HttpRequest();

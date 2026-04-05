@@ -10,8 +10,10 @@
 #include <ctime>
 #include <sstream>
 
-bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, bool shouldClose)
+bool	Engine::resolveCGIScriptPath(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, bool shouldClose, std::string& scriptPath)
 {
+	(void)shouldClose;
+
 	if (request.getPath().find("..") != std::string::npos)
 	{
 		conn->setShouldClose(true);
@@ -24,7 +26,12 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 	if (location != NULL && !location->getRoot().empty())
 		root = location->getRoot();
 
-	std::string scriptPath = root + request.getPath();
+	scriptPath = root + request.getPath();
+	return true;
+}
+
+bool	Engine::validateCGIScript(Connection* conn, const std::string& scriptPath, const ServerConfig& serverConfig, bool shouldClose)
+{
 	if (!FileHandler::fileExists(scriptPath))
 	{
 		conn->setShouldClose(shouldClose);
@@ -47,9 +54,11 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 		return false;
 	}
 
-	int in_pipe[2];
-	int out_pipe[2];
+	return true;
+}
 
+bool	Engine::createCGIProcess(Connection* conn, const ServerConfig& serverConfig, int in_pipe[2], int out_pipe[2], pid_t& pid)
+{
 	if (pipe(in_pipe) < 0)
 	{
 		perror("pipe in_pipe failed");
@@ -67,7 +76,7 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 		conn->getWriteBuffer() = buildErrorResponse(500, true, &serverConfig);
 		return false;
 	}
-	pid_t pid = fork();
+	pid = fork();
 	if (pid < 0)
 	{
 		perror("fork failed");
@@ -79,57 +88,63 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 		conn->getWriteBuffer() = buildErrorResponse(500, true, &serverConfig);
 		return false;
 	}
-	if (pid == 0)
+
+	return true;
+}
+
+void	Engine::setupCGIChildProcess(int in_pipe[2], int out_pipe[2], const std::string& scriptPath, const HttpRequest& request)
+{
+	if (dup2(in_pipe[0], STDIN_FILENO) < 0)
 	{
-		if (dup2(in_pipe[0], STDIN_FILENO) < 0)
-		{
-			perror("dup2 stdin failed");
-			_exit(1);
-		}
-		if (dup2(out_pipe[1], STDOUT_FILENO) < 0)
-		{
-			perror("dup2 stdout failed");
-			_exit(1);
-		}
-		close(in_pipe[0]);
-		close(in_pipe[1]);
-		close(out_pipe[0]);
-		close(out_pipe[1]);
-
-		std::vector<std::string> envStrings;
-		envStrings.push_back("REQUEST_METHOD=" + request.getMethod());
-		envStrings.push_back("QUERY_STRING=" + request.getQuery());
-		envStrings.push_back("SCRIPT_NAME=" + request.getPath());
-		envStrings.push_back("PATH_INFO=" + request.getPath());
-		envStrings.push_back("SERVER_PROTOCOL=" + request.getVersion());
-		envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
-
-		std::ostringstream contentLength;
-		contentLength << request.getBody().size();
-		envStrings.push_back("CONTENT_LENGTH=" + contentLength.str());
-
-		const std::string* contentTypeHeader = request.getHeader("content-type");
-		if (contentTypeHeader != NULL && !contentTypeHeader->empty())
-			envStrings.push_back("CONTENT_TYPE=" + *contentTypeHeader);
-		else if (request.getMethod() == "POST")
-			envStrings.push_back("CONTENT_TYPE=application/octet-stream");
-
-		const std::string* hostHeader = request.getHeader("host");
-		if (hostHeader != NULL)
-			envStrings.push_back("HTTP_HOST=" + *hostHeader);
-
-		std::vector<char*> envp;
-		for (size_t i = 0; i < envStrings.size(); ++i)
-			envp.push_back(const_cast<char*>(envStrings[i].c_str()));
-		envp.push_back(NULL);
-
-		char* argv[] = { const_cast<char*>(scriptPath.c_str()), NULL};
-
-		execve(scriptPath.c_str(), argv, &envp[0]);
-		perror("execve failed");
+		perror("dup2 stdin failed");
 		_exit(1);
 	}
+	if (dup2(out_pipe[1], STDOUT_FILENO) < 0)
+	{
+		perror("dup2 stdout failed");
+		_exit(1);
+	}
+	close(in_pipe[0]);
+	close(in_pipe[1]);
+	close(out_pipe[0]);
+	close(out_pipe[1]);
 
+	std::vector<std::string> envStrings;
+	envStrings.push_back("REQUEST_METHOD=" + request.getMethod());
+	envStrings.push_back("QUERY_STRING=" + request.getQuery());
+	envStrings.push_back("SCRIPT_NAME=" + request.getPath());
+	envStrings.push_back("PATH_INFO=" + request.getPath());
+	envStrings.push_back("SERVER_PROTOCOL=" + request.getVersion());
+	envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
+
+	std::ostringstream contentLength;
+	contentLength << request.getBody().size();
+	envStrings.push_back("CONTENT_LENGTH=" + contentLength.str());
+
+	const std::string* contentTypeHeader = request.getHeader("content-type");
+	if (contentTypeHeader != NULL && !contentTypeHeader->empty())
+		envStrings.push_back("CONTENT_TYPE=" + *contentTypeHeader);
+	else if (request.getMethod() == "POST")
+		envStrings.push_back("CONTENT_TYPE=application/octet-stream");
+
+	const std::string* hostHeader = request.getHeader("host");
+	if (hostHeader != NULL)
+		envStrings.push_back("HTTP_HOST=" + *hostHeader);
+
+	std::vector<char*> envp;
+	for (size_t i = 0; i < envStrings.size(); ++i)
+		envp.push_back(const_cast<char*>(envStrings[i].c_str()));
+	envp.push_back(NULL);
+
+	char* argv[] = { const_cast<char*>(scriptPath.c_str()), NULL};
+
+	execve(scriptPath.c_str(), argv, &envp[0]);
+	perror("execve failed");
+	_exit(1);
+}
+
+void	Engine::setupCGIParent(Connection* conn, const HttpRequest& request, int in_pipe[2], int out_pipe[2], pid_t pid, bool shouldClose)
+{
 	close(in_pipe[0]);
 	close(out_pipe[1]);
 
@@ -161,5 +176,31 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 	conn->setShouldClose(shouldClose);
 	conn->setState(Connection::CGI_RUNNING);
 	conn->updateActivity();
+}
+
+bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, bool shouldClose)
+{
+	std::string scriptPath;
+
+	if (!resolveCGIScriptPath(conn, request, serverConfig, shouldClose, scriptPath))
+		return false;
+
+	if (!validateCGIScript(conn, scriptPath, serverConfig, shouldClose))
+		return false;
+
+	int in_pipe[2];
+	int out_pipe[2];
+	pid_t pid;
+
+	if (!createCGIProcess(conn, serverConfig, in_pipe, out_pipe, pid))
+		return false;
+
+	if (pid == 0)
+	{
+		setupCGIChildProcess(in_pipe, out_pipe, scriptPath, request);
+		_exit(1);
+	}
+
+	setupCGIParent(conn, request, in_pipe, out_pipe, pid, shouldClose);
 	return true;
 }

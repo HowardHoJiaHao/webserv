@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/27 00:59:08 by ho                #+#    #+#             */
-/*   Updated: 2026/04/05 00:26:21 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/05 11:30:23 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -92,35 +92,11 @@ static bool parseChunkedBody(const std::string& buffer, size_t bodyStart, size_t
 	}
 }
 
-bool extractRequest(std::string& buffer, std::string& rawRequest, bool* malformed)
+static bool parseContentLength(const std::string& headersPart, size_t& contentLength, bool& hasContentLength, bool* malformed)
 {
-	if (malformed != NULL)
-		*malformed = false;
-
-	size_t	headerEnd = buffer.find("\r\n\r\n");
-	if (headerEnd == std::string::npos)
-		return false;
-
-	size_t bodyStart = headerEnd + 4;
-
-	std::string headersPart = buffer.substr(0, headerEnd);
-	if(hasChunkedEncoding(headersPart))
-	{
-		size_t totalSize = 0;
-
-		if (!parseChunkedBody(buffer, bodyStart, totalSize))
-			return false;
-		rawRequest = buffer.substr(0, totalSize);
-		buffer.erase(0, totalSize);
-		return true;
-	}
-
-	size_t contentLength = 0;
-	bool hasContentLength = false;
-	bool duplicateContentLength = false;
-
 	std::istringstream stream(headersPart);
 	std::string line;
+	bool duplicateContentLength = false;
 
 	while (std::getline(stream, line))
 	{
@@ -164,12 +140,46 @@ bool extractRequest(std::string& buffer, std::string& rawRequest, bool* malforme
 			hasContentLength = true;
 		}
 	}
+
 	if (duplicateContentLength)
 	{
 		if (malformed != NULL)
 			*malformed = true;
 		return false;
 	}
+
+	return true;
+}
+
+bool extractRequest(std::string& buffer, std::string& rawRequest, bool* malformed)
+{
+	if (malformed != NULL)
+		*malformed = false;
+
+	size_t	headerEnd = buffer.find("\r\n\r\n");
+	if (headerEnd == std::string::npos)
+		return false;
+
+	size_t bodyStart = headerEnd + 4;
+
+	std::string headersPart = buffer.substr(0, headerEnd);
+	if(hasChunkedEncoding(headersPart))
+	{
+		size_t totalSize = 0;
+
+		if (!parseChunkedBody(buffer, bodyStart, totalSize))
+			return false;
+		rawRequest = buffer.substr(0, totalSize);
+		buffer.erase(0, totalSize);
+		return true;
+	}
+
+	size_t contentLength = 0;
+	bool hasContentLength = false;
+
+	if (!parseContentLength(headersPart, contentLength, hasContentLength, malformed))
+		return false;
+
 	size_t totalSize = bodyStart;
 	if (hasContentLength)
 		totalSize += contentLength;
