@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/05 00:02:49 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/05 16:10:27 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -126,7 +126,7 @@ bool Engine::processCGIOutput(Connection* currentConn, fd_set& readSet)
 		{
 			if (cgi != NULL)
 				cgi->stdout_buffer.append(buffer, bytes);
-			currentConn->updateActivity();
+			currentConn->updateLastActivity();
 		}
 		else if (bytes == 0)
 		{

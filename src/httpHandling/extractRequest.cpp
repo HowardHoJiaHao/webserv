@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/27 00:59:08 by ho                #+#    #+#             */
-/*   Updated: 2026/04/05 11:30:23 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/05 19:25:04 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -151,43 +151,52 @@ static bool parseContentLength(const std::string& headersPart, size_t& contentLe
 	return true;
 }
 
+// transform the buffer ->> rawRequest
 bool extractRequest(std::string& buffer, std::string& rawRequest, bool* malformed)
 {
+	//reset
 	if (malformed != NULL)
 		*malformed = false;
 
+	// find headerEnd, if cannot find, then cannot extract
 	size_t	headerEnd = buffer.find("\r\n\r\n");
 	if (headerEnd == std::string::npos)
 		return false;
-
+	// get the position of the first body
 	size_t bodyStart = headerEnd + 4;
-
+	// isolated the header part
 	std::string headersPart = buffer.substr(0, headerEnd);
+
+	// this is for chunked header
 	if(hasChunkedEncoding(headersPart))
 	{
 		size_t totalSize = 0;
 
 		if (!parseChunkedBody(buffer, bodyStart, totalSize))
 			return false;
+		// if complete
 		rawRequest = buffer.substr(0, totalSize);
 		buffer.erase(0, totalSize);
 		return true;
 	}
 
+	// parse content length
 	size_t contentLength = 0;
 	bool hasContentLength = false;
-
+	// now i have content length
 	if (!parseContentLength(headersPart, contentLength, hasContentLength, malformed))
 		return false;
-
+	//compute total size
 	size_t totalSize = bodyStart;
 	if (hasContentLength)
 		totalSize += contentLength;
+	
 	if (buffer.size() < totalSize)
 		return false;
 
+	//extract
+	// the rawRequest is included \r\n\r\n
 	rawRequest = buffer.substr(0, totalSize);
 	buffer.erase(0, totalSize);
-
 	return true;
 }

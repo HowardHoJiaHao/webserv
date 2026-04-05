@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Connection.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/02 17:49:59 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/05 16:38:32 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,14 +65,14 @@ class Connection
 
 		void close();
 
-		void appendToReadBuffer(const char* buffer, ssize_t bytes);
+		void appendToHeaderBuffer(const char* buffer, ssize_t bytes);
 
 		RequestState getRequestState() const;
 		void	setRequestState(RequestState state);
 		void	setShouldClose(bool value);
 		bool	shouldClose() const;
 
-		void	updateActivity();
+		void	updateLastActivity();
 		time_t	getLastActivity() const;
 
 		// ========		cgi in connection	==========

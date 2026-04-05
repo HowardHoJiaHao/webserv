@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   connection.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:48:52 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/31 02:03:49 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/05 16:38:32 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -71,7 +71,7 @@ void Connection::setRequestState(RequestState state)
 	_requestState = state;
 }
 
-void Connection::appendToReadBuffer(const char* buffer, ssize_t bytes)
+void Connection::appendToHeaderBuffer(const char* buffer, ssize_t bytes)
 {
 	if (bytes > 0)
 		_readBuffer.append(buffer, bytes);
@@ -97,7 +97,7 @@ bool Connection::shouldClose() const
 	return _shouldClose;
 }
 
-void Connection::updateActivity()
+void Connection::updateLastActivity()
 {
 	_lastActivity = std::time(NULL);
 }

@@ -6,7 +6,7 @@
 /*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/05 11:18:08 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/05 16:10:27 by Ho Wai Keon      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,7 @@ void Engine::handleCGIStdinWrite(Connection* currentConn, fd_set& writeSet)
 		if (written > 0)
 		{
 			cgi->stdin_offset += static_cast<size_t>(written);
-			currentConn->updateActivity();
+			currentConn->updateLastActivity();
 		}
 		else if (written < 0)
 		{
@@ -86,7 +86,7 @@ void Engine::handleClientWrite(std::map<int, Connection*>::iterator& it, int cli
 	if (sentByte > 0)
 	{
 		writebuffer.erase(0, sentByte);
-		currentConn->updateActivity();
+		currentConn->updateLastActivity();
 
 		if (writebuffer.empty())
 		{

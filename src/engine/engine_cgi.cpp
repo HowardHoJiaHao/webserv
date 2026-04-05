@@ -175,7 +175,7 @@ void	Engine::setupCGIParent(Connection* conn, const HttpRequest& request, int in
 	conn->setCGI(cgi);
 	conn->setShouldClose(shouldClose);
 	conn->setState(Connection::CGI_RUNNING);
-	conn->updateActivity();
+	conn->updateLastActivity();
 }
 
 bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, bool shouldClose)
