@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   extractRequest.cpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/27 00:59:08 by ho                #+#    #+#             */
-/*   Updated: 2026/04/05 19:25:04 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/07 00:43:10 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -96,7 +96,6 @@ static bool parseContentLength(const std::string& headersPart, size_t& contentLe
 {
 	std::istringstream stream(headersPart);
 	std::string line;
-	bool duplicateContentLength = false;
 
 	while (std::getline(stream, line))
 	{
@@ -116,9 +115,12 @@ static bool parseContentLength(const std::string& headersPart, size_t& contentLe
 		{
 			if (hasContentLength)
 			{
-				duplicateContentLength = true;
-				break;
+				// Duplicate Content-Length header — reject immediately
+				if (malformed != NULL)
+					*malformed = true;
+				return false;
 			}
+			// value is empty
 			if (value.empty())
 			{
 				if (malformed != NULL)
@@ -128,7 +130,8 @@ static bool parseContentLength(const std::string& headersPart, size_t& contentLe
 
 			errno = 0;
 			char* endptr = NULL;
-			unsigned long parsed = std::strtoul(value.c_str(), &endptr, 10);
+			unsigned long parsed = std::strtoul(value.c_str(), &endptr, 10); //convert to the base 10
+			// if endptr is -> alphabet, still pointing towards sth, pointing to error(very large num)
 			if (endptr == value.c_str() || *endptr != '\0' || errno == ERANGE)
 			{
 				if (malformed != NULL)
@@ -137,15 +140,9 @@ static bool parseContentLength(const std::string& headersPart, size_t& contentLe
 			}
 
 			contentLength = static_cast<size_t>(parsed);
+			// it will modify the caller variable flag
 			hasContentLength = true;
 		}
-	}
-
-	if (duplicateContentLength)
-	{
-		if (malformed != NULL)
-			*malformed = true;
-		return false;
 	}
 
 	return true;
