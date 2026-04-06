@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   connection.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:48:52 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/05 16:38:32 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/07 01:48:26 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,6 +49,21 @@ std::string& Connection::getReadBuffer()
 std::string& Connection::getWriteBuffer()
 {
 	return _writeBuffer;
+}
+
+void Connection::setWriteBuffer(const std::string& buffer)
+{
+	_writeBuffer = buffer;
+}
+
+void Connection::appendToWriteBuffer(const std::string& chunk)
+{
+	_writeBuffer += chunk;
+}
+
+void Connection::clearWriteBuffer()
+{
+	_writeBuffer.clear();
 }
 
 void Connection::close()

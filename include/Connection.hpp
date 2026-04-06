@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Connection.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/05 16:38:32 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/07 01:48:26 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,6 +59,9 @@ class Connection
 		int getFd() const;
 		std::string& getReadBuffer();
 		std::string& getWriteBuffer();
+		void setWriteBuffer(const std::string& buffer);
+		void appendToWriteBuffer(const std::string& chunk);
+		void clearWriteBuffer();
 
 		State getState() const;
 		void setState(State state);
