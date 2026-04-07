@@ -107,3 +107,26 @@ File saved successfully. Size: 549108 bytes
 [2026-04-01 11:15:41] [delete.pl] Request started method=GET query=
 [2026-04-01 11:15:41] [delete.pl] Request started method=GET query=format=json
 [2026-04-01 11:15:41] [delete.pl] Returned list count=4
+[2026-04-07 12:45:53] [delete.py] Request started method=GET query=
+[2026-04-07 12:45:53] [delete.py] Rendered archive page
+[2026-04-07 12:45:53] [delete.py] Request started method=GET query=format=json
+[2026-04-07 12:45:53] [delete.py] Returned archive list count=4
+[2026-04-07 12:45:55] [delete.pl] Request started method=GET query=
+[2026-04-07 12:45:55] [delete.pl] Request started method=GET query=format=json
+[2026-04-07 12:45:55] [delete.pl] Returned list count=4
+[2026-04-07 13:16:33] [delete.py] Request started method=GET query=
+[2026-04-07 13:16:33] [delete.py] Rendered archive page
+[2026-04-07 13:16:33] [delete.py] Request started method=GET query=format=json
+[2026-04-07 13:16:33] [delete.py] Returned archive list count=4
+[2026-04-07 13:16:34] [delete.py] Request started method=GET query=
+[2026-04-07 13:16:34] [delete.py] Rendered archive page
+[2026-04-07 13:16:34] [delete.py] Request started method=GET query=format=json
+[2026-04-07 13:16:34] [delete.py] Returned archive list count=4
+[2026-04-07 13:17:49] [delete.pl] Request started method=GET query=
+[2026-04-07 13:17:49] [delete.pl] Request started method=GET query=format=json
+[2026-04-07 13:17:49] [delete.pl] Returned list count=4
+Starting CGI script
+Original filename: main.cpp
+Safe filename: main_80195029.cpp
+Save path: /home/hwai-keo/webserv/www1/archive/main_80195029.cpp
+File saved successfully. Size: 1242 bytes

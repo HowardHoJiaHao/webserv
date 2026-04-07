@@ -1,5 +1,5 @@
 #include "engine.hpp"
-#include "extractRequest.hpp"
+#include "requestValidator.hpp"
 #include "Webserv.hpp"
 
 #include <sstream>
@@ -69,7 +69,7 @@ bool Engine::handleRequestExtraction(Connection* conn, std::string& rawRequest, 
 	std::string& readBuffer = conn->getReadBuffer();
 	bool isInvalidContentLength = false;
 	//extract one complete HTTP request from buffer into rawRequest, as reference
-	if (!extractRequest(readBuffer, rawRequest, &isInvalidContentLength))
+	if (!validateAndExtractRequestFromBuffer(readBuffer, rawRequest, &isInvalidContentLength))
 	{
 		// broken header / invalid format
 		if (isInvalidContentLength)
@@ -231,7 +231,7 @@ bool Engine::attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t
 		conn->setRequestState(Connection::READING_HEADERS);
 	// found that \r\n\r\n
 	else
-		conn->setRequestState(Connection::READING_BODY);
+		conn->setRequestState(Connection::READING_BODY); // should it be reading completion
 	return true;
 }
 
