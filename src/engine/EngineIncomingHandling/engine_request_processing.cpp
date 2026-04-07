@@ -121,7 +121,7 @@ bool Engine::handleRequestParsing(Connection* conn, const std::string& rawReques
 	return true;
 }
 
-bool Engine::handleRequestValidation(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig)
+bool Engine::enforceRequestBodySizeLimit(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig)
 {
 	if (serverConfig != NULL && request.hasContentLength() && request.getContentLength() > serverConfig->getMaxBodySize())
 	{
@@ -257,10 +257,10 @@ bool Engine::processBufferedRequests(Connection* conn, bool& producedResponse)
 			return false;
 
 		const ServerConfig* serverConfig = conn->getServerConfig();
-		if (!handleRequestValidation(conn, request, serverConfig))
+		if (!enforceRequestBodySizeLimit(conn, request, serverConfig))
 			return false;
 
-		bool shouldClose = request.shouldCloseConnection();
+		bool shouldClose = request.shouldCloseConnectionByHttpRules();
 		if (shouldClose)
 			conn->setShouldClose(true);
 

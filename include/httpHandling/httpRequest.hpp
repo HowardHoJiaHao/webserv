@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   httpRequest.hpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:37:17 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/05 11:35:39 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/07 18:33:36 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,7 +56,7 @@ class HttpRequest
 
 		void parse(const std::string& rawRequest, size_t maxBodySize);
 
-		bool shouldCloseConnection() const;
+		bool shouldCloseConnectionByHttpRules() const;
 		void parseCookies(const std::string& cookieHeader);
 		std::string getCookie(const std::string& key) const;
 

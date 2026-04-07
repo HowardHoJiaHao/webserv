@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/05 16:36:00 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/07 18:17:28 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -67,7 +67,7 @@ class Engine
 		bool enforceRequestSizeLimits(Connection* conn, size_t headerEnd);
 		bool handleRequestExtraction(Connection* conn, std::string& rawRequest, bool& extracted);
 		bool handleRequestParsing(Connection* conn, const std::string& rawRequest, HttpRequest& request, const ServerConfig* defaultServer);
-		bool handleRequestValidation(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig);
+		bool enforceRequestBodySizeLimit(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig);
 		void handleSession(const HttpRequest& request, std::vector<std::string>& extraHeaders);
 		bool handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* defaultServer, const ServerConfig* serverConfig, bool shouldClose, bool& producedResponse);
 		std::string handleGet(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);

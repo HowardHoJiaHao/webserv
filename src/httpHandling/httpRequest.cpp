@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/07 15:43:43 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/07 18:33:36 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -82,7 +82,17 @@ bool HttpRequest::isComplete() const
 	return _body.size() == _contentLength;
 }
 
-bool HttpRequest::shouldCloseConnection() const
+// example of header map
+// _headers =
+// {
+//		"host"				→ "example.com",
+//		"user-agent"		→ "Mozilla/5.0",
+//		"content-length"	→ "11",
+//		"connection"		→ "keep-alive",
+//		"cookie"			→ "session=abc123; theme=dark"
+// }
+
+bool HttpRequest::shouldCloseConnectionByHttpRules() const
 {
 	std::map<std::string, std::string>::const_iterator it = _headers.find("connection");
 
