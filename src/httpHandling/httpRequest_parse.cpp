@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/07 16:10:00 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/07 15:50:02 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/07 17:56:56 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,12 +38,16 @@ void HttpRequest::reset()
 	_hasContentLength = false;
 }
 
+// GET /index.html HTTP/1.1\r\n
 void HttpRequest::parseRequestLine(const std::string& requestLine)
 {
 	std::istringstream iss(requestLine);
+	// split by white space
 	if (!(iss >> _method >> _path >> _version))
 		throw std::runtime_error("Malformed request line");
 
+	//example, this is for cgi
+	//http://127.0.0.1:8080/cgi-bin/delete.py?format=json
 	size_t queryPos = _path.find('?');
 	if (queryPos != std::string::npos)
 	{
@@ -55,50 +59,60 @@ void HttpRequest::parseRequestLine(const std::string& requestLine)
 	if (_path.empty() || _path[0] != '/')
 		throw std::runtime_error("invalid path");
 
+	// must start with http
 	if (_version.find("HTTP/") != 0)
 		throw std::runtime_error("invalid http version");
 
+	// the rest
 	std::string extra;
 	if (iss >> extra)
 		throw std::runtime_error("redundant token in request line");
 }
 
+// Host: example.com\r\n
+// User-Agent: Mozilla/5.0\r\n
+// Accept: */*\r\n
+// Cookie: session=abc123\r\n
+// \r\n
 void HttpRequest::parseHeaders(const std::string& headerSection)
 {
 	std::istringstream stream(headerSection);
 	std::string line;
-	bool firstLine = true;
 
+	//skip first line, which is requestline
+	std::getline(stream, line);
 	while (std::getline(stream, line))
 	{
 		if (!line.empty() && line[line.length() - 1] == '\r')
 			line.erase(line.length() - 1);
-		if (firstLine)
-		{
-			firstLine = false;
-			continue;
-		}
 		if (line.empty())
 			continue;
-
 		size_t colonPos = line.find(':');
 		if (colonPos == std::string::npos)
 			throw std::runtime_error("malformed header");
 		std::string key = toLowerAscii(line.substr(0, colonPos));
 		std::string value = line.substr(colonPos + 1);
-
 		if (key.empty())
 			throw std::runtime_error("Malformed header: empty key");
 		while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
 			value.erase(0, 1);
+		// the current key that just created, check with the header pool
 		if (_headers.find(key) != _headers.end())
 			throw std::runtime_error("Duplicate header");
 		_headers[key] = value;
+		//eg:- cookie: session=abc123; theme=dark; user=wai
 		if (key == "cookie")
 			parseCookies(value);
 	}
 }
 
+// _headers =
+// {
+//		"host"				→ "example.com",
+//		"user-agent"		→ "Mozilla/5.0",
+//		"content-length"	→ "11",
+//		"cookie"			→ "session=abc123"
+// }
 void HttpRequest::validateHeaders(size_t maxBodySize)
 {
 	if (_version == "HTTP/1.1")
@@ -121,9 +135,10 @@ void HttpRequest::validateHeaders(size_t maxBodySize)
 			if (!isdigit(static_cast<unsigned char>(value[i])))
 				throw std::runtime_error("Invalid Content-Length");
 		}
+		// std::string -> size_t
 		std::istringstream iss(value);
 		iss >> _contentLength;
-
+		// empty string, too big, will fail
 		if (iss.fail())
 			throw std::runtime_error("Invalid Content-Length");
 		if (_contentLength > maxBodySize)
@@ -178,6 +193,7 @@ void HttpRequest::parse(const std::string& rawRequest, size_t maxBodySize)
 
 // =============================	cookie parsing		====================
 
+// remove space from start and end
 std::string HttpRequest::trim(const std::string& str)
 {
 	size_t start = 0;
@@ -190,18 +206,20 @@ std::string HttpRequest::trim(const std::string& str)
 	return str.substr(start, end - start);
 }
 
+// cookieHeader is the value of cookie
+// example of this value : "session=abc123; theme=dark; user=wai"
 void HttpRequest::parseCookies(const std::string& cookieHeader)
 {
 	std::stringstream ss(cookieHeader);
 	std::string pair;
-
+	// read until ;
 	while (std::getline(ss, pair, ';'))
 	{
-		size_t eqPos = pair.find('=');
-		if (eqPos == std::string::npos)
+		size_t equalPos = pair.find('=');
+		if (equalPos == std::string::npos)
 			continue;
-		std::string key = pair.substr(0, eqPos);
-		std::string value = pair.substr(eqPos + 1);
+		std::string key = pair.substr(0, equalPos);
+		std::string value = pair.substr(equalPos + 1);
 
 		key = trim(key);
 		value = trim(value);
