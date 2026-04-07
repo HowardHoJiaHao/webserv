@@ -17,7 +17,7 @@ bool	Engine::resolveCGIScriptPath(Connection* conn, const HttpRequest& request, 
 	if (request.getPath().find("..") != std::string::npos)
 	{
 		conn->setShouldClose(true);
-		conn->getWriteBuffer() = buildErrorResponse(403, true, &serverConfig);
+		conn->setWriteBuffer(buildErrorResponse(403, true, &serverConfig));
 		return false;
 	}
 
@@ -35,7 +35,7 @@ bool	Engine::validateCGIScript(Connection* conn, const std::string& scriptPath, 
 	if (!FileHandler::fileExists(scriptPath))
 	{
 		conn->setShouldClose(shouldClose);
-		conn->getWriteBuffer() = buildErrorResponse(404, conn->shouldClose(), &serverConfig);
+		conn->setWriteBuffer(buildErrorResponse(404, conn->shouldClose(), &serverConfig));
 		return false;
 	}
 	{
@@ -43,14 +43,14 @@ bool	Engine::validateCGIScript(Connection* conn, const std::string& scriptPath, 
 		if (stat(scriptPath.c_str(), &st) != 0 || !S_ISREG(st.st_mode))
 		{
 			conn->setShouldClose(shouldClose);
-			conn->getWriteBuffer() = buildErrorResponse(404, conn->shouldClose(), &serverConfig);
+			conn->setWriteBuffer(buildErrorResponse(404, conn->shouldClose(), &serverConfig));
 			return false;
 		}
 	}
 	if (access(scriptPath.c_str(), X_OK) != 0)
 	{
 		conn->setShouldClose(true);
-		conn->getWriteBuffer() = buildErrorResponse(403, true, &serverConfig);
+		conn->setWriteBuffer(buildErrorResponse(403, true, &serverConfig));
 		return false;
 	}
 
@@ -63,7 +63,7 @@ bool	Engine::createCGIProcess(Connection* conn, const ServerConfig& serverConfig
 	{
 		perror("pipe in_pipe failed");
 		conn->setShouldClose(true);
-		conn->getWriteBuffer() = buildErrorResponse(500, true, &serverConfig);
+		conn->setWriteBuffer(buildErrorResponse(500, true, &serverConfig));
 		return false;
 	}
 
@@ -73,7 +73,7 @@ bool	Engine::createCGIProcess(Connection* conn, const ServerConfig& serverConfig
 		close(in_pipe[0]);
 		close(in_pipe[1]);
 		conn->setShouldClose(true);
-		conn->getWriteBuffer() = buildErrorResponse(500, true, &serverConfig);
+		conn->setWriteBuffer(buildErrorResponse(500, true, &serverConfig));
 		return false;
 	}
 	pid = fork();
@@ -85,7 +85,7 @@ bool	Engine::createCGIProcess(Connection* conn, const ServerConfig& serverConfig
 		close(out_pipe[0]);
 		close(out_pipe[1]);
 		conn->setShouldClose(true);
-		conn->getWriteBuffer() = buildErrorResponse(500, true, &serverConfig);
+		conn->setWriteBuffer(buildErrorResponse(500, true, &serverConfig));
 		return false;
 	}
 

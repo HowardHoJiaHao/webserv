@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engineIncomingData.cpp                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/05 16:10:27 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/07 01:48:26 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -78,7 +78,7 @@ void Engine::handleCGIReadError(Connection* currentConn)
 {
 	perror("read CGI");
 	currentConn->setShouldClose(true);
-	currentConn->getWriteBuffer() = buildErrorResponse(500, currentConn->shouldClose(), NULL);
+	currentConn->setWriteBuffer(buildErrorResponse(500, currentConn->shouldClose(), NULL));
 	currentConn->clearCGI();
 	currentConn->setState(Connection::WRITING);
 }
@@ -102,7 +102,7 @@ bool Engine::handleCGIWouldBlock(Connection* currentConn, struct timeval& startT
 		kill(pid, SIGKILL);
 	if (pid > 0)
 		waitpid(pid, NULL, 0);
-	currentConn->getWriteBuffer() = buildErrorResponse(504, currentConn->shouldClose(), NULL);
+	currentConn->setWriteBuffer(buildErrorResponse(504, currentConn->shouldClose(), NULL));
 	currentConn->setShouldClose(true);
 	currentConn->clearCGI();
 	currentConn->setState(Connection::WRITING);

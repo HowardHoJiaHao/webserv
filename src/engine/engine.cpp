@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/05 00:02:49 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/07 01:48:25 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -252,7 +252,7 @@ void Engine::checkTimeouts()
 				}
 				currentConn->clearCGI();
 				currentConn->setShouldClose(true);
-				currentConn->getWriteBuffer() = buildErrorResponse(504, true, serverConfig);
+				currentConn->setWriteBuffer(buildErrorResponse(504, true, serverConfig));
 				currentConn->setState(Connection::WRITING);
 			}
 			++it;
@@ -269,7 +269,7 @@ void Engine::checkTimeouts()
 		{
 			currentConn->setShouldClose(true);
 			currentConn->getReadBuffer().clear();
-			currentConn->getWriteBuffer() = buildErrorResponse(408, true, serverConfig);
+			currentConn->setWriteBuffer(buildErrorResponse(408, true, serverConfig));
 			currentConn->setRequestState(Connection::COMPLETE);
 			currentConn->setState(Connection::WRITING);
 			++it;

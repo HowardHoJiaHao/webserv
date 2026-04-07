@@ -136,29 +136,6 @@ static std::string defaultUploadFilenameEngine()
 	return oss.str();
 }
 
-static std::vector<std::string> methodNotAllowedHeadersEngine(const LocationConfig* location)
-{
-	std::string allowValue = "GET, POST, DELETE";
-	if (location != NULL)
-	{
-		const std::vector<std::string>& allowed = location->getAllowedMethods();
-		if (!allowed.empty())
-		{
-			allowValue.clear();
-			for (size_t i = 0; i < allowed.size(); ++i)
-			{
-				if (i > 0)
-					allowValue += ", ";
-				allowValue += allowed[i];
-			}
-		}
-	}
-
-	std::vector<std::string> headers;
-	headers.push_back("Allow: " + allowValue);
-	return headers;
-}
-
 static bool ensureDirectoryExistsEngine(const std::string& path)
 {
 	if (path.empty())

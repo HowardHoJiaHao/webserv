@@ -115,7 +115,6 @@ static bool parseContentLength(const std::string& headersPart, size_t& contentLe
 {
 	std::istringstream stream(headersPart);
 	std::string line;
-	bool duplicateContentLength = false;
 
 	while (std::getline(stream, line))
 	{
@@ -136,9 +135,12 @@ static bool parseContentLength(const std::string& headersPart, size_t& contentLe
 		{
 			if (hasContentLength)
 			{
-				duplicateContentLength = true;
-				break;
+				// Duplicate Content-Length header — reject immediately
+				if (isInvalidContentLength != NULL)
+					*isInvalidContentLength = true;
+				return false;
 			}
+			// value is empty
 			if (value.empty())
 			{
 				if (isInvalidContentLength != NULL)
@@ -149,7 +151,8 @@ static bool parseContentLength(const std::string& headersPart, size_t& contentLe
 			//parse Number
 			errno = 0;
 			char* endptr = NULL;
-			unsigned long parsed = std::strtoul(value.c_str(), &endptr, 10);
+			unsigned long parsed = std::strtoul(value.c_str(), &endptr, 10); //convert to the base 10
+			// if endptr is -> alphabet, still pointing towards sth, pointing to error(very large num)
 			if (endptr == value.c_str() || *endptr != '\0' || errno == ERANGE)
 			{
 				if (isInvalidContentLength != NULL)
@@ -158,16 +161,11 @@ static bool parseContentLength(const std::string& headersPart, size_t& contentLe
 			}
 			//store result
 			contentLength = static_cast<size_t>(parsed);
+			// it will modify the caller variable flag
 			hasContentLength = true;
 		}
 	}
 
-	if (duplicateContentLength)
-	{
-		if (isInvalidContentLength != NULL)
-			*isInvalidContentLength = true;
-		return false;
-	}
 
 	return true;
 }
