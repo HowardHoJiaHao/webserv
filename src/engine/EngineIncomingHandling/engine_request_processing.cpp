@@ -67,12 +67,12 @@ bool Engine::handleRequestExtraction(Connection* conn, std::string& rawRequest, 
 {
 	extracted = false;
 	std::string& readBuffer = conn->getReadBuffer();
-	bool malformed = false;
-	//extract one complete HTTP request from buffer into rawRequest
-	if (!extractRequest(readBuffer, rawRequest, &malformed))
+	bool isInvalidContentLength = false;
+	//extract one complete HTTP request from buffer into rawRequest, as reference
+	if (!extractRequest(readBuffer, rawRequest, &isInvalidContentLength))
 	{
 		// broken header / invalid format
-		if (malformed)
+		if (isInvalidContentLength)
 		{
 			conn->setShouldClose(true);
 			conn->getWriteBuffer() = buildErrorResponse(400, conn->shouldClose(), NULL);
@@ -239,10 +239,10 @@ bool Engine::processBufferedRequests(Connection* conn, bool& producedResponse)
 
 	while (true)
 	{
-		bool extracted = false;
-		if (!handleRequestExtraction(conn, rawRequest, extracted))
+		bool isExtracted = false;
+		if (!handleRequestExtraction(conn, rawRequest, isExtracted))
 			return false;
-		if (!extracted)
+		if (!isExtracted)
 			break;
 
 		HttpRequest request;

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   extractRequest.hpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/27 00:57:35 by ho                #+#    #+#             */
-/*   Updated: 2026/03/28 00:34:22 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/06 14:25:56 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,6 @@
 
 #include <string>
 
-bool	extractRequest(std::string& buffer, std::string& rawRequest, bool* malformed);
+bool	extractRequest(std::string& buffer, std::string& rawRequest, bool* isInvalidContentLength);
 
 #endif
