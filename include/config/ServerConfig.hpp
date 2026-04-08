@@ -3,36 +3,35 @@
 /*                                                        :::      ::::::::   */
 /*   ServerConfig.hpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: ktiew <ktiew@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/17 23:16:56 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/28 00:34:17 by ho               ###   ########.fr       */
+/*   Created: 2025/05/20 12:29:07 by ktiew             #+#    #+#             */
+/*   Updated: 2026/02/21 23:54:27 by ktiew            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef SERVERCONFIG_HPP
 #define SERVERCONFIG_HPP
 
+#include "LocationConfig.hpp"
 #include <string>
 #include <vector>
 #include <map>
-#include "LocationConfig.hpp"
 
 class ServerConfig
 {
 	private:
-		std::string _host;
-		int			_port;
-		std::string	_serverName;
-		std::string	_root;
-		std::string	_index;
-		size_t		_maxBodySize;
-		std::map<int, std::string> _errorPages;
-
+		std::string					_host;
+		int							_port;
+		std::string					_serverName;
+		std::string					_root;
+		std::string					_index;
+		size_t						_maxBodySize;
+		std::map<int, std::string>	_errorPages;
 		std::vector<LocationConfig>	_locations;
 
 	public:
-		ServerConfig();
+		ServerConfig(void);
 
 		void	setHost(const std::string& host);
 		void	setPort(int port);
@@ -44,15 +43,15 @@ class ServerConfig
 
 		void	addLocation(const LocationConfig& location);
 
-		const	std::string& getHost()const;
-		int		getPort()const;
-		const	std::string& getServerName()const;
-		const	std::string& getRoot()const;
-		const	std::string& getIndex()const;
-		size_t	getMaxBodySize() const;
-		const	std::string* getErrorPage(int code) const;
+		const	std::string& getHost(void)const;
+		int		getPort(void)const;
+		const	std::string& getServerName(void)const;
+		const	std::string& getRoot(void)const;
+		const	std::string& getIndex(void)const;
+		size_t	getMaxBodySize(void) const;
 
-		const	std::vector<LocationConfig>& getLocations()const;
+		const	std::string*					getErrorPage(int code) const;
+		const	std::vector<LocationConfig>&	getLocations(void)const;
 };
 
 #endif

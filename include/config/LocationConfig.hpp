@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   LocationConfig.hpp                                 :+:      :+:    :+:   */
+/*   Location.hpp                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: ktiew <ktiew@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/17 23:29:41 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/28 00:34:16 by ho               ###   ########.fr       */
+/*   Created: 2025/05/20 12:29:07 by ktiew             #+#    #+#             */
+/*   Updated: 2026/02/21 23:54:27 by ktiew            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,7 +32,7 @@ class LocationConfig
 		std::string					_returnTarget;
 
 	public:
-		LocationConfig();
+		LocationConfig(void);
 
 		void	setPath(const std::string& path);
 		void	setAllowedMethods(const std::vector<std::string>& method);
@@ -44,17 +44,17 @@ class LocationConfig
 		void	setCgiExtensions(const std::vector<std::string>& extensions);
 		void	setReturnDirective(bool enabled, int status, const std::string& target);
 
-		const	std::string& getPath() const;
-		const	std::vector<std::string>& getAllowedMethods() const;
-		const	std::string& getRoot() const;
-		bool	isUploadEnabled() const;
-		const	std::string& getUploadPath() const;
-		bool	isAutoindex() const;
-		bool	isCgiEnabled() const;
-		const	std::vector<std::string>& getCgiExtensions() const;
-		bool	hasReturnDirective() const;
-		int		getReturnStatus() const;
-		const	std::string& getReturnTarget() const;
+		const	std::string& getPath(void) const;
+		const	std::vector<std::string>& getAllowedMethods(void) const;
+		const	std::string& getRoot(void) const;
+		bool	isUploadEnabled(void) const;
+		const	std::string& getUploadPath(void) const;
+		bool	isAutoindex(void) const;
+		bool	isCgiEnabled(void) const;
+		const	std::vector<std::string>& getCgiExtensions(void) const;
+		bool	hasReturnDirective(void) const;
+		int		getReturnStatus(void) const;
+		const	std::string& getReturnTarget(void) const;
 };
 
 #endif

@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   ConfigFiles.hpp                                    :+:      :+:    :+:   */
+/*   ConfigParser.hpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: ktiew <ktiew@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,29 +10,28 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef CONFIGFILES_HPP
-#define CONFIGFILES_HPP
+#ifndef CONFIGPARSER_HPP
+#define CONFIGPARSER_HPP
 
-#include "ServerConfig.hpp"
 #include <vector>
 #include <string>
+#include <stdexcept>
 
-class ConfigFiles
+struct ConfigToken
 {
-	private:
-		std::vector<ServerConfig>	_serverConfigs;
-		std::string					_prefix;
+	std::string	value;
+	size_t		line;
+};
 
-		void	initDummy(void);
-		void	loadFromFile(const std::string& path);
-
+class ConfigParser
+{
 	public:
-		ConfigFiles(void);
-		ConfigFiles(const std::string& path);
-		~ConfigFiles(void);
-
-		const std::vector<ServerConfig>&	getServers(void) const;
-		const std::string&					getPrefix(void) const;
+		static std::runtime_error		parseError(size_t line, const std::string& message);
+		static std::string				trim(const std::string& s);
+		static void						expectToken(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& expected);
+		static bool						isDirectoryPath(const std::string& path);
+		static std::vector<ConfigToken>	tokenize(const std::string& content);
+		static ServerConfig				parseServerBlock(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& prefix);
 };
 
 #endif

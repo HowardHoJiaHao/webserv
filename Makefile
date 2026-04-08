@@ -25,6 +25,7 @@ DEP_DIR		= deps
 
 SRCS		= $(SRC_DIR)/main.cpp \
 			  $(SRC_DIR)/config/dummyConfigFiles.cpp \
+			  $(SRC_DIR)/config/ConfigParser.cpp \
 			  $(SRC_DIR)/config/LocationConfig.cpp \
 			  $(SRC_DIR)/config/ServerConfig.cpp \
 			  $(SRC_DIR)/engine/engine.cpp \
