@@ -22,6 +22,7 @@ class LocationConfig
 		std::string					_path;
 		std::vector<std::string>	_allowedMethods;
 		std::string					_root;
+		std::string					_index;
 		bool						_uploadEnabled;
 		std::string					_uploadPath;
 		bool						_autoindex;
@@ -37,6 +38,7 @@ class LocationConfig
 		void	setPath(const std::string& path);
 		void	setAllowedMethods(const std::vector<std::string>& method);
 		void	setRoot(const std::string& root);
+		void	setIndex(const std::string& index);
 		void	setUploadEnabled(bool enabled);
 		void	setUploadPath(const std::string& path);
 		void	setAutoindex(bool enabled);
@@ -47,6 +49,7 @@ class LocationConfig
 		const	std::string& getPath(void) const;
 		const	std::vector<std::string>& getAllowedMethods(void) const;
 		const	std::string& getRoot(void) const;
+		const	std::string& getIndex(void) const;
 		bool	isUploadEnabled(void) const;
 		const	std::string& getUploadPath(void) const;
 		bool	isAutoindex(void) const;

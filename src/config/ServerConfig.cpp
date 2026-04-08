@@ -15,6 +15,7 @@
 ServerConfig::ServerConfig()
 	: _host(""),
 	_port(0),
+	_serverName(""),
 	_root(""),
 	_index(""),
 	_maxBodySize(1000000),
@@ -32,7 +33,10 @@ void ServerConfig::setPort(int port)
 	_port = port;
 }
 
-
+void ServerConfig::setServerName(const std::string& name)
+{
+	_serverName = name;
+}
 
 void ServerConfig::setRoot(const std::string& root)
 {
@@ -69,7 +73,10 @@ int ServerConfig::getPort() const
 	return _port;
 }
 
-
+const std::string& ServerConfig::getServerName() const
+{
+	return _serverName;
+}
 
 const std::string& ServerConfig::getRoot() const
 {
