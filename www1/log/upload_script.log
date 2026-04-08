@@ -142,3 +142,8 @@ File saved successfully. Size: 1242 bytes
 [2026-04-08 17:05:42] [delete.py] Rendered archive page
 [2026-04-08 17:05:42] [delete.py] Request started method=GET query=format=json
 [2026-04-08 17:05:42] [delete.py] Returned archive list count=4
+Starting CGI script
+Original filename: main.cpp
+Safe filename: main_71264089.cpp
+Save path: /home/hwai-keo/webserv/www1/archive/main_71264089.cpp
+File saved successfully. Size: 1242 bytes

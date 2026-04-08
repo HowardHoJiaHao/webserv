@@ -470,8 +470,26 @@ void ConfigFiles::initDummy()
 	loc2.setUploadPath("./uploads");
 	loc2.setAutoindex(false);
 
+	LocationConfig locCgi;
+	locCgi.setPath("/cgi-bin");
+	{
+		std::vector<std::string> methods;
+		methods.push_back("GET");
+		methods.push_back("POST");
+		locCgi.setAllowedMethods(methods);
+	}
+	locCgi.setCgiEnabled(true);
+	{
+		std::vector<std::string> cgiExtensions;
+		cgiExtensions.push_back(".py");
+		cgiExtensions.push_back(".pl");
+		locCgi.setCgiExtensions(cgiExtensions);
+	}
+	locCgi.setAutoindex(false);
+
 	server1.addLocation(loc1);
 	server1.addLocation(loc2);
+	server1.addLocation(locCgi);
 	_serverConfigs.push_back(server1);
 
 	//second server
