@@ -95,13 +95,13 @@ bool Engine::handleRequestExtraction(Connection* conn, std::string& rawRequest, 
 	return true;
 }
 
-bool Engine::handleRequestParsing(Connection* conn, const std::string& rawRequest, HttpRequest& request, const ServerConfig* defaultServer)
+bool Engine::handleRequestParsing(Connection* conn, const std::string& rawRequest, HttpRequest& request, const ServerConfig* serverConfig)
 {
 	// if the program is run without any config, use marco
 	// else using config max body size
 	size_t maxBodySize = MAX_REQUEST_SIZE;
-	if (defaultServer != NULL)
-		maxBodySize = defaultServer->getMaxBodySize();
+	if (serverConfig != NULL)
+		maxBodySize = serverConfig->getMaxBodySize();
 
 	try
 	{
@@ -111,9 +111,9 @@ bool Engine::handleRequestParsing(Connection* conn, const std::string& rawReques
 	{
 		conn->setShouldClose(true);
 		if (std::string(e.what()) == "Body too large")
-				conn->setWriteBuffer(buildErrorResponse(413, conn->shouldClose(), defaultServer));
+				conn->setWriteBuffer(buildErrorResponse(413, conn->shouldClose(), serverConfig));
 		else
-				conn->setWriteBuffer(buildErrorResponse(400, conn->shouldClose(), defaultServer));
+				conn->setWriteBuffer(buildErrorResponse(400, conn->shouldClose(), serverConfig));
 		conn->setState(Connection::WRITING);
 		return false;
 	}
@@ -153,12 +153,9 @@ void Engine::handleSession(const HttpRequest& request, std::vector<std::string>&
 	}
 }
 
-bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* defaultServer, const ServerConfig* serverConfig, bool shouldClose, bool& producedResponse)
+bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig, bool shouldClose, bool& producedResponse)
 {
-	const ServerConfig* effectiveServer = defaultServer;
-	if (serverConfig != NULL)
-		effectiveServer = serverConfig;
-	if (effectiveServer == NULL)
+	if (serverConfig == NULL)
 	{
 		conn->setShouldClose(true);
 		conn->setWriteBuffer(buildErrorResponse(500, conn->shouldClose(), NULL));
@@ -166,17 +163,17 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 		return false;
 	}
 
-	const LocationConfig* matchedLocation = findBestLocation(*effectiveServer, request.getPath());
+	const LocationConfig* matchedLocation = findBestLocation(*serverConfig, request.getPath());
 	if (!isMethodAllowed(request.getMethod(), matchedLocation))
 	{
-		conn->setWriteBuffer(buildErrorResponse(405, conn->shouldClose(), effectiveServer, methodNotAllowedHeadersEngine(matchedLocation)));
+		conn->setWriteBuffer(buildErrorResponse(405, conn->shouldClose(), serverConfig, methodNotAllowedHeadersEngine(matchedLocation)));
 		conn->setState(Connection::WRITING);
 		return false;
 	}
 
 	if (matchedLocation != NULL && isCgiRequestForLocation(request.getPath(), *matchedLocation))
 	{
-		if (!launchCGI(conn, request, *effectiveServer, conn->shouldClose()))
+		if (!launchCGI(conn, request, *serverConfig, conn->shouldClose()))
 			conn->setState(Connection::WRITING);
 		return false;
 	}
@@ -184,7 +181,7 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 	std::vector<std::string> extraHeaders;
 	handleSession(request, extraHeaders);
 
-	std::string response = routeRequest(request, shouldClose, *effectiveServer);
+	std::string response = routeRequest(request, shouldClose, *serverConfig);
 	if (!extraHeaders.empty())
 	{
 		size_t pos = response.find("\r\n\r\n");
@@ -249,14 +246,10 @@ bool Engine::processBufferedRequests(Connection* conn, bool& producedResponse)
 
 		//rawRequest string -> structured data
 		HttpRequest request;
-		const ServerConfig* defaultServer = findServerConfig(
-			_clientListenEndpoints[conn->getFd()].first,
-			_clientListenEndpoints[conn->getFd()].second
-		);
-		if (!handleRequestParsing(conn, rawRequest, request, defaultServer))
+		const ServerConfig* serverConfig = conn->getServerConfig();
+		if (!handleRequestParsing(conn, rawRequest, request, serverConfig))
 			return false;
 
-		const ServerConfig* serverConfig = conn->getServerConfig();
 		if (!enforceRequestBodySizeLimit(conn, request, serverConfig))
 			return false;
 
@@ -264,7 +257,7 @@ bool Engine::processBufferedRequests(Connection* conn, bool& producedResponse)
 		if (shouldClose)
 			conn->setShouldClose(true);
 
-		if (!handleRequestExecution(conn, request, defaultServer, serverConfig, shouldClose, producedResponse))
+		if (!handleRequestExecution(conn, request, serverConfig, shouldClose, producedResponse))
 			return false;
 	}
 
@@ -278,15 +271,11 @@ bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEndPos)
 	const size_t maxHeaderSize = 8192;
 
 	std::string& requestBuffer = conn->getReadBuffer();
-	// get the relevant config of the client listening port
-	const ServerConfig* defaultServerForLimit = findServerConfig(
-		_clientListenEndpoints[conn->getFd()].first,
-		_clientListenEndpoints[conn->getFd()].second
-	);
+	const ServerConfig* serverConfig = conn->getServerConfig();
 	// get MaxBodySize from the config
 	size_t maxBodySizeLimit = MAX_REQUEST_SIZE;
-	if (defaultServerForLimit != NULL)
-		maxBodySizeLimit = defaultServerForLimit->getMaxBodySize();
+	if (serverConfig != NULL)
+		maxBodySizeLimit = serverConfig->getMaxBodySize();
 	size_t maxBufferedRequestSize = maxBodySizeLimit + maxHeaderSize;
 
 	// if the header is gabbage without \r\n\r\n
@@ -294,7 +283,7 @@ bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEndPos)
 	{
 		conn->setShouldClose(true);
 		requestBuffer.clear();
-		conn->setWriteBuffer(buildErrorResponse(413, conn->shouldClose(), defaultServerForLimit));
+		conn->setWriteBuffer(buildErrorResponse(413, conn->shouldClose(), serverConfig));
 		conn->setState(Connection::WRITING);
 		return false;
 	}
@@ -304,7 +293,7 @@ bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEndPos)
 	{
 		conn->setShouldClose(true);
 		requestBuffer.clear();
-		conn->setWriteBuffer(buildErrorResponse(413, conn->shouldClose(), defaultServerForLimit));
+		conn->setWriteBuffer(buildErrorResponse(413, conn->shouldClose(), serverConfig));
 		conn->setState(Connection::WRITING);
 		return false;
 	}

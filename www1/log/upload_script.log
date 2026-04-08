@@ -130,3 +130,11 @@ Original filename: main.cpp
 Safe filename: main_80195029.cpp
 Save path: /home/hwai-keo/webserv/www1/archive/main_80195029.cpp
 File saved successfully. Size: 1242 bytes
+[2026-04-08 14:12:02] [delete.py] Request started method=GET query=
+[2026-04-08 14:12:02] [delete.py] Rendered archive page
+[2026-04-08 14:12:02] [delete.py] Request started method=GET query=format=json
+[2026-04-08 14:12:02] [delete.py] Returned archive list count=4
+[2026-04-08 14:12:05] [delete.py] Request started method=GET query=
+[2026-04-08 14:12:05] [delete.py] Rendered archive page
+[2026-04-08 14:12:05] [delete.py] Request started method=GET query=format=json
+[2026-04-08 14:12:05] [delete.py] Returned archive list count=4
