@@ -40,14 +40,17 @@ static bool isCgiRequestForLocation(const std::string& path, const LocationConfi
 	return false;
 }
 
-static const char* kSessionCookieName = "webservsid";
-static const time_t kSessionTtlSeconds = 3600;
+// there is a few function are using these static variable
+static const std::string ConstantSessionCookieName = "webservsid";
+static const time_t ConstantSessionTimeToLiveSeconds = 3600;
 
+// if a session lived too long since last used, longer than TTL, then it should die
 void Engine::pruneExpiredSessions(time_t now)
 {
+	// go throught each session stored in _sessions
 	for (std::map<std::string, time_t>::iterator it = _sessions.begin(); it != _sessions.end();)
 	{
-		if (now - it->second > kSessionTtlSeconds)
+		if (now - it->second > ConstantSessionTimeToLiveSeconds)
 			_sessions.erase(it++);
 		else
 			++it;
@@ -71,7 +74,7 @@ std::string Engine::ensureSessionCookieHeader(const HttpRequest& request)
 	time_t now = std::time(NULL);
 	pruneExpiredSessions(now);
 
-	const std::string* existingSessionId = request.getCookie(kSessionCookieName);
+	const std::string* existingSessionId = request.getCookie(ConstantSessionCookieName);
 	if (existingSessionId != NULL && !existingSessionId->empty())
 	{
 		std::map<std::string, time_t>::iterator it = _sessions.find(*existingSessionId);
@@ -92,8 +95,8 @@ std::string Engine::ensureSessionCookieHeader(const HttpRequest& request)
 	_sessions[sessionId] = now;
 
 	std::ostringstream header;
-	header << "Set-Cookie: " << kSessionCookieName << "=" << sessionId
-		<< "; Path=/; Max-Age=" << kSessionTtlSeconds << "; HttpOnly";
+	header << "Set-Cookie: " << ConstantSessionCookieName << "=" << sessionId
+		<< "; Path=/; Max-Age=" << ConstantSessionTimeToLiveSeconds << "; HttpOnly";
 	return header.str();
 }
 
@@ -163,6 +166,7 @@ bool Engine::handleRequestParsing(Connection* conn, const std::string& rawReques
 
 bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig, const LocationConfig* location, bool shouldClose, bool& producedResponse)
 {
+	//defensive
 	if (serverConfig == NULL)
 	{
 		conn->setShouldClose(true);

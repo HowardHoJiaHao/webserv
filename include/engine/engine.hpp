@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/09 01:54:56 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,7 +30,7 @@ class Engine
 		const ConfigFiles& 								_config;
 		std::map<std::pair<std::string,int>, int> 		_listenSockets;
 		std::map<int, Connection*> 						_clientConnections; // <- client socket + state + buffer
-		std::map<std::string, time_t>					_sessions;
+		std::map<std::string, time_t>					_sessions;	// <- should be global rather than per connection, because session survive when connection gone
 		unsigned long									_sessionCounter;
 
 		void registerListenSocketsForSelect(fd_set& readSet, int& maxFd);
