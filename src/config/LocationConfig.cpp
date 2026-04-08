@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   LocationConfig.cpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 09:55:21 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/28 00:34:17 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,7 @@ LocationConfig::LocationConfig()
 	: _path(""),
 	_allowedMethods(),
 	_root(""),
+	_index(""),
 	_uploadEnabled(false),
 	_uploadPath(""),
 	_autoindex(false),
@@ -39,6 +40,11 @@ void LocationConfig::setAllowedMethods(const std::vector<std::string>& methods)
 void LocationConfig::setRoot(const std::string& root)
 {
 	_root = root;
+}
+
+void LocationConfig::setIndex(const std::string& index)
+{
+	_index = index;
 }
 
 void LocationConfig::setUploadEnabled(bool enabled)
@@ -86,6 +92,11 @@ const std::vector<std::string>& LocationConfig::getAllowedMethods() const
 const std::string& LocationConfig::getRoot() const
 {
 	return _root;
+}
+
+const std::string& LocationConfig::getIndex() const
+{
+	return _index;
 }
 
 bool LocationConfig::isUploadEnabled() const

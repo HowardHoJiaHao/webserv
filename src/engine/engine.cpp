@@ -3,31 +3,16 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/01 16:44:35 by hho-jia-         ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "engine.hpp"
-#include "engine_string_utils.hpp"
-#include "socket_utils.hpp"
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <iostream>
-#include <stdexcept>
-#include <signal.h>
-#include <sys/select.h>
-#include <sys/time.h>
-#include <fcntl.h>
-#include <sstream>
-#include <cstdio>
-#include <cerrno>
-#include <ctime>
-#include <sys/wait.h>
-#include <csignal>
+#include "Webserv.hpp"
+
+#include <cstdlib>
 
 static volatile sig_atomic_t g_engineStopRequested = 0;
 
@@ -36,7 +21,15 @@ static void handleEngineStopSignal(int)
 	g_engineStopRequested = 1;
 }
 
-Engine::Engine(const ConfigFiles& config) : _config(config){}
+Engine::Engine(const ConfigFiles& config)
+	: _config(config),
+	  _listenSockets(),
+	  _clientConnections(),
+	  _sessions(),
+	  _sessionCounter(0)
+{
+	std::srand(static_cast<unsigned int>(std::time(NULL)) ^ static_cast<unsigned int>(::getpid()));
+}
 
 //close fd, destructor
 Engine::~Engine()
@@ -44,10 +37,10 @@ Engine::~Engine()
 	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
 		it != _clientConnections.end(); ++it)
 	{
-		Connection* conn = it->second;
-		if (!conn)
+		Connection* currentConn = it->second;
+		if (!currentConn)
 			continue;
-		const pid_t pid = conn->getCGIPid();
+		const pid_t pid = currentConn->getCGIPid();
 		if (pid > 0)
 		{
 			// Best-effort cleanup for CGI processes during shutdown.
@@ -65,7 +58,7 @@ Engine::~Engine()
 	{
 		delete it->second;
 	}
-	for(std::map<std::pair<std::string, int>, int>::iterator it = _listenSockets.begin(); 
+	for(std::map<std::pair<std::string, int>, int>::iterator it = _listenSockets.begin();
 		it != _listenSockets.end(); ++it)
 		close(it->second);
 		//delete it->second;
@@ -143,7 +136,7 @@ void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, in
 	}
 }
 
-// _listenSockets -> clientSocketConnection
+// create a new clientSocketConnection socket
 void Engine::acceptPendingClientConnections(fd_set& readSet)
 {
 	for (std::map<std::pair<std::string, int>, int>::const_iterator it = _listenSockets.begin();
@@ -156,24 +149,19 @@ void Engine::acceptPendingClientConnections(fd_set& readSet)
 			int clientFd = accept(listenFd, NULL, NULL);
 			if (clientFd >= 0)
 			{
-				int flags = fcntl(clientFd, F_GETFL, 0);
-				if (flags == -1)
-				{
-					close(clientFd);
-					continue;
-				}
-				if (fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1)
+				if (fcntl(clientFd, F_SETFL, O_NONBLOCK) == -1)
 				{
 					close(clientFd);
 					continue;
 				}
 				_clientConnections[clientFd] = new Connection(clientFd);
-				_clientListenEndpoints[clientFd] = it->first;
+				_clientConnections[clientFd]->setServerConfig(findServerConfig(it->first.first, it->first.second));
 			}
 		}
 	}
 }
 
+// util
 const ServerConfig* Engine::findServerConfig(const std::string& host, int port) const
 {
 	const std::vector<ServerConfig>& servers = _config.getServers();
@@ -182,315 +170,19 @@ const ServerConfig* Engine::findServerConfig(const std::string& host, int port) 
 		if (servers[i].getHost() == host && servers[i].getPort() == port)
 			return &servers[i];
 	}
-	for (size_t i = 0; i < servers.size(); ++i)
-	{
-		if (servers[i].getPort() == port)
-			return &servers[i];
-	}
-	if (servers.empty())
-		return NULL;
-	return &servers[0];
+	return NULL;
 }
 
-const ServerConfig* Engine::findServerConfigForConnection(int clientFd) const
+void Engine::destroyClientConnection(std::map<int, Connection*>::iterator& it)
 {
-	std::map<int, std::pair<std::string, int> >::const_iterator epIt = _clientListenEndpoints.find(clientFd);
-	if (epIt == _clientListenEndpoints.end())
-		return findServerConfig("", 0);
-
-	std::string host = epIt->second.first;
-	int port = epIt->second.second;
-	return findServerConfig(host, port);
-}
-
-void Engine::processIncomingData(fd_set& readSet)
-{
-	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
-			it != _clientConnections.end();)
-	{
-		int clientFd = it->first;
-
-		Connection* conn = it->second;
-
-		if (conn->getState() == Connection::CGI_RUNNING)
-		{
-			int cgi_fd = conn->getCGIStdoutFd();
-			if (cgi_fd != -1 && FD_ISSET(cgi_fd, &readSet))
-			{
-				char buffer[1024];
-				Connection::CGIContext* cgi = conn->getCGI();
-				struct timeval start_time;
-				gettimeofday(&start_time, NULL);
-				while(true)
-				{
-					ssize_t bytes = read(cgi_fd, buffer, sizeof(buffer));
-					if (bytes > 0)
-					{
-						if (cgi != NULL)
-							cgi->stdout_buffer.append(buffer, bytes);
-						conn->updateActivity();
-					}
-					else if (bytes == 0)
-					{
-						pid_t pid = conn->getCGIPid();
-						if (pid > 0)
-							waitpid(pid, NULL, WNOHANG);
-
-						std::string cgiOutput;
-						if (cgi != NULL)
-							cgiOutput = cgi->stdout_buffer;
-
-						if (cgiOutput.find("HTTP/1.") == 0)
-						{
-							conn->getWriteBuffer().append(cgiOutput);
-						}
-						else
-						{
-							std::string status = "200 OK";
-							std::string contentType = "text/plain";
-							std::vector<std::string> extraHeaders;
-							std::string body = cgiOutput;
-
-							size_t headerEnd = cgiOutput.find("\r\n\r\n");
-							size_t headerBodySepLen = 4;
-							if (headerEnd == std::string::npos)
-							{
-								headerEnd = cgiOutput.find("\n\n");
-								headerBodySepLen = 2;
-							}
-							if (headerEnd != std::string::npos)
-							{
-								std::string headerSection = cgiOutput.substr(0, headerEnd);
-								body = cgiOutput.substr(headerEnd + headerBodySepLen);
-								std::istringstream headerStream(headerSection);
-								std::string line;
-								while (std::getline(headerStream, line))
-								{
-									if (!line.empty() && line[line.size() - 1] == '\r')
-										line.erase(line.size() - 1);
-									if (line.empty())
-										continue;
-
-									size_t colon = line.find(':');
-									if (colon == std::string::npos)
-										continue;
-
-									std::string originalKey = trimAsciiEngine(line.substr(0, colon));
-									std::string loweredKey = toLowerAsciiEngine(originalKey);
-									std::string value = trimAsciiEngine(line.substr(colon + 1));
-
-									if (value.empty())
-										continue;
-									if (loweredKey == "status")
-										status = value;
-									else if (loweredKey == "content-type")
-										contentType = value;
-									else if (loweredKey != "content-length" && loweredKey != "connection")
-										extraHeaders.push_back(originalKey + ": " + value);
-								}
-							}
-
-							conn->getWriteBuffer().append(
-								buildResponse(status, body, contentType, conn->shouldClose(), extraHeaders)
-							);
-						}
-						conn->clearCGI();
-						conn->setState(Connection::WRITING);
-						break;
-					}
-					else
-					{
-						if (errno == EAGAIN || errno == EWOULDBLOCK)
-						{
-							struct timeval now;
-							gettimeofday(&now, NULL);
-							time_t elapsed_sec = now.tv_sec - start_time.tv_sec;
-							suseconds_t elapsed_usec = now.tv_usec - start_time.tv_usec;
-							if (elapsed_usec < 0)
-							{
-								elapsed_sec -= 1;
-								elapsed_usec += 1000000;
-							}
-							if (elapsed_sec >= 3)
-							{
-								pid_t pid = conn->getCGIPid();
-								if (pid > 0)
-									kill(pid, SIGKILL);
-								if (pid > 0)
-									waitpid(pid, NULL, 0);
-								conn->getWriteBuffer() = buildErrorResponse(504, "Gateway Timeout", conn->shouldClose(), NULL);
-								conn->setShouldClose(true);
-								conn->clearCGI();
-								conn->setState(Connection::WRITING);
-								break;
-							}
-							break;
-						}
-						perror("read CGI");
-						conn->setShouldClose(true);
-						conn->getWriteBuffer() = buildErrorResponse(500, "Internal Server Error", conn->shouldClose(), NULL);
-						conn->clearCGI();
-						conn->setState(Connection::WRITING);
-						break;
-					}
-				}
-			}
-			++it;
-			continue;
-		}
-
-		if (FD_ISSET(clientFd, &readSet))
-		{
-			char buffer[8192];
-			ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
-			if (bytes > 0)
-			{
-				handleClientRequest(it->second, buffer, bytes);
-				++it;
-				continue;
-			}
-			else if (bytes == 0)
-			{
-				delete it->second;
-				_clientListenEndpoints.erase(clientFd);
-				_clientConnections.erase(it++);
-			}
-			else
-			{
-				if (errno == EAGAIN || errno == EWOULDBLOCK)
-				{
-					++it;
-					continue;
-				}
-				perror("recv");
-				delete it->second;
-				_clientListenEndpoints.erase(clientFd);
-				_clientConnections.erase(it++);
-			}
-		}
-		else
-			++it;
-	}
-}
-
-void Engine::processOutgoingData(fd_set& writeSet)
-{
-	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
-			it != _clientConnections.end();)
-	{
-		int clientFd = it->first;
-		Connection* conn = it->second;
-
-		if (conn->getState() == Connection::CGI_RUNNING)
-		{
-			Connection::CGIContext* cgi = conn->getCGI();
-			int cgi_in = conn->getCGIStdinFd();
-			if (cgi != NULL && cgi_in != -1 && !conn->isCGIStdinClosed() && FD_ISSET(cgi_in, &writeSet))
-			{
-				if (cgi->stdin_offset < cgi->stdin_buffer.size())
-				{
-					const char* data = cgi->stdin_buffer.data() + cgi->stdin_offset;
-					size_t remaining = cgi->stdin_buffer.size() - cgi->stdin_offset;
-					ssize_t written = write(cgi_in, data, remaining);
-					if (written > 0)
-					{
-						cgi->stdin_offset += static_cast<size_t>(written);
-						conn->updateActivity();
-					}
-					else if (written < 0)
-					{
-						if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EPIPE)
-						{
-							perror("write CGI stdin");
-							close(cgi_in);
-							conn->setCGIStdinFd(-1);
-							conn->setCGIStdinClosed(true);
-						}
-						else if (errno == EPIPE)
-						{
-							close(cgi_in);
-							conn->setCGIStdinFd(-1);
-							conn->setCGIStdinClosed(true);
-						}
-					}
-				}
-				if (cgi->stdin_offset >= cgi->stdin_buffer.size() && !conn->isCGIStdinClosed())
-				{
-					close(cgi_in);
-					conn->setCGIStdinFd(-1);
-					conn->setCGIStdinClosed(true);
-				}
-			}
-		}
-		
-		if (!FD_ISSET(clientFd, &writeSet))
-		{
-			++it;
-			continue;
-		}
-
-		std::string& writebuffer = conn->getWriteBuffer();
-		if (writebuffer.empty())
-		{
-			if (conn->shouldClose())
-			{
-				delete conn;
-				_clientListenEndpoints.erase(clientFd);
-				_clientConnections.erase(it++);
-				continue;
-			}
-
-			conn->setRequestState(Connection::READING_HEADERS);
-			conn->setState(Connection::READING);
-			++it;
-			continue;
-		}
-
-		
-		ssize_t sentByte = send(clientFd, writebuffer.data(), writebuffer.size(), 0);
-		if (sentByte > 0)
-		{
-			writebuffer.erase(0, sentByte);
-			conn->updateActivity();
-
-			if (writebuffer.empty())
-			{
-				if (conn->shouldClose())
-				{
-					delete conn;
-					_clientListenEndpoints.erase(clientFd);
-					_clientConnections.erase(it++);
-					continue;
-				}
-				conn->setRequestState(Connection::READING_HEADERS);
-				conn->setState(Connection::READING);
-			}
-			++it;
-			continue;
-		}
-		if (sentByte == 0)
-		{
-			delete conn;
-			_clientListenEndpoints.erase(clientFd);
-			_clientConnections.erase(it++);
-			continue;
-		}
-		if (errno == EAGAIN || errno == EWOULDBLOCK)
-		{
-			++it;
-			continue;
-		}
-		perror("send");
-		delete conn;
-		_clientListenEndpoints.erase(clientFd);
-		_clientConnections.erase(it++);
-	}
+	delete it->second;
+	_clientConnections.erase(it++);
 }
 
 void Engine::checkTimeouts()
 {
 	const time_t headerTimeoutSec = 5;
-	const time_t idleTimeoutSec = 30;
+	const time_t bodyReadTimeout = 30;
 	const time_t writeTimeoutSec = 60;
 	const time_t cgiTimeoutSec = 10;
 
@@ -498,61 +190,56 @@ void Engine::checkTimeouts()
 	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
 			it != _clientConnections.end();)
 	{
-		int fd = it->first;
-		Connection* conn = it->second;
-		time_t elapsed = now - conn->getLastActivity();
-		if (conn->getState() == Connection::WRITING && elapsed > writeTimeoutSec)
+		Connection* currentConn = it->second;
+		time_t elapsed = now - currentConn->getLastActivity();
+		if (currentConn->getState() == Connection::WRITING && elapsed > writeTimeoutSec)
 		{
-			delete conn;
-			_clientListenEndpoints.erase(fd);
-			_clientConnections.erase(it++);
+			destroyClientConnection(it);
 			continue;
 		}
 
-		if (conn->getState() == Connection::WRITING)
+		if (currentConn->getState() == Connection::WRITING)
 		{
 			++it;
 			continue;
 		}
+		// for buildErrorResponse
+		const ServerConfig* serverConfig = currentConn->getServerConfig();
 
-		std::map<int, std::pair<std::string, int> >::const_iterator epIt = _clientListenEndpoints.find(fd);
-		const ServerConfig* serverConfig = NULL;
-		if (epIt != _clientListenEndpoints.end())
-			serverConfig = findServerConfig(epIt->second.first, epIt->second.second);
-
-		if (conn->getState() == Connection::CGI_RUNNING)
+		// if cgi script run too long, kill it, clean up, send 504 eror
+		if (currentConn->getState() == Connection::CGI_RUNNING)
 		{
-			Connection::CGIContext* cgi = conn->getCGI();
+			Connection::CGIContext* cgi = currentConn->getCGI();
 			if (cgi != NULL && cgi->start_time > 0 && (now - cgi->start_time) > cgiTimeoutSec)
 			{
-				pid_t pid = conn->getCGIPid();
+				pid_t pid = currentConn->getCGIPid();
 				if (pid > 0)
 				{
 					kill(pid, SIGKILL);
 					waitpid(pid, NULL, WNOHANG);
 				}
-				conn->clearCGI();
-				conn->setShouldClose(true);
-				conn->getWriteBuffer() = buildErrorResponse(504, "Gateway Timeout", true, serverConfig);
-				conn->setState(Connection::WRITING);
+				currentConn->clearCGI();
+				currentConn->setShouldClose(true);
+				currentConn->setWriteBuffer(buildErrorResponse(504, true, serverConfig));
+				currentConn->setState(Connection::WRITING);
 			}
 			++it;
 			continue;
 		}
 
 		bool timedOut = false;
-		if (conn->getRequestState() == Connection::READING_HEADERS && elapsed > headerTimeoutSec)
+		if (currentConn->getRequestState() == Connection::READING_HEADERS && elapsed > headerTimeoutSec)
 			timedOut = true;
-		else if (conn->getState() == Connection::READING && elapsed > idleTimeoutSec)
+		else if (currentConn->getState() == Connection::READING && elapsed > bodyReadTimeout)
 			timedOut = true;
 
 		if (timedOut)
 		{
-			conn->setShouldClose(true);
-			conn->getReadBuffer().clear();
-			conn->getWriteBuffer() = buildErrorResponse(408, "Request Timeout", true, serverConfig);
-			conn->setRequestState(Connection::COMPLETE);
-			conn->setState(Connection::WRITING);
+			currentConn->setShouldClose(true);
+			currentConn->getReadBuffer().clear();
+			currentConn->setWriteBuffer(buildErrorResponse(408, true, serverConfig));
+			currentConn->setRequestState(Connection::COMPLETE);
+			currentConn->setState(Connection::WRITING);
 			++it;
 			continue;
 		}
@@ -561,7 +248,8 @@ void Engine::checkTimeouts()
 }
 
 // fd_set is a box of switches indexed by fd number
-// the program will sleep when it reach select function until at least one signal with readset or 
+// ft_set is a bitmask(array of bits)
+// the program will sleep when it reach select function until at least one signal with readset or
 // writeset is ready
 
 void Engine::run()

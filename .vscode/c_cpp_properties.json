@@ -2,6 +2,7 @@
     "configurations": [
         {
             "name": "Linux",
+            "compileCommands": "${workspaceFolder}/compile_commands.json",
             "includePath": [
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/include/config",
@@ -9,7 +10,7 @@
                 "${workspaceFolder}/include/httpHandling"
             ],
             "defines": [],
-            "compilerPath": "/usr/bin/g++",
+            "compilerPath": "/usr/bin/c++",
             "cStandard": "c11",
             "cppStandard": "c++98",
             "intelliSenseMode": "gcc-x64",

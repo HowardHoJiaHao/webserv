@@ -3,14 +3,15 @@
 /*                                                        :::      ::::::::   */
 /*   connection.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:48:52 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/31 02:03:49 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Connection.hpp"
+#include "config/ServerConfig.hpp"
 #include <unistd.h>
 #include <sys/types.h>
 #include <ctime>
@@ -23,21 +24,18 @@ Connection::Connection(int fd)
 	_closed(false),
 	_requestState(READING_HEADERS),
 	_shouldClose(false),
+	_pendingSetCookieHeader(""),
 	_lastActivity(std::time(NULL)),
-	_cgi(NULL)
+	_cgi(NULL),
+	_serverConfig(NULL)
 	{}
 
 Connection::~Connection()
 {
-	clearCGI();
-	if (!_closed)
-		close();
+	close();
 }
 
-int Connection::getFd() const
-{
-	return _fd;
-}
+
 
 std::string& Connection::getReadBuffer()
 {
@@ -48,6 +46,18 @@ std::string& Connection::getWriteBuffer()
 {
 	return _writeBuffer;
 }
+
+void Connection::setWriteBuffer(const std::string& buffer)
+{
+	_writeBuffer = buffer;
+}
+
+void Connection::appendToWriteBuffer(const std::string& chunk)
+{
+	_writeBuffer += chunk;
+}
+
+
 
 void Connection::close()
 {
@@ -69,7 +79,7 @@ void Connection::setRequestState(RequestState state)
 	_requestState = state;
 }
 
-void Connection::appendToReadBuffer(const char* buffer, ssize_t bytes)
+void Connection::appendToHeaderBuffer(const char* buffer, ssize_t bytes)
 {
 	if (bytes > 0)
 		_readBuffer.append(buffer, bytes);
@@ -95,7 +105,22 @@ bool Connection::shouldClose() const
 	return _shouldClose;
 }
 
-void Connection::updateActivity()
+void Connection::setPendingSetCookieHeader(const std::string& header)
+{
+	_pendingSetCookieHeader = header;
+}
+
+const std::string& Connection::getPendingSetCookieHeader() const
+{
+	return _pendingSetCookieHeader;
+}
+
+void Connection::clearPendingSetCookieHeader()
+{
+	_pendingSetCookieHeader.clear();
+}
+
+void Connection::updateLastActivity()
 {
 	_lastActivity = std::time(NULL);
 }
@@ -165,6 +190,16 @@ void Connection::setCGIStdoutFd(int fd)
 {
 	if (_cgi)
 		_cgi->stdout_fd = fd;
+}
+
+const ServerConfig* Connection::getServerConfig() const
+{
+	return _serverConfig;
+}
+
+void Connection::setServerConfig(const ServerConfig* config)
+{
+	_serverConfig = config;
 }
 
 void Connection::setCGIStdinClosed(bool value)

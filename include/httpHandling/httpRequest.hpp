@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:37:17 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,12 @@ class HttpRequest
 
 		std::map<std::string, std::string> _headers;
 		std::map<std::string, std::string> _cookies;
-		std::string trim(const std::string& str);
+		void reset();
+		void parseRequestLine(const std::string& requestLine);
+		void parseHeaders(const std::string& headerSection);
+		void parseCookies();
+		void validateHeaders(size_t maxBodySize);
+		void extractBody(const std::string& rawRequest, size_t headerEnd, size_t maxBodySize);
 
 	public:
 		HttpRequest();
@@ -42,22 +47,15 @@ class HttpRequest
 		const std::string& getQuery() const;
 		const std::string& getVersion() const;
 		const std::string* getHeader(const std::string& key) const;
+		const std::map<std::string, std::string>& getHeaders() const;
+		const std::string* getCookie(const std::string& key) const;
+		const std::map<std::string, std::string>& getCookies() const;
 		const std::string& getBody() const;
-
-		bool hasContentLength() const;
-		size_t getContentLength() const;
-
-		bool isComplete() const;
 
 		void parse(const std::string& rawRequest, size_t maxBodySize);
 
-		bool shouldCloseConnection() const;
-		void parseCookies(const std::string& cookieHeader);
-		std::string getCookie(const std::string& key) const;
-
-
-
-
+		bool shouldCloseConnectionByHttpRules() const;
 };
+
 
 #endif
