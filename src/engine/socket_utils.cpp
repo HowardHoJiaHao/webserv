@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/24 17:20:00 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/01 13:52:30 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -87,15 +87,7 @@ void configureListeningNonblockingSocket(int& sockfd)
 		close(sockfd);
 		throw std::runtime_error("listen failed");
 	}
-	//get current flag for next if statement
-	int flags = fcntl(sockfd, F_GETFL, 0);
-	if (flags == -1)
-	{
-		close(sockfd);
-		throw std::runtime_error("fcntl F_GETFL failed");
-	}
-	// enable the nonblock mode, surgically
-	if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1)
+	if (fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1)
 	{
 		close(sockfd);
 		throw std::runtime_error("fcntl F_SETFL failed");

@@ -74,6 +74,22 @@ std::string Engine::buildResponse
 	return ss.str();
 }
 
+std::string Engine::appendHeaderToResponse(const std::string& response, const std::string& headerLine) const
+{
+	if (headerLine.empty())
+		return response;
+
+	size_t headerEnd = response.find("\r\n\r\n");
+	if (headerEnd == std::string::npos)
+		return response;
+
+	std::string withHeader = response.substr(0, headerEnd);
+	withHeader += "\r\n";
+	withHeader += headerLine;
+	withHeader += response.substr(headerEnd);
+	return withHeader;
+}
+
 std::string Engine::buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig)
 {
 	return buildErrorResponse(code, shouldClose, serverConfig, std::vector<std::string>());

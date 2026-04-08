@@ -1,117 +1,142 @@
-# Webserv Full Request Call Chain
+# Webserv Full Request Call Chain (Updated)
 
 ```
 main.cpp
 └── int main(int, char**)
-    ├── ConfigFiles constructor          # Parse config file
-    ├── Engine constructor               # Initialize engine with config
-    ├── Engine::setupListeningSockets()  # Create bind/listen sockets for all server:port
-    └── Engine::run()                    # Main event loop
-        ├── registerListenSocketsForSelect()  # Add listen fds to select read set
-        ├── registerClientSocketForSelect()   # Add client fds to select sets
-        ├── select()                          # Wait for socket activity (blocks up to 1s)
-        ├── checkTimeouts()                   # Close timed out connections
-        ├── acceptPendingClientConnections()  # Accept new clients on listen sockets
-        ├── Engine::processIncomingData() (engineIncomingData.cpp:205)  # Read from ready sockets
-        │   ├── processCGIOutput() [if CGI_RUNNING]  # Read CGI pipe when ready
-        │   │   ├── read() from CGI stdout pipe      # Get CGI script output
-        │   │   └── buildResponseFromCGIOutput()     # Parse CGI headers + format HTTP response
-        │   │       └── parseCGIHeaders()            # Extract Status, Content-Type from CGI
-        │   └── handleClientSocketRead()             # Read from client socket
-        │       ├── recv() from client socket        # Receive raw bytes
-        │       └── Engine::handleClientRequest()    # Process received data
-        │           ├── Engine::attemptIncomingHeader()  # Append to buffer, check size limits
-        │           │   ├── Connection::appendToHeaderBuffer()  # Store received bytes
-        │           │   └── Engine::enforceRequestSizeLimits()   # Reject if > 8KB header
-        │           └── Engine::processBufferedRequests()  # Extract and process complete requests
-        │               ├── Engine::handleRequestExtraction()  # Find \r\n\r\n boundary
-        │               │   └── validateAndExtractRequestFromBuffer()  # Extract one full request
-        │               ├── Engine::handleRequestParsing()  # Parse raw string into HttpRequest
-        │               │   └── HttpRequest::parse()        # Parse method, path, headers, body
-        │               ├── Engine::enforceRequestBodySizeLimit()  # Check max body size from config
-        │               └── Engine::handleRequestExecution()  # Route/Execute the request
-        │                   ├── findBestLocation()             # Match path to location block
-        │                   ├── isMethodAllowed()              # Check if method allowed for location
-        │                   ├── isCgiRequestForLocation()      # Check if path is CGI
-        │                   │   └── launchCGI() [if CGI]       # Fork + exec CGI script
-        │                   │       ├── fork()                 # Create child process
-        │                   │       ├── execve()               # Run CGI script in child
-        │                   │       └── Connection::setState(CGI_RUNNING)  # Wait for CGI
-        │                   ├── Engine::handleSession() [non-CGI]  # Handle session cookies
-        │                   └── routeRequest() [non-CGI]           # Handle static files/DELETE
-        │                       └── appendToWriteBuffer()          # Prepare response for writing
-        └── processOutgoingData()  # Send responses to clients in WRITING state
+    ├── ConfigFiles::ConfigFiles()            # Parse/validate config into server objects
+    ├── Engine::Engine()                      # Build runtime state (sockets, sessions, connections)
+    ├── Engine::setupListeningSockets()       # bind/listen on all configured host:port pairs
+    └── Engine::run()                         # Main event loop (single select gate)
+        ├── registerListenSocketsForSelect()  # Add listen sockets to read set
+        ├── registerClientSocketForSelect()   # Add client sockets + CGI pipes to read/write sets
+        ├── select()                          # Wait until at least one descriptor is ready
+        ├── checkTimeouts()                   # Enforce header/body/write/CGI timeout rules
+        ├── acceptPendingClientConnections()  # Accept newly ready listen sockets
+        ├── processIncomingData()             # Read from ready client sockets / CGI stdout pipes
+        │   ├── processCGIOutput() [if CGI_RUNNING]
+        │   │   ├── read() from CGI stdout pipe
+        │   │   ├── buildResponseFromCGIOutput()
+        │   │   │   └── parseCGIHeaders()
+        │   │   └── setState(WRITING)
+        │   └── handleClientSocketRead()
+        │       ├── recv() from client socket
+        │       └── handleClientRequest()
+        │           ├── attemptIncomingHeader()
+        │           │   ├── appendToHeaderBuffer()
+        │           │   └── enforceRequestSizeLimits()
+        │           └── processBufferedRequests()
+        │               ├── handleRequestExtraction()
+        │               │   └── validateAndExtractRequestFromBuffer()
+        │               ├── handleRequestParsing()
+        │               │   └── HttpRequest::parse()
+        │               │       ├── parseRequestLine()
+        │               │       ├── parseHeaders()
+        │               │       ├── parseCookies()
+        │               │       └── extractBody()
+        │               └── handleRequestExecution()
+        │                   ├── findBestLocation()
+        │                   ├── isMethodAllowed()
+        │                   ├── ensureSessionCookieHeader()
+        │                   ├── launchCGI() [if CGI]
+        │                   │   ├── resolveCGIScriptPath()
+        │                   │   ├── validateCGIScript()
+        │                   │   ├── createCGIProcess() -> fork()
+        │                   │   ├── setupCGIChildProcess() -> execve()
+        │                   │   └── setupCGIParent() -> setState(CGI_RUNNING)
+        │                   └── routeRequest() [if non-CGI]
+        │                       ├── handleGet()
+        │                       ├── handlePost()
+        │                       └── handleDelete()
+        └── processOutgoingData()             # Write response bytes / feed CGI stdin
+            ├── handleCGIStdinWrite() [if CGI_RUNNING]
+            │   └── write() to CGI stdin pipe
+            └── handleClientWrite()
+                └── send() HTTP bytes to client
 ```
 
 ---
 
-## Complete Execution Path (Normal Request):
+## Complete Execution Path (Continuous Request):
 
 1. **Entry Point**  
-   `main.cpp:30` → `Engine::run()` (`engine.cpp:287`)
+   Input in words: command-line arguments with optional config path and process signals.  
+   Output in words: initialized configuration and engine runtime objects.
 
-2. **Event Loop**  
-   `Engine::run()` loops indefinitely until signal received  
-   └── `select()` waits for activity on sockets
+2. **Socket Setup**  
+   Input in words: parsed server host/port list from config.  
+   Output in words: non-blocking listening sockets ready to accept clients.
 
-3. **Client Connection Accepted**  
-   When new client connects:
-   ```
-   acceptPendingClientConnections()
-   ├── accept()
-   ├── fcntl(O_NONBLOCK)
-   └── _clientConnections[fd] = new Connection()
-   ```
+3. **Event Loop Tick**  
+   Input in words: current connection map, listen sockets, CGI pipe descriptors, timeout values.  
+   Output in words: readiness sets from select and updated timeout decisions.
 
-4. **Incoming Data Processing**  
-   When client sends data:
-   ```
-   processIncomingData()
-   └── handleClientSocketRead()
-       └── recv() → buffer
-           └── handleClientRequest(conn, buffer, bytes)
-               ├── attemptIncomingHeader()
-               └── processBufferedRequests()
-                   ├── handleRequestExtraction()
-                   ├── handleRequestParsing()
-                   ├── enforceRequestBodySizeLimit()
-                   └── handleRequestExecution()
-                       ├── If CGI → launchCGI()
-                       └── Else → routeRequest()
-   ```
+4. **Accept New Clients**  
+   Input in words: readiness-marked listen descriptors.  
+   Output in words: newly accepted non-blocking client sockets and `Connection` objects.
 
-5. **CGI Path (When executed)**
-   ```
-   launchCGI()
-   ├── fork()
-   │   ├── Child: execve() CGI script
-   │   └── Parent: record pid + pipe fds
-   └── conn->setState(CGI_RUNNING)
+5. **Read Ready Inputs**  
+   Input in words: readiness-marked client sockets and CGI stdout descriptors.  
+   Output in words: client read buffers extended or CGI stdout buffers extended.
 
-   [Next loop iteration]
-   processIncomingData()
-   └── processCGIOutput()
-       ├── read() from CGI pipe
-       └── buildResponseFromCGIOutput()
-           └── conn->setState(WRITING)
-   ```
+6. **Frame and Parse Requests**  
+   Input in words: accumulated raw bytes in connection read buffer.  
+   Output in words: one complete `HttpRequest` object (method/path/query/headers/cookies/body).
 
-6. **Response Writing**
-   ```
-   processOutgoingData()
-   └── send() response to client
-   ```
+7. **Execute Request (single branch point)**  
+   Input in words: parsed request + selected server/location config + connection keep-alive decision.  
+   Output in words: either CGI process started or full non-CGI HTTP response string produced.
+
+8. **Collect CGI Result (if CGI branch)**  
+   Input in words: CGI stdout bytes and CGI headers/body text.  
+   Output in words: normalized HTTP response bytes in write buffer.
+
+9. **Write Outbound Data**  
+   Input in words: connection write buffer and write-ready descriptors.  
+   Output in words: response bytes sent, state reset to READING for keep-alive or connection closed.
 
 ---
 
 ## Function Location Reference:
 | Function | File | Line |
 |----------|------|------|
-| `main()` | `src/main.cpp` | 30 |
-| `Engine::run()` | `src/engine/engine.cpp` | 287 |
-| `processIncomingData()` | `src/engine/EngineIncomingHandling/engineIncomingData.cpp` | 205 |
-| `handleClientSocketRead()` | `src/engine/EngineIncomingHandling/engineIncomingData.cpp` | 165 |
-| `handleClientRequest()` | `src/engine/EngineIncomingHandling/engine_request_processing.cpp` | 315 |
-| `processBufferedRequests()` | `src/engine/EngineIncomingHandling/engine_request_processing.cpp` | 238 |
-| `handleRequestExecution()` | `src/engine/EngineIncomingHandling/engine_request_processing.cpp` | 156 |
-| `processCGIOutput()` | `src/engine/EngineIncomingHandling/engineIncomingData.cpp` | 112 |
+| `main()` | `src/main.cpp` | 20 |
+| `Engine::run()` | `src/engine/engine.cpp` | 255 |
+| `Engine::registerListenSocketsForSelect()` | `src/engine/engine.cpp` | 88 |
+| `Engine::registerClientSocketForSelect()` | `src/engine/engine.cpp` | 103 |
+| `Engine::checkTimeouts()` | `src/engine/engine.cpp` | 182 |
+| `Engine::acceptPendingClientConnections()` | `src/engine/engine.cpp` | 140 |
+| `Engine::processIncomingData()` | `src/engine/EngineIncomingHandling/engineIncomingData.cpp` | 168 |
+| `Engine::processCGIOutput()` | `src/engine/EngineIncomingHandling/engineIncomingData.cpp` | 101 |
+| `Engine::buildResponseFromCGIOutput()` | `src/engine/EngineIncomingHandling/engineIncomingData.cpp` | 45 |
+| `Engine::parseCGIHeaders()` | `src/engine/EngineIncomingHandling/engineIncomingData.cpp` | 15 |
+| `Engine::handleClientSocketRead()` | `src/engine/EngineIncomingHandling/engineIncomingData.cpp` | 141 |
+| `Engine::handleClientRequest()` | `src/engine/EngineIncomingHandling/engine_request_processing.cpp` | 319 |
+| `Engine::attemptIncomingHeader()` | `src/engine/EngineIncomingHandling/engine_request_processing.cpp` | 229 |
+| `Engine::processBufferedRequests()` | `src/engine/EngineIncomingHandling/engine_request_processing.cpp` | 249 |
+| `Engine::handleRequestExtraction()` | `src/engine/EngineIncomingHandling/engine_request_processing.cpp` | 102 |
+| `validateAndExtractRequestFromBuffer()` | `src/httpHandling/requestValidator.cpp` | 181 |
+| `Engine::handleRequestParsing()` | `src/engine/EngineIncomingHandling/engine_request_processing.cpp` | 134 |
+| `HttpRequest::parse()` | `src/httpHandling/httpRequest_parse.cpp` | 222 |
+| `Engine::handleRequestExecution()` | `src/engine/EngineIncomingHandling/engine_request_processing.cpp` | 164 |
+| `Engine::findBestLocation()` | `src/engine/EngineIncomingHandling/engine_routing.cpp` | 28 |
+| `Engine::isMethodAllowed()` | `src/engine/EngineIncomingHandling/engine_routing.cpp` | 52 |
+| `Engine::ensureSessionCookieHeader()` | `src/engine/EngineIncomingHandling/engine_request_processing.cpp` | 69 |
+| `Engine::launchCGI()` | `src/engine/engine_cgi.cpp` | 320 |
+| `Engine::routeRequest()` | `src/engine/EngineIncomingHandling/engine_routing.cpp` | 197 |
+| `Engine::processOutgoingData()` | `src/engine/engineOutgoingData.cpp` | 102 |
+| `Engine::handleCGIStdinWrite()` | `src/engine/engineOutgoingData.cpp` | 15 |
+| `Engine::handleClientWrite()` | `src/engine/engineOutgoingData.cpp` | 49 |
+
+---
+
+## Function Roles With Input/Output (in words)
+| Function | Input in words | Output in words | What it does briefly |
+|----------|----------------|-----------------|----------------------|
+| `Engine::handleRequestExtraction()` | Raw accumulated bytes in one connection read buffer | One full raw HTTP request string when complete | Frames one request safely from a potentially partial stream. |
+| `validateAndExtractRequestFromBuffer()` | Mutable buffer text that may contain headers and body | Extracted request text and remaining unread bytes in buffer | Detects request boundary for content-length or chunked bodies. |
+| `Engine::handleRequestParsing()` | Raw request text and configured max body size | Structured request object or parse error response | Converts text protocol data into typed request fields. |
+| `HttpRequest::parse()` | One full raw request string | Parsed method/path/query/headers/cookies/body fields | Performs request-line, header, cookie, and body parsing. |
+| `Engine::handleRequestExecution()` | Parsed request and selected server/location config | Final response bytes or CGI process startup | Applies rules, session cookie policy, and dispatches CGI/non-CGI paths. |
+| `Engine::launchCGI()` | Request context and CGI route config | Connection enters CGI_RUNNING or immediate error response | Creates CGI process and pipe wiring for stdin/stdout. |
+| `Engine::routeRequest()` | Parsed non-CGI request and route config | Complete HTTP response string | Dispatches GET, POST, DELETE handling and route-level behavior. |
+| `Engine::processOutgoingData()` | Write-ready descriptors and connection write buffers | Sent bytes and updated connection states | Drains response buffers and finalizes keep-alive/close transitions. |

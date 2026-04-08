@@ -211,6 +211,13 @@ static void parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i
 			loc.setRoot(applyPrefixPath(prefix, tokens[i++].value));
 			expectToken(tokens, i, ";");
 		}
+		else if (key == "index")
+		{
+			if (i >= tokens.size())
+				throw parseError(tokens[i - 1].line, "missing location index");
+			loc.setIndex(tokens[i++].value);
+			expectToken(tokens, i, ";");
+		}
 		else if (key == "upload_enable")
 		{
 			if (i >= tokens.size())
@@ -306,13 +313,7 @@ static ServerConfig parseServerBlock(const std::vector<ConfigToken>& tokens, siz
 			server.setHost(tokens[i++].value);
 			expectToken(tokens, i, ";");
 		}
-		else if (key == "server_name")
-		{
-			if (i >= tokens.size())
-				throw parseError(tokens[i - 1].line, "missing server_name value");
-			server.setServerName(tokens[i++].value);
-			expectToken(tokens, i, ";");
-		}
+
 		else if (key == "root")
 		{
 			if (i >= tokens.size())
@@ -440,7 +441,7 @@ void ConfigFiles::initDummy()
 	ServerConfig server1;
 	server1.setHost("127.0.0.1");
 	server1.setPort(8080);
-	server1.setServerName("test1");
+
 	server1.setRoot("./www1");
 	server1.setIndex("index.html");
 	server1.setMaxBodySize(1000000);
@@ -477,7 +478,7 @@ void ConfigFiles::initDummy()
 	ServerConfig server2;
 	server2.setHost("127.0.0.1");
 	server2.setPort(8081);
-	server2.setServerName("test2");
+
 	server2.setRoot("./www2");
 	server2.setIndex("home.html");
 	server2.setMaxBodySize(1000000);

@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/07 18:17:28 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,8 +30,8 @@ class Engine
 		const ConfigFiles& 								_config;
 		std::map<std::pair<std::string,int>, int> 		_listenSockets;
 		std::map<int, Connection*> 						_clientConnections; // <- client socket + state + buffer
-		std::map<int, std::pair<std::string, int> > 	_clientListenEndpoints;
-		std::map<std::string, int> 						_sessions;
+		std::map<std::string, time_t>					_sessions;
+		unsigned long									_sessionCounter;
 
 		void registerListenSocketsForSelect(fd_set& readSet, int& maxFd);
 		void registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, int& maxFd);
@@ -47,16 +47,19 @@ class Engine
 		void	handleClientWrite(std::map<int, Connection*>::iterator& it, int clientFd, fd_set& writeSet);
 		void	parseCGIHeaders(const std::string& headerSection, std::string& status, std::string& contentType, std::vector<std::string>& extraHeaders);
 		void	buildResponseFromCGIOutput(Connection* currentConn, const std::string& cgiOutput);
-		bool	handleCGIWouldBlock(Connection* currentConn, struct timeval& startTime);
 		void	handleCGIReadError(Connection* currentConn);
 
 		void processOutgoingData(fd_set& writeSet);
 		void checkTimeouts();
 
 		const ServerConfig* findServerConfig(const std::string& host, int port) const;
-		//const ServerConfig* findServerConfigForConnection(int clientFd) const;
+		void destroyClientConnection(std::map<int, Connection*>::iterator& it);
 		const LocationConfig* findBestLocation(const ServerConfig& serverConfig, const std::string& path) const;
+		std::string resolveLocationRoot(const ServerConfig& serverConfig, const LocationConfig* location) const;
+		std::string mapRequestPathForLocationRoot(const std::string& requestPath, const LocationConfig* location) const;
+		bool hasPathTraversal(const std::string& path) const;
 		bool isMethodAllowed(const std::string& method, const LocationConfig* location) const;
+		std::vector<std::string> methodNotAllowedHeaders(const LocationConfig* location) const;
 
 		// ===================				handleClientRequest		========================
 		
@@ -67,9 +70,7 @@ class Engine
 		bool enforceRequestSizeLimits(Connection* conn, size_t headerEnd);
 		bool handleRequestExtraction(Connection* conn, std::string& rawRequest, bool& extracted);
 		bool handleRequestParsing(Connection* conn, const std::string& rawRequest, HttpRequest& request, const ServerConfig* serverConfig);
-		bool enforceRequestBodySizeLimit(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig);
-		void handleSession(const HttpRequest& request, std::vector<std::string>& extraHeaders);
-		bool handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig, bool shouldClose, bool& producedResponse);
+		bool handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig, const LocationConfig* location, bool shouldClose, bool& producedResponse);
 		std::string handleGet(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);
 
 		// ==================== 			build response			========================
@@ -80,13 +81,18 @@ class Engine
 		std::string buildRedirectResponse(int code, const std::string& target, bool shouldClose);
 		std::string buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig);
 		std::string buildErrorResponse(int code, bool shouldClose, const ServerConfig* serverConfig, const std::vector<std::string>& extraHeaders);
+		std::string appendHeaderToResponse(const std::string& response, const std::string& headerLine) const;
+
+		void		pruneExpiredSessions(time_t now);
+		std::string generateSessionId(time_t now);
+		std::string ensureSessionCookieHeader(const HttpRequest& request);
 
 		// ====================				launchCGI				========================
 		
-		bool		resolveCGIScriptPath(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, bool shouldClose, std::string& scriptPath);
+		bool		resolveCGIScriptPath(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, const LocationConfig* location, std::string& scriptPath);
 		bool		validateCGIScript(Connection* conn, const std::string& scriptPath, const ServerConfig& serverConfig, bool shouldClose);
 		bool		createCGIProcess(Connection* conn, const ServerConfig& serverConfig, int in_pipe[2], int out_pipe[2], pid_t& pid);
-		void		setupCGIChildProcess(int in_pipe[2], int out_pipe[2], const std::string& scriptPath, const HttpRequest& request);
+		void		setupCGIChildProcess(int in_pipe[2], int out_pipe[2], const std::string& scriptPath, const HttpRequest& request, const ServerConfig& serverConfig);
 		void		setupCGIParent(Connection* conn, const HttpRequest& request, int in_pipe[2], int out_pipe[2], pid_t pid, bool shouldClose);
 
 	public:
@@ -95,10 +101,10 @@ class Engine
 
 		void		setupListeningSockets();
 		void		run();
-		std::string routeRequest(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);
+		std::string routeRequest(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);
 		std::string handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);
-		std::string handleDelete(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig);
-		bool 		launchCGI(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, bool shouldClose);
+		std::string handleDelete(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location);
+		bool 		launchCGI(Connection* conn, const HttpRequest& request, const ServerConfig& serverConfig, const LocationConfig* location, bool shouldClose);
 
 };
 

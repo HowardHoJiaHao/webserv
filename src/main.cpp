@@ -17,16 +17,6 @@
 #include <ctime>
 #include <cstdlib>
 
-void	printServerStatus(const std::vector<ServerConfig>& servers)
-{
-	for (size_t i = 0; i < servers.size(); i++)
-	{
-		std::cout << "Server " << i << std::endl;
-		std::cout << "Port: " << servers[i].getPort() << std::endl;
-		std::cout << "Host: " << servers[i].getHost() << std::endl;
-	}
-}
-
 int	main(int argc, char **argv)
 {
     //when a client disconnects, SIGPIPE is sent, but we ignore it to avoid crashing
@@ -41,10 +31,6 @@ int	main(int argc, char **argv)
 			Engine	engine(config);
 			engine.setupListeningSockets();
 			engine.run();
-			// const std::vector<ServerConfig>& servers = config.getServers();
-			// printServerStatus(servers); //debug testing
-
-
 		}
 		catch (std::exception &e)
 		{

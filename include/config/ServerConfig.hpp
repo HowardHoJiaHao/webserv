@@ -23,7 +23,6 @@ class ServerConfig
 	private:
 		std::string _host;
 		int			_port;
-		std::string	_serverName;
 		std::string	_root;
 		std::string	_index;
 		size_t		_maxBodySize;
@@ -36,7 +35,6 @@ class ServerConfig
 
 		void	setHost(const std::string& host);
 		void	setPort(int port);
-		void	setServerName(const std::string& name);
 		void	setRoot(const std::string& root);
 		void	setIndex(const std::string& index);
 		void	setMaxBodySize(size_t size);
@@ -46,7 +44,6 @@ class ServerConfig
 
 		const	std::string& getHost()const;
 		int		getPort()const;
-		const	std::string& getServerName()const;
 		const	std::string& getRoot()const;
 		const	std::string& getIndex()const;
 		size_t	getMaxBodySize() const;

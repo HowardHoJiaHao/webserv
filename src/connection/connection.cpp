@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   connection.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:48:52 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/07 01:48:26 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,6 +24,7 @@ Connection::Connection(int fd)
 	_closed(false),
 	_requestState(READING_HEADERS),
 	_shouldClose(false),
+	_pendingSetCookieHeader(""),
 	_lastActivity(std::time(NULL)),
 	_cgi(NULL),
 	_serverConfig(NULL)
@@ -31,15 +32,10 @@ Connection::Connection(int fd)
 
 Connection::~Connection()
 {
-	clearCGI();
-	if (!_closed)
-		close();
+	close();
 }
 
-int Connection::getFd() const
-{
-	return _fd;
-}
+
 
 std::string& Connection::getReadBuffer()
 {
@@ -61,10 +57,7 @@ void Connection::appendToWriteBuffer(const std::string& chunk)
 	_writeBuffer += chunk;
 }
 
-void Connection::clearWriteBuffer()
-{
-	_writeBuffer.clear();
-}
+
 
 void Connection::close()
 {
@@ -110,6 +103,21 @@ void Connection::setShouldClose(bool value)
 bool Connection::shouldClose() const
 {
 	return _shouldClose;
+}
+
+void Connection::setPendingSetCookieHeader(const std::string& header)
+{
+	_pendingSetCookieHeader = header;
+}
+
+const std::string& Connection::getPendingSetCookieHeader() const
+{
+	return _pendingSetCookieHeader;
+}
+
+void Connection::clearPendingSetCookieHeader()
+{
+	_pendingSetCookieHeader.clear();
 }
 
 void Connection::updateLastActivity()

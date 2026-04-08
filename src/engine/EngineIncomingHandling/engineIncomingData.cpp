@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engineIncomingData.cpp                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/07 01:48:26 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,9 +44,15 @@ void Engine::parseCGIHeaders(const std::string& headerSection, std::string& stat
 
 void Engine::buildResponseFromCGIOutput(Connection* currentConn, const std::string& cgiOutput)
 {
+	const std::string pendingSetCookieHeader = currentConn->getPendingSetCookieHeader();
+
 	if (cgiOutput.find("HTTP/1.") == 0)
 	{
-		currentConn->getWriteBuffer().append(cgiOutput);
+		if (!pendingSetCookieHeader.empty())
+			currentConn->getWriteBuffer().append(appendHeaderToResponse(cgiOutput, pendingSetCookieHeader));
+		else
+			currentConn->getWriteBuffer().append(cgiOutput);
+		currentConn->clearPendingSetCookieHeader();
 		return;
 	}
 
@@ -68,45 +74,28 @@ void Engine::buildResponseFromCGIOutput(Connection* currentConn, const std::stri
 		body = cgiOutput.substr(headerEnd + headerBodySepLen);
 		parseCGIHeaders(headerSection, status, contentType, extraHeaders);
 	}
+	if (!pendingSetCookieHeader.empty())
+		extraHeaders.push_back(pendingSetCookieHeader);
 
 	currentConn->getWriteBuffer().append(
 		buildResponse(status, body, contentType, currentConn->shouldClose(), extraHeaders)
 	);
+	currentConn->clearPendingSetCookieHeader();
 }
 
 void Engine::handleCGIReadError(Connection* currentConn)
 {
 	perror("read CGI");
 	currentConn->setShouldClose(true);
-	currentConn->setWriteBuffer(buildErrorResponse(500, currentConn->shouldClose(), NULL));
-	currentConn->clearCGI();
-	currentConn->setState(Connection::WRITING);
-}
-
-bool Engine::handleCGIWouldBlock(Connection* currentConn, struct timeval& startTime)
-{
-	struct timeval now;
-	gettimeofday(&now, NULL);
-	time_t elapsed_sec = now.tv_sec - startTime.tv_sec;
-	suseconds_t elapsed_usec = now.tv_usec - startTime.tv_usec;
-	if (elapsed_usec < 0)
+	std::string response = buildErrorResponse(500, currentConn->shouldClose(), currentConn->getServerConfig());
+	if (!currentConn->getPendingSetCookieHeader().empty())
 	{
-		elapsed_sec -= 1;
-		elapsed_usec += 1000000;
+		response = appendHeaderToResponse(response, currentConn->getPendingSetCookieHeader());
+		currentConn->clearPendingSetCookieHeader();
 	}
-	if (elapsed_sec < 3)
-		return false;
-
-	pid_t pid = currentConn->getCGIPid();
-	if (pid > 0)
-		kill(pid, SIGKILL);
-	if (pid > 0)
-		waitpid(pid, NULL, 0);
-	currentConn->setWriteBuffer(buildErrorResponse(504, currentConn->shouldClose(), NULL));
-	currentConn->setShouldClose(true);
+	currentConn->setWriteBuffer(response);
 	currentConn->clearCGI();
 	currentConn->setState(Connection::WRITING);
-	return true;
 }
 
 bool Engine::processCGIOutput(Connection* currentConn, fd_set& readSet)
@@ -117,42 +106,29 @@ bool Engine::processCGIOutput(Connection* currentConn, fd_set& readSet)
 
 	char buffer[1024];
 	Connection::CGIContext* cgi = currentConn->getCGI();
-	struct timeval start_time;
-	gettimeofday(&start_time, NULL);
-	while (true)
+	ssize_t bytes = read(cgi_fd, buffer, sizeof(buffer));
+	if (bytes > 0)
 	{
-		ssize_t bytes = read(cgi_fd, buffer, sizeof(buffer));
-		if (bytes > 0)
-		{
-			if (cgi != NULL)
-				cgi->stdout_buffer.append(buffer, bytes);
-			currentConn->updateLastActivity();
-		}
-		else if (bytes == 0)
-		{
-			pid_t pid = currentConn->getCGIPid();
-			if (pid > 0)
-				waitpid(pid, NULL, WNOHANG);
-			std::string cgiOutput;
-			if (cgi != NULL)
-				cgiOutput = cgi->stdout_buffer;
-			buildResponseFromCGIOutput(currentConn, cgiOutput);
-			currentConn->clearCGI();
-			currentConn->setState(Connection::WRITING);
-			return true;
-		}
-		else
-		{
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
-			{
-				if (handleCGIWouldBlock(currentConn, start_time))
-					return true;
-				return false;
-			}
-			handleCGIReadError(currentConn);
-			return true;
-		}
+		if (cgi != NULL)
+			cgi->stdout_buffer.append(buffer, bytes);
+		currentConn->updateLastActivity();
+		return false;
 	}
+	if (bytes == 0)
+	{
+		pid_t pid = currentConn->getCGIPid();
+		if (pid > 0)
+			waitpid(pid, NULL, WNOHANG);
+		std::string cgiOutput;
+		if (cgi != NULL)
+			cgiOutput = cgi->stdout_buffer;
+		buildResponseFromCGIOutput(currentConn, cgiOutput);
+		currentConn->clearCGI();
+		currentConn->setState(Connection::WRITING);
+		return true;
+	}
+	handleCGIReadError(currentConn);
+	return true;
 }
 
 // input: http request from client, get, post, delete
@@ -176,25 +152,12 @@ void Engine::handleClientSocketRead(std::map<int, Connection*>::iterator& it, in
 		}
 		else if (bytes == 0)
 		{
-			delete it->second;
-			_clientListenEndpoints.erase(clientFd);
-			_clientConnections.erase(it++);
+			destroyClientConnection(it);
 		}
 		else
 		{
-			// recv return -1 and set errno
-			// nothing to read at this moment, but the connection is still open
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
-			{
-				++it;
-			}
-			else
-			{
-				perror("recv");
-				delete it->second;
-				_clientListenEndpoints.erase(clientFd);
-				_clientConnections.erase(it++);
-			}
+			perror("recv");
+			destroyClientConnection(it);
 		}
 	}
 	// this socket is not ready for reading, skip it
@@ -219,7 +182,7 @@ void Engine::processIncomingData(fd_set& readSet)
 				++it;
 				continue;
 			}
-			// cgi not ready yet(EAGAIN), try again next loop iteration
+			// cgi not ready yet, try again next loop iteration
 			else
 			{
 				++it;

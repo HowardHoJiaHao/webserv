@@ -6,23 +6,24 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/07 16:10:00 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/07 17:56:56 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "httpRequest.hpp"
+#include "requestValidator.hpp"
+#include "engine_string_utils.hpp"
 #include <sstream>
-#include <cstdlib>
 #include <cctype>
 
 //	====================	http parsing	======================
 
-static std::string toLowerAscii(const std::string& input)
+static bool hasChunkedTransferEncoding(const std::map<std::string, std::string>& headers)
 {
-	std::string lowered = input;
-	for (size_t i = 0; i < lowered.size(); ++i)
-		lowered[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(lowered[i])));
-	return lowered;
+	std::map<std::string, std::string>::const_iterator it = headers.find("transfer-encoding");
+	if (it == headers.end())
+		return false;
+	return hasChunkedTransferEncodingValue(it->second);
 }
 
 void HttpRequest::reset()
@@ -32,8 +33,8 @@ void HttpRequest::reset()
 	_query.clear();
 	_version.clear();
 	_body.clear();
-	_cookies.clear();
 	_headers.clear();
+	_cookies.clear();
 	_contentLength = 0;
 	_hasContentLength = false;
 }
@@ -72,7 +73,6 @@ void HttpRequest::parseRequestLine(const std::string& requestLine)
 // Host: example.com\r\n
 // User-Agent: Mozilla/5.0\r\n
 // Accept: */*\r\n
-// Cookie: session=abc123\r\n
 // \r\n
 void HttpRequest::parseHeaders(const std::string& headerSection)
 {
@@ -90,7 +90,7 @@ void HttpRequest::parseHeaders(const std::string& headerSection)
 		size_t colonPos = line.find(':');
 		if (colonPos == std::string::npos)
 			throw std::runtime_error("malformed header");
-		std::string key = toLowerAscii(line.substr(0, colonPos));
+		std::string key = toLowerAsciiEngine(line.substr(0, colonPos));
 		std::string value = line.substr(colonPos + 1);
 		if (key.empty())
 			throw std::runtime_error("Malformed header: empty key");
@@ -100,9 +100,42 @@ void HttpRequest::parseHeaders(const std::string& headerSection)
 		if (_headers.find(key) != _headers.end())
 			throw std::runtime_error("Duplicate header");
 		_headers[key] = value;
-		//eg:- cookie: session=abc123; theme=dark; user=wai
-		if (key == "cookie")
-			parseCookies(value);
+	}
+}
+
+void HttpRequest::parseCookies()
+{
+	std::map<std::string, std::string>::const_iterator cookieHeader = _headers.find("cookie");
+	if (cookieHeader == _headers.end())
+		return;
+
+	const std::string& rawCookies = cookieHeader->second;
+	size_t start = 0;
+	while (start <= rawCookies.size())
+	{
+		size_t delimiter = rawCookies.find(';', start);
+		std::string token;
+		if (delimiter == std::string::npos)
+			token = rawCookies.substr(start);
+		else
+			token = rawCookies.substr(start, delimiter - start);
+
+		token = trimAsciiEngine(token);
+		if (!token.empty())
+		{
+			size_t equalsPos = token.find('=');
+			if (equalsPos != std::string::npos)
+			{
+				std::string cookieKey = toLowerAsciiEngine(trimAsciiEngine(token.substr(0, equalsPos)));
+				std::string cookieValue = trimAsciiEngine(token.substr(equalsPos + 1));
+				if (!cookieKey.empty() && _cookies.find(cookieKey) == _cookies.end())
+					_cookies[cookieKey] = cookieValue;
+			}
+		}
+
+		if (delimiter == std::string::npos)
+			break;
+		start = delimiter + 1;
 	}
 }
 
@@ -110,8 +143,7 @@ void HttpRequest::parseHeaders(const std::string& headerSection)
 // {
 //		"host"				→ "example.com",
 //		"user-agent"		→ "Mozilla/5.0",
-//		"content-length"	→ "11",
-//		"cookie"			→ "session=abc123"
+//		"content-length"	→ "11"
 // }
 void HttpRequest::validateHeaders(size_t maxBodySize)
 {
@@ -123,6 +155,10 @@ void HttpRequest::validateHeaders(size_t maxBodySize)
 		if (hostIt->second.empty())
 			throw std::runtime_error("Invalid Host header");
 	}
+
+	bool hasChunkedBody = hasChunkedTransferEncoding(_headers);
+	if (hasChunkedBody && _headers.find("content-length") != _headers.end())
+		throw std::runtime_error("Invalid Content-Length");
 
 	std::map<std::string, std::string>::const_iterator it = _headers.find("content-length");
 	if (it != _headers.end())
@@ -147,9 +183,24 @@ void HttpRequest::validateHeaders(size_t maxBodySize)
 	}
 }
 
-void HttpRequest::extractBody(const std::string& rawRequest, size_t headerEnd)
+void HttpRequest::extractBody(const std::string& rawRequest, size_t headerEnd, size_t maxBodySize)
 {
 	size_t bodyStart = headerEnd + 4;
+	if (bodyStart > rawRequest.size())
+		throw std::runtime_error("Incomplete request");
+
+	if (hasChunkedTransferEncoding(_headers))
+	{
+		bool bodyTooLarge = false;
+		if (!decodeChunkedBodyForRequest(rawRequest.substr(bodyStart), maxBodySize, _body, &bodyTooLarge))
+		{
+			if (bodyTooLarge)
+				throw std::runtime_error("Body too large");
+			throw std::runtime_error("Malformed chunked body");
+		}
+		return;
+	}
+
 	if (_hasContentLength)
 	{
 		if (bodyStart + _contentLength > rawRequest.size())
@@ -187,43 +238,8 @@ void HttpRequest::parse(const std::string& rawRequest, size_t maxBodySize)
 
 	std::string headerSection = rawRequest.substr(0, headerEnd);
 	parseHeaders(headerSection);
+	parseCookies();
 	validateHeaders(maxBodySize);
-	extractBody(rawRequest, headerEnd);
+	extractBody(rawRequest, headerEnd, maxBodySize);
 }
 
-// =============================	cookie parsing		====================
-
-// remove space from start and end
-std::string HttpRequest::trim(const std::string& str)
-{
-	size_t start = 0;
-
-	while (start < str.size() && std::isspace(static_cast<unsigned char>(str[start])))
-		start++;
-	size_t end = str.size();
-	while (end > start && std::isspace(static_cast<unsigned char>(str[end - 1])))
-		end--;
-	return str.substr(start, end - start);
-}
-
-// cookieHeader is the value of cookie
-// example of this value : "session=abc123; theme=dark; user=wai"
-void HttpRequest::parseCookies(const std::string& cookieHeader)
-{
-	std::stringstream ss(cookieHeader);
-	std::string pair;
-	// read until ;
-	while (std::getline(ss, pair, ';'))
-	{
-		size_t equalPos = pair.find('=');
-		if (equalPos == std::string::npos)
-			continue;
-		std::string key = pair.substr(0, equalPos);
-		std::string value = pair.substr(equalPos + 1);
-
-		key = trim(key);
-		value = trim(value);
-
-		_cookies[key] = value;
-	}
-}

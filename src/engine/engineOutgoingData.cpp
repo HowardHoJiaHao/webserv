@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engineOutgoingData.cpp                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/05 16:10:27 by Ho Wai Keon      ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,19 +32,10 @@ void Engine::handleCGIStdinWrite(Connection* currentConn, fd_set& writeSet)
 		}
 		else if (written < 0)
 		{
-			if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EPIPE)
-			{
-				perror("write CGI stdin");
-				close(cgi_in);
-				currentConn->setCGIStdinFd(-1);
-				currentConn->setCGIStdinClosed(true);
-			}
-			else if (errno == EPIPE)
-			{
-				close(cgi_in);
-				currentConn->setCGIStdinFd(-1);
-				currentConn->setCGIStdinClosed(true);
-			}
+			perror("write CGI stdin");
+			close(cgi_in);
+			currentConn->setCGIStdinFd(-1);
+			currentConn->setCGIStdinClosed(true);
 		}
 	}
 	if (cgi->stdin_offset >= cgi->stdin_buffer.size() && !currentConn->isCGIStdinClosed())
@@ -70,9 +61,7 @@ void Engine::handleClientWrite(std::map<int, Connection*>::iterator& it, int cli
 	{
 		if (currentConn->shouldClose())
 		{
-			delete currentConn;
-			_clientListenEndpoints.erase(clientFd);
-			_clientConnections.erase(it++);
+			destroyClientConnection(it);
 			return;
 		}
 
@@ -92,9 +81,7 @@ void Engine::handleClientWrite(std::map<int, Connection*>::iterator& it, int cli
 		{
 			if (currentConn->shouldClose())
 			{
-				delete currentConn;
-				_clientListenEndpoints.erase(clientFd);
-				_clientConnections.erase(it++);
+				destroyClientConnection(it);
 				return;
 			}
 			currentConn->setRequestState(Connection::READING_HEADERS);
@@ -105,20 +92,11 @@ void Engine::handleClientWrite(std::map<int, Connection*>::iterator& it, int cli
 	}
 	if (sentByte == 0)
 	{
-		delete currentConn;
-		_clientListenEndpoints.erase(clientFd);
-		_clientConnections.erase(it++);
-		return;
-	}
-	if (errno == EAGAIN || errno == EWOULDBLOCK)
-	{
-		++it;
+		destroyClientConnection(it);
 		return;
 	}
 	perror("send");
-	delete currentConn;
-	_clientListenEndpoints.erase(clientFd);
-	_clientConnections.erase(it++);
+	destroyClientConnection(it);
 }
 
 void Engine::processOutgoingData(fd_set& writeSet)

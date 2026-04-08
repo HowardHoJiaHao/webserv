@@ -6,20 +6,12 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/07 18:33:36 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "httpRequest.hpp"
-#include <cctype>
-
-static std::string toLowerAscii(const std::string& input)
-{
-	std::string lowered = input;
-	for (size_t i = 0; i < lowered.size(); ++i)
-		lowered[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(lowered[i])));
-	return lowered;
-}
+#include "engine_string_utils.hpp"
 
 HttpRequest::HttpRequest()
 	: _method(""),
@@ -54,10 +46,28 @@ const std::string& HttpRequest::getVersion() const
 
 const std::string* HttpRequest::getHeader(const std::string& key) const
 {
-	std::map<std::string, std::string>::const_iterator it = _headers.find(toLowerAscii(key));
+	std::map<std::string, std::string>::const_iterator it = _headers.find(toLowerAsciiEngine(key));
 	if (it == _headers.end())
 		return NULL;
 	return &it->second;
+}
+
+const std::map<std::string, std::string>& HttpRequest::getHeaders() const
+{
+	return _headers;
+}
+
+const std::string* HttpRequest::getCookie(const std::string& key) const
+{
+	std::map<std::string, std::string>::const_iterator it = _cookies.find(toLowerAsciiEngine(key));
+	if (it == _cookies.end())
+		return NULL;
+	return &it->second;
+}
+
+const std::map<std::string, std::string>& HttpRequest::getCookies() const
+{
+	return _cookies;
 }
 
 const std::string& HttpRequest::getBody() const
@@ -65,22 +75,7 @@ const std::string& HttpRequest::getBody() const
 	return _body;
 }
 
-bool HttpRequest::hasContentLength() const
-{
-	return _hasContentLength;
-}
 
-size_t HttpRequest::getContentLength() const
-{
-	return _contentLength;
-}
-
-bool HttpRequest::isComplete() const
-{
-	if (!_hasContentLength)
-		return true;
-	return _body.size() == _contentLength;
-}
 
 // example of header map
 // _headers =
@@ -98,7 +93,7 @@ bool HttpRequest::shouldCloseConnectionByHttpRules() const
 
 	if (it != _headers.end())
 	{
-		const std::string value = toLowerAscii(it->second);
+		const std::string value = toLowerAsciiEngine(it->second);
 
 		if (value == "close")
 			return true;
@@ -110,10 +105,3 @@ bool HttpRequest::shouldCloseConnectionByHttpRules() const
 	return true;
 }
 
-std::string HttpRequest::getCookie(const std::string& key) const
-{
-	std::map<std::string, std::string>::const_iterator it = _cookies.find(key);
-	if (it != _cookies.end())
-		return it->second;
-	return "";
-}

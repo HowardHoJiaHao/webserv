@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Connection.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/07 01:48:26 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,12 +56,10 @@ class Connection
 
 
 
-		int getFd() const;
 		std::string& getReadBuffer();
 		std::string& getWriteBuffer();
 		void setWriteBuffer(const std::string& buffer);
 		void appendToWriteBuffer(const std::string& chunk);
-		void clearWriteBuffer();
 
 		State getState() const;
 		void setState(State state);
@@ -74,6 +72,9 @@ class Connection
 		void	setRequestState(RequestState state);
 		void	setShouldClose(bool value);
 		bool	shouldClose() const;
+		void	setPendingSetCookieHeader(const std::string& header);
+		const std::string& getPendingSetCookieHeader() const;
+		void	clearPendingSetCookieHeader();
 
 		void	updateLastActivity();
 		time_t	getLastActivity() const;
@@ -107,6 +108,7 @@ class Connection
 		bool				_closed;
 		RequestState 		_requestState;
 		bool				_shouldClose;
+		std::string			_pendingSetCookieHeader;
 		time_t				_lastActivity;
 
 		// point to the struct object (cgi context)

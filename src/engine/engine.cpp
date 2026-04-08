@@ -3,32 +3,16 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/07 01:48:25 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-// #include "engine.hpp"
-// #include "engine_string_utils.hpp"
-// #include "socket_utils.hpp"
-// #include <sys/types.h>
-// #include <sys/socket.h>
-// #include <unistd.h>
-// #include <iostream>
-// #include <stdexcept>
-// #include <signal.h>
-// #include <sys/select.h>
-// #include <sys/time.h>
-// #include <fcntl.h>
-// #include <sstream>
-// #include <cstdio>
-// #include <cerrno>
-// #include <ctime>
-// #include <sys/wait.h>
-// #include <csignal>
 #include "Webserv.hpp"
+
+#include <cstdlib>
 
 static volatile sig_atomic_t g_engineStopRequested = 0;
 
@@ -37,7 +21,15 @@ static void handleEngineStopSignal(int)
 	g_engineStopRequested = 1;
 }
 
-Engine::Engine(const ConfigFiles& config) : _config(config){}
+Engine::Engine(const ConfigFiles& config)
+	: _config(config),
+	  _listenSockets(),
+	  _clientConnections(),
+	  _sessions(),
+	  _sessionCounter(0)
+{
+	std::srand(static_cast<unsigned int>(std::time(NULL)) ^ static_cast<unsigned int>(::getpid()));
+}
 
 //close fd, destructor
 Engine::~Engine()
@@ -157,21 +149,12 @@ void Engine::acceptPendingClientConnections(fd_set& readSet)
 			int clientFd = accept(listenFd, NULL, NULL);
 			if (clientFd >= 0)
 			{
-				int flags = fcntl(clientFd, F_GETFL, 0);
-				if (flags == -1)
-				{
-					close(clientFd);
-					continue;
-				}
-				if (fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1)
+				if (fcntl(clientFd, F_SETFL, O_NONBLOCK) == -1)
 				{
 					close(clientFd);
 					continue;
 				}
 				_clientConnections[clientFd] = new Connection(clientFd);
-				// where is the original config for this client socket fd
-				_clientListenEndpoints[clientFd] = it->first;
-				// which server config that this client connection should use
 				_clientConnections[clientFd]->setServerConfig(findServerConfig(it->first.first, it->first.second));
 			}
 		}
@@ -187,26 +170,14 @@ const ServerConfig* Engine::findServerConfig(const std::string& host, int port) 
 		if (servers[i].getHost() == host && servers[i].getPort() == port)
 			return &servers[i];
 	}
-	for (size_t i = 0; i < servers.size(); ++i)
-	{
-		if (servers[i].getPort() == port)
-			return &servers[i];
-	}
-	if (servers.empty())
-		return NULL;
-	return &servers[0];
+	return NULL;
 }
 
-// const ServerConfig* Engine::findServerConfigForConnection(int clientFd) const
-// {
-// 	std::map<int, std::pair<std::string, int> >::const_iterator epIt = _clientListenEndpoints.find(clientFd);
-// 	if (epIt == _clientListenEndpoints.end())
-// 		return findServerConfig("", 0);
-
-// 	std::string host = epIt->second.first;
-// 	int port = epIt->second.second;
-// 	return findServerConfig(host, port);
-// }
+void Engine::destroyClientConnection(std::map<int, Connection*>::iterator& it)
+{
+	delete it->second;
+	_clientConnections.erase(it++);
+}
 
 void Engine::checkTimeouts()
 {
@@ -219,14 +190,11 @@ void Engine::checkTimeouts()
 	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
 			it != _clientConnections.end();)
 	{
-		int fd = it->first;
 		Connection* currentConn = it->second;
 		time_t elapsed = now - currentConn->getLastActivity();
 		if (currentConn->getState() == Connection::WRITING && elapsed > writeTimeoutSec)
 		{
-			delete currentConn;
-			_clientListenEndpoints.erase(fd);
-			_clientConnections.erase(it++);
+			destroyClientConnection(it);
 			continue;
 		}
 

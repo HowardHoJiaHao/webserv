@@ -11,17 +11,21 @@
 /* ************************************************************************** */
 
 #include "requestValidator.hpp"
+#include "engine_string_utils.hpp"
 #include <sstream>
 #include <cstdlib>
-#include <cctype>
 #include <cerrno>
 
-static std::string toLowerAscii(const std::string& input)
+bool hasChunkedTransferEncodingValue(const std::string& value)
 {
-	std::string lowered = input;
-	for (size_t i = 0; i < lowered.size(); ++i)
-		lowered[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(lowered[i])));
-	return lowered;
+	std::istringstream iss(toLowerAsciiEngine(value));
+	std::string token;
+	while (std::getline(iss, token, ','))
+	{
+		if (trimAsciiEngine(token) == "chunked")
+			return true;
+	}
+	return false;
 }
 
 static bool hasChunkedEncoding(const std::string& headers)
@@ -38,21 +42,42 @@ static bool hasChunkedEncoding(const std::string& headers)
 		if (colon == std::string::npos)
 			continue;
 
-		std::string key = toLowerAscii(line.substr(0, colon));
-		std::string value = toLowerAscii(line.substr(colon + 1));
+		std::string key = toLowerAsciiEngine(line.substr(0, colon));
+		std::string value = trimAsciiEngine(line.substr(colon + 1));
 
-		while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
-			value.erase(0, 1);
-
-		if (key == "transfer-encoding" && value.find("chunked") != std::string::npos)
+		if (key == "transfer-encoding" && hasChunkedTransferEncodingValue(value))
 			return true;
 	}
 	return false;
 }
 
-static bool validateAndMeasureChunkedBody(const std::string& buffer, size_t bodyStart, size_t& totalSize)
+static bool parseChunkSizeLine(const std::string& line, size_t& chunkSize)
+{
+	std::string sizeToken = line;
+	size_t extensionPos = sizeToken.find(';');
+	if (extensionPos != std::string::npos)
+		sizeToken = sizeToken.substr(0, extensionPos);
+	sizeToken = trimAsciiEngine(sizeToken);
+	if (sizeToken.empty())
+		return false;
+
+	errno = 0;
+	char* endptr = NULL;
+	unsigned long parsed = std::strtoul(sizeToken.c_str(), &endptr, 16);
+	if (endptr == sizeToken.c_str() || *endptr != '\0' || errno == ERANGE)
+		return false;
+
+	chunkSize = static_cast<size_t>(parsed);
+	return true;
+}
+
+static bool parseChunkedBodyInternal(const std::string& buffer, size_t bodyStart, size_t maxBodySize, size_t& totalSize, std::string* decodedBody, bool* bodyTooLarge)
 {
 	size_t pos = bodyStart;
+	if (bodyTooLarge != NULL)
+		*bodyTooLarge = false;
+	if (decodedBody != NULL)
+		decodedBody->clear();
 
 	while (true)
 	{
@@ -60,18 +85,25 @@ static bool validateAndMeasureChunkedBody(const std::string& buffer, size_t body
 		if (lineEndPos == std::string::npos)
 			return false;
 
-		std::string hexSize = buffer.substr(pos, lineEndPos - pos);
-		while (!hexSize.empty() && (hexSize[hexSize.size() - 1] == ' ' || hexSize[hexSize.size() - 1] == '\t'))
-			hexSize.erase(hexSize.size() - 1);
-
-		char* endptr = NULL;
-		size_t byteToRead = std::strtoul(hexSize.c_str(), &endptr, 16);
-		if (endptr == hexSize.c_str() || *endptr != '\0')
+		size_t byteToRead = 0;
+		if (!parseChunkSizeLine(buffer.substr(pos, lineEndPos - pos), byteToRead))
 			return false;
 
 		pos = lineEndPos + 2;
 		if (buffer.size() < pos + byteToRead + 2)
 			return false;
+
+		if (decodedBody != NULL && byteToRead > 0)
+		{
+			if (decodedBody->size() + byteToRead > maxBodySize)
+			{
+				if (bodyTooLarge != NULL)
+					*bodyTooLarge = true;
+				return false;
+			}
+			decodedBody->append(buffer, pos, byteToRead);
+		}
+
 		pos += byteToRead;
 		if (buffer.substr(pos, 2) != "\r\n")
 			return false;
@@ -82,6 +114,19 @@ static bool validateAndMeasureChunkedBody(const std::string& buffer, size_t body
 			return true;
 		}
 	}
+}
+
+static bool validateAndMeasureChunkedBody(const std::string& buffer, size_t bodyStart, size_t& totalSize)
+{
+	return parseChunkedBodyInternal(buffer, bodyStart, 0, totalSize, NULL, NULL);
+}
+
+bool decodeChunkedBodyForRequest(const std::string& encodedBody, size_t maxBodySize, std::string& decodedBody, bool* bodyTooLarge)
+{
+	size_t totalSize = 0;
+	if (!parseChunkedBodyInternal(encodedBody, 0, maxBodySize, totalSize, &decodedBody, bodyTooLarge))
+		return false;
+	return totalSize == encodedBody.size();
 }
 
 static bool parseContentLength(const std::string& headersPart, size_t& contentLength, bool& hasContentLength, bool* isInvalidContentLength)
@@ -98,11 +143,8 @@ static bool parseContentLength(const std::string& headersPart, size_t& contentLe
 		if (colon == std::string::npos)
 			continue;
 
-		std::string key = toLowerAscii(line.substr(0, colon));
-		std::string value = line.substr(colon + 1);
-
-		while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
-			value.erase(0, 1);
+		std::string key = toLowerAsciiEngine(line.substr(0, colon));
+		std::string value = trimAsciiEngine(line.substr(colon + 1));
 
 		if (key == "content-length")
 		{
