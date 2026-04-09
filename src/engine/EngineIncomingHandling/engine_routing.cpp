@@ -196,6 +196,11 @@ static std::string resolveIndexForRequestEngine(const ServerConfig& serverConfig
 	return serverConfig.getIndex();
 }
 
+// has return is
+// location /42kl
+// {
+// 	return 301 https://42kl.edu.my/;
+// }
 std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location)
 {
 	if (location != NULL && location->hasReturnDirective())

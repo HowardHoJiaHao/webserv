@@ -21,15 +21,21 @@ static std::string normalizeCgiExtension(const std::string& ext)
 		return ext;
 	return "." + ext;
 }
-
+//refer to config
+// location /cgi-bin
+//{
+//     cgi_enabled on;
+//     cgi_ext .py .pl;
+// }
+// is cgi enabled on and the extension matched (config vs request: GET /cgi-bin/test.py)
 static bool isCgiRequestForLocation(const std::string& path, const LocationConfig& location)
 {
 	if (!location.isCgiEnabled())
 		return false;
-
+	// if no cgi extension is set, then no cgi request
 	const std::vector<std::string>& exts = location.getCgiExtensions();
 	if (exts.empty())
-		return true;
+		return false;
 
 	for (size_t i = 0; i < exts.size(); ++i)
 	{
@@ -217,8 +223,10 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 
 	if (location != NULL && isCgiRequestForLocation(request.getPath(), *location))
 	{
+		// start cgi process, forking the server, setting up pipes, preparing the connection to communicate with external program
 		if (!launchCGI(conn, request, *serverConfig, location, conn->shouldClose()))
 		{
+			// if cgi launching failed, send existing response with cookie, switch to writing state
 			if (!conn->getPendingSetCookieHeader().empty())
 			{
 				conn->setWriteBuffer(appendHeaderToResponse(conn->getWriteBuffer(), conn->getPendingSetCookieHeader()));
@@ -228,9 +236,12 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 		}
 		return false;
 	}
+	// the moment the first if block is trune, then eventually it will enter this false return and it wont go to the normal request
+
 
 	std::string response = routeRequest(request, shouldClose, *serverConfig, location);
-	if (!conn->getPendingSetCookieHeader().empty())
+	// if cookie string(_pendingSetCookieHeader) is not empty
+	if (conn->getPendingSetCookieHeader().size() > 0)
 	{
 		response = appendHeaderToResponse(response, conn->getPendingSetCookieHeader());
 		conn->clearPendingSetCookieHeader();
