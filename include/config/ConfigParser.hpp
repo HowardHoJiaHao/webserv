@@ -23,6 +23,8 @@ struct ConfigToken
 	size_t		line;
 };
 
+typedef void	(*LocationDirectiveHandler)(const std::vector<ConfigToken>&, size_t&, LocationConfig&, const std::string&);
+
 class ConfigParser
 {
 	public:
@@ -32,6 +34,8 @@ class ConfigParser
 		static bool						isDirectoryPath(const std::string& path);
 		static std::vector<ConfigToken>	tokenize(const std::string& content);
 		static ServerConfig				parseServerBlock(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& prefix);
+
+		static const std::map<std::string, LocationDirectiveHandler>&	getLocationHandlers(void);
 };
 
 #endif

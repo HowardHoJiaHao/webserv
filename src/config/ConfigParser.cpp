@@ -67,7 +67,141 @@ static void parseListenValue(const std::string& listenValue, ServerConfig& serve
 	server.setPort(static_cast<int>(port));
 }
 
-static void parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
+bool	parseValidOnOff(const std::string& value, size_t line, const std::string& directive)
+{
+	static std::vector<std::string>	validOn;
+	static std::vector<std::string>	validOff;
+	validOn.push_back("on");
+	validOn.push_back("true");
+	validOn.push_back("1");
+	validOff.push_back("off");
+	validOff.push_back("false");
+	validOff.push_back("0");
+	if (std::find(validOn.begin(), validOn.end(), value) != validOn.end())
+		return true;
+	if (std::find(validOff.begin(), validOff.end(), value) != validOff.end())
+		return false;
+	throw ConfigParser::parseError(line, directive + " must be 'on/true/1' or 'off/false/0'");
+}
+
+void	parseMethods(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
+{
+	(void) prefix;
+	std::vector<std::string>	methods;
+	while (i < tokens.size() && tokens[i].value != ";")
+	{
+		const std::string&	token = tokens[i].value;
+		if (token == "GET" || token == "POST" || token == "DELETE")
+		{
+			if (std::find(methods.begin(), methods.end(), token) != methods.end())
+				throw ConfigParser::parseError(tokens[i].line, "duplicate method: " + token);
+			methods.push_back(token);
+			i++;
+			continue ;
+		}
+		if (token == "}" || token == "root" || token == "upload_enable" || token == "upload_path" || token == "autoindex" ||
+			token == "cgi_enabled" || token == "cgi_ext" || token == "cgi_extensions" || token == "return" ||
+			token == "methods" || token == "allow_methods")
+			throw ConfigParser::parseError(tokens[i].line, "expected ';'");
+		throw ConfigParser::parseError(tokens[i].line, "invalid method '" + token + "' (expected GET/POST/DELETE)");
+	}
+	ConfigParser::expectToken(tokens, i, ";");
+	if (methods.empty())
+		throw ConfigParser::parseError(tokens[i - 1].line, "methods requires at least one method");
+	loc.setAllowedMethods(methods);
+}
+
+void	parseRoot(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
+{
+	if (i >= tokens.size())
+		throw ConfigParser::parseError(tokens[i - 1].line, "missing location root");
+	loc.setRoot(applyPrefixPath(prefix, tokens[i++].value));
+	ConfigParser::expectToken(tokens, i, ";");
+}
+
+void	parseUploadEnable(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
+{
+	(void) prefix;
+	if (i >= tokens.size())
+		throw ConfigParser::parseError(tokens[i - 1].line, "missing upload_enable value");
+	loc.setUploadEnabled(parseValidOnOff(tokens[i].value, tokens[i - 1].line, "upload_enable"));
+	i++;
+	ConfigParser::expectToken(tokens, i, ";");
+}
+
+void	parseUploadPath(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
+{
+	if (i >= tokens.size())
+		throw ConfigParser::parseError(tokens[i - 1].line, "missing upload_path value");
+	loc.setUploadPath(applyPrefixPath(prefix, tokens[i++].value));
+	ConfigParser::expectToken(tokens, i, ";");
+}
+
+void	parseAutoindex(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
+{
+	(void) prefix;
+	if (i >= tokens.size())
+		throw ConfigParser::parseError(tokens[i - 1].line, "missing autoindex value");
+	loc.setAutoindex(parseValidOnOff(tokens[i].value, tokens[i - 1].line, "autoindex"));
+	i++;
+	ConfigParser::expectToken(tokens, i, ";");
+}
+
+void	parseCgiEnabled(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
+{
+	(void) prefix;
+	if (i >= tokens.size())
+		throw ConfigParser::parseError(tokens[i - 1].line, "missing cgi_enabled value");
+	loc.setCgiEnabled(parseValidOnOff(tokens[i].value, tokens[i - 1].line, "cgi_enabled"));
+	i++;
+	ConfigParser::expectToken(tokens, i, ";");
+}
+
+void	parseCgiExtensions(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
+{
+	(void) prefix;
+	if (i >= tokens.size())
+		throw ConfigParser::parseError(tokens[i - 1].line, "missing cgi_ext values");
+	std::vector<std::string> extensions;
+	while (i < tokens.size() && tokens[i].value != ";")
+	{
+		const std::string&	ext = tokens[i++].value;
+		if (ext.size() < 2 || ext[0] != '.' || ext.find('/') != std::string::npos)
+			throw ConfigParser::parseError(tokens[i - 1].line, "invalid cgi_ext extension: " + ext);
+		if (std::find(extensions.begin(), extensions.end(), ext) != extensions.end())
+			throw ConfigParser::parseError(tokens[i - 1].line, "duplicate cgi_ext extension: " + ext);
+		extensions.push_back(ext);
+	}
+	ConfigParser::expectToken(tokens, i, ";");
+	if (extensions.empty())
+		throw ConfigParser::parseError(tokens[i - 1].line, "cgi_ext requires at least one extension");
+	loc.setCgiExtensions(extensions);
+}
+
+void	parseReturn(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
+{
+	(void) prefix;
+	if (i >= tokens.size())
+		throw ConfigParser::parseError(tokens[i - 1].line, "missing return status code");
+	unsigned long	codeUl = parseUnsigned(tokens[i].value, "return", tokens[i].line);
+	i++;
+	if (i >= tokens.size() || tokens[i].value == ";")
+		throw ConfigParser::parseError(tokens[i - 1].line, "missing return target");
+	std::string	target = tokens[i++].value;
+	ConfigParser::expectToken(tokens, i, ";");
+	if (codeUl > 999)
+		throw ConfigParser::parseError(tokens[i - 1].line, "invalid return status code");
+	int	code = static_cast<int>(codeUl);
+	if (!isSupportedReturnStatus(code))
+	{
+		std::ostringstream	oss;
+		oss << "unsupported return status code: " << code;
+		throw ConfigParser::parseError(tokens[i - 1].line, oss.str());
+	}
+	loc.setReturnDirective(true, code, target);
+}
+
+static void	parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	if (i >= tokens.size())
 		throw ConfigParser::parseError(tokens[tokens.size() - 1].line, "missing location path");
@@ -77,111 +211,11 @@ static void parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i
 	while (i < tokens.size() && tokens[i].value != "}")
 	{
 		std::string key = tokens[i++].value;
-		if (key == "methods" || key == "allow_methods")
-		{
-			std::vector<std::string> methods;
-			while (i < tokens.size() && tokens[i].value != ";")
-				methods.push_back(tokens[i++].value);
-			ConfigParser::expectToken(tokens, i, ";");
-			loc.setAllowedMethods(methods);
-		}
-		else if (key == "root")
-		{
-			if (i >= tokens.size())
-				throw ConfigParser::parseError(tokens[i - 1].line, "missing location root");
-			loc.setRoot(applyPrefixPath(prefix, tokens[i++].value));
-			ConfigParser::expectToken(tokens, i, ";");
-		}
-		else if (key == "upload_enable")
-		{
-			if (i >= tokens.size())
-				throw ConfigParser::parseError(tokens[i - 1].line, "missing upload_enable value");
-			std::string value = tokens[i++].value;
-			loc.setUploadEnabled(value == "on" || value == "true" || value == "1");
-			ConfigParser::expectToken(tokens, i, ";");
-		}
-		else if (key == "upload_path")
-		{
-			if (i >= tokens.size())
-				throw ConfigParser::parseError(tokens[i - 1].line, "missing upload_path value");
-			loc.setUploadPath(applyPrefixPath(prefix, tokens[i++].value));
-			ConfigParser::expectToken(tokens, i, ";");
-		}
-		else if (key == "autoindex")
-		{
-			if (i >= tokens.size())
-				throw ConfigParser::parseError(tokens[i - 1].line, "missing autoindex value");
-			std::string value = tokens[i++].value;
-			loc.setAutoindex(value == "on" || value == "true" || value == "1");
-			ConfigParser::expectToken(tokens, i, ";");
-		}
-		else if (key == "cgi_enabled")
-		{
-			if (i >= tokens.size() || tokens[i].value == ";")
-				throw ConfigParser::parseError(tokens[i - 1].line, "missing cgi_enabled value");
-			std::string value = tokens[i++].value;
-			std::vector<std::string> validOn;
-			validOn.push_back("on");
-			validOn.push_back("true");
-			validOn.push_back("1");
-			std::vector<std::string> validOff;
-			validOff.push_back("off");
-			validOff.push_back("false");
-			validOff.push_back("0");
-			if (std::find(validOn.begin(), validOn.end(), value) != validOn.end())
-				loc.setCgiEnabled(true);
-			else if (std::find(validOff.begin(), validOff.end(), value) != validOff.end())
-				loc.setCgiEnabled(false);
-			else
-				throw ConfigParser::parseError(tokens[i - 1].line, "cgi_enabled must be 'on/true/1' or 'off/false/0'");
-			ConfigParser::expectToken(tokens, i, ";");
-		}
-		else if (key == "cgi_ext" || key == "cgi_extensions")
-		{
-			if (i >= tokens.size())
-				throw ConfigParser::parseError(tokens[i - 1].line, "missing cgi_ext values");
-			std::vector<std::string> extensions;
-			while (i < tokens.size() && tokens[i].value != ";")
-			{
-				const std::string& ext = tokens[i++].value;
-				if (ext.size() < 2 || ext[0] != '.')
-					throw ConfigParser::parseError(tokens[i - 1].line, "invalid cgi_ext extension: " + ext);
-				if (ext.find('/') != std::string::npos)
-					throw ConfigParser::parseError(tokens[i - 1].line, "invalid cgi_ext extension (contains '/'): " + ext);
-				if (std::find(extensions.begin(), extensions.end(), ext) != extensions.end())
-					throw ConfigParser::parseError(tokens[i - 1].line, "duplicate cgi_ext extension: " + ext);
-				extensions.push_back(ext);
-			}
-			ConfigParser::expectToken(tokens, i, ";");
-			if (extensions.empty())
-				throw ConfigParser::parseError(tokens[i - 1].line, "cgi_ext requires at least one extension");
-			loc.setCgiExtensions(extensions);
-		}
-		else if (key == "return")
-		{
-			if (i >= tokens.size())
-				throw ConfigParser::parseError(tokens[i - 1].line, "missing return status code");
-			unsigned long codeUl = parseUnsigned(tokens[i].value, "return", tokens[i].line);
-			++i;
-			if (i >= tokens.size() || tokens[i].value == ";")
-				throw ConfigParser::parseError(tokens[i - 1].line, "missing return target");
-			std::string target = tokens[i++].value;
-			ConfigParser::expectToken(tokens, i, ";");
-			if (codeUl > 999)
-				throw ConfigParser::parseError(tokens[i - 1].line, "invalid return status code");
-			int code = static_cast<int>(codeUl);
-			if (!isSupportedReturnStatus(code))
-			{
-				std::ostringstream oss;
-				oss << "unsupported return status code: " << code;
-				throw ConfigParser::parseError(tokens[i - 1].line, oss.str());
-			}
-			loc.setReturnDirective(true, code, target);
-		}
+		const std::map<std::string, LocationDirectiveHandler>&	handlers = ConfigParser::getLocationHandlers();
+		if (handlers.count(key))
+			handlers.find(key)->second(tokens, i, loc, prefix);
 		else
-		{
 			throw ConfigParser::parseError(tokens[i - 1].line, "unknown location directive '" + key + "'");
-		}
 	}
 	ConfigParser::expectToken(tokens, i, "}");
 	server.addLocation(loc);
@@ -371,4 +405,23 @@ ServerConfig	ConfigParser::parseServerBlock(const std::vector<ConfigToken>& toke
 	if (trim(server.getIndex()).empty())
 		server.setIndex("index.html");
 	return server;
+}
+
+const std::map<std::string, LocationDirectiveHandler>& ConfigParser::getLocationHandlers(void)
+{
+	static std::map<std::string, LocationDirectiveHandler>	map;
+	if (map.empty())
+	{
+		map["methods"]			= &parseMethods;
+		map["allow_methods"]	= &parseMethods;
+		map["root"]				= &parseRoot;
+		map["upload_enable"]	= &parseUploadEnable;
+		map["upload_path"]		= &parseUploadPath;
+		map["autoindex"]		= &parseAutoindex;
+		map["cgi_enabled"]		= &parseCgiEnabled;
+		map["cgi_ext"]			= &parseCgiExtensions;
+		map["cgi_extensions"]	= &parseCgiExtensions;
+		map["return"]			= &parseReturn;
+	}
+	return map;
 }
