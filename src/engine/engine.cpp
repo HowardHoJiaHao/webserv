@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/09 15:10:06 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,7 @@ Engine::Engine(const ConfigFiles& config)
 	  _sessions(),
 	  _sessionCounter(0)
 {
-	std::srand(static_cast<unsigned int>(std::time(NULL)) ^ static_cast<unsigned int>(::getpid()));
+	std::srand(static_cast<unsigned int>(std::time(NULL)));
 }
 
 //close fd, destructor

@@ -49,14 +49,22 @@ const LocationConfig* Engine::findBestLocation(const ServerConfig& serverConfig,
 	return best;
 }
 
+// allowed : depends on location pointers points to which location
+// allowed =
+// [
+//		"GET",
+//		"POST",
+//		"DELETE"
+// ]
 bool Engine::isMethodAllowed(const std::string& method, const LocationConfig* location) const
 {
+	
 	if (location == NULL)
 		return true;
 
 	const std::vector<std::string>& allowed = location->getAllowedMethods();
 	if (allowed.empty())
-		return true;
+		return false;
 
 	for (size_t i = 0; i < allowed.size(); ++i)
 	{
@@ -154,15 +162,9 @@ static bool ensureDirectoryExistsEngine(const std::string& path)
 		return false;
 
 	struct stat st;
-	if (stat(path.c_str(), &st) == 0)
-		return S_ISDIR(st.st_mode);
-
-	if (mkdir(path.c_str(), 0755) == 0)
-		return true;
-
-	if (errno == EEXIST && stat(path.c_str(), &st) == 0)
-		return S_ISDIR(st.st_mode);
-	return false;
+	if (stat(path.c_str(), &st) != 0)
+		return false;
+	return S_ISDIR(st.st_mode);
 }
 
 std::string Engine::mapRequestPathForLocationRoot(const std::string& requestPath, const LocationConfig* location) const

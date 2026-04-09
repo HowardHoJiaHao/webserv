@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/09 13:52:31 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,7 +57,13 @@ const std::map<std::string, std::string>& HttpRequest::getHeaders() const
 	return _headers;
 }
 
-const std::string* HttpRequest::getCookie(const std::string& key) const
+// the key is "webservsid"
+// _cookie map example: "webservsid" → "abc123" (focused)
+//						"theme" → "dark" (unusued)
+// 						"lang"	→	"en"
+//
+// returning the pointer to the value of the key, eg: abc123 (cookie can be null)
+const std::string* HttpRequest::getCookieValue(const std::string& key) const
 {
 	std::map<std::string, std::string>::const_iterator it = _cookies.find(toLowerAsciiEngine(key));
 	if (it == _cookies.end())

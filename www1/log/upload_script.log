@@ -147,3 +147,74 @@ Original filename: main.cpp
 Safe filename: main_71264089.cpp
 Save path: /home/hwai-keo/webserv/www1/archive/main_71264089.cpp
 File saved successfully. Size: 1242 bytes
+[2026-04-09 14:02:57] [delete.py] Request started method=GET query=
+[2026-04-09 14:02:57] [delete.py] Rendered archive page
+[2026-04-09 14:02:57] [delete.py] Request started method=GET query=format=json
+[2026-04-09 14:02:57] [delete.py] Returned archive list count=5
+[2026-04-09 14:03:03] [delete.py] Request started method=GET query=
+[2026-04-09 14:03:03] [delete.py] Rendered archive page
+[2026-04-09 14:03:03] [delete.py] Request started method=GET query=format=json
+[2026-04-09 14:03:03] [delete.py] Returned archive list count=5
+[2026-04-09 16:45:43] [delete.py] Request started method=GET query=
+[2026-04-09 16:45:43] [delete.py] Rendered archive page
+[2026-04-09 16:45:43] [delete.py] Request started method=GET query=format=json
+[2026-04-09 16:45:43] [delete.py] Returned archive list count=5
+[2026-04-09 17:08:23] [delete.py] Request started method=GET query=
+[2026-04-09 17:08:23] [delete.py] Rendered archive page
+[2026-04-09 17:08:23] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:08:23] [delete.py] Returned archive list count=5
+[2026-04-09 17:08:38] [delete.py] Request started method=GET query=
+[2026-04-09 17:08:38] [delete.py] Rendered archive page
+[2026-04-09 17:08:38] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:08:38] [delete.py] Returned archive list count=5
+[2026-04-09 17:09:19] [delete.py] Request started method=GET query=
+[2026-04-09 17:09:19] [delete.py] Rendered archive page
+[2026-04-09 17:09:19] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:09:19] [delete.py] Returned archive list count=5
+[2026-04-09 17:09:38] [delete.py] Request started method=GET query=
+[2026-04-09 17:09:38] [delete.py] Rendered archive page
+[2026-04-09 17:09:38] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:09:38] [delete.py] Returned archive list count=5
+[2026-04-09 17:09:43] [delete.py] Request started method=GET query=
+[2026-04-09 17:09:43] [delete.py] Rendered archive page
+[2026-04-09 17:09:43] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:09:43] [delete.py] Returned archive list count=5
+[2026-04-09 17:28:16] [delete.py] Request started method=GET query=
+[2026-04-09 17:28:16] [delete.py] Rendered archive page
+[2026-04-09 17:28:16] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:28:16] [delete.py] Returned archive list count=5
+[2026-04-09 17:28:17] [delete.py] Request started method=GET query=
+[2026-04-09 17:28:17] [delete.py] Rendered archive page
+[2026-04-09 17:28:17] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:28:17] [delete.py] Returned archive list count=5
+[2026-04-09 17:30:18] [delete.py] Request started method=GET query=
+[2026-04-09 17:30:18] [delete.py] Rendered archive page
+[2026-04-09 17:30:18] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:30:18] [delete.py] Returned archive list count=5
+[2026-04-09 17:30:20] [delete.py] Request started method=GET query=
+[2026-04-09 17:30:20] [delete.py] Rendered archive page
+[2026-04-09 17:30:20] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:30:20] [delete.py] Returned archive list count=5
+[2026-04-09 17:30:38] [delete.py] Request started method=GET query=
+[2026-04-09 17:30:38] [delete.py] Rendered archive page
+[2026-04-09 17:30:38] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:30:38] [delete.py] Returned archive list count=5
+[2026-04-09 17:30:39] [delete.py] Request started method=GET query=
+[2026-04-09 17:30:39] [delete.py] Rendered archive page
+[2026-04-09 17:30:39] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:30:39] [delete.py] Returned archive list count=5
+[2026-04-09 17:30:48] [delete.py] Request started method=GET query=
+[2026-04-09 17:30:48] [delete.py] Rendered archive page
+[2026-04-09 17:30:48] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:30:48] [delete.py] Returned archive list count=5
+[2026-04-09 17:30:49] [delete.py] Request started method=GET query=
+[2026-04-09 17:30:49] [delete.py] Rendered archive page
+[2026-04-09 17:30:49] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:30:49] [delete.py] Returned archive list count=5
+[2026-04-09 17:31:13] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:31:13] [delete.py] Returned archive list count=5
+[2026-04-09 17:31:22] [delete.py] Request started method=POST query=
+[2026-04-09 17:31:22] [delete.py] Deleted file: main_71264089.cpp
+[2026-04-09 17:31:22] [delete.py] Delete request name=main_71264089.cpp result=True status=200
+[2026-04-09 17:31:22] [delete.py] Request started method=GET query=format=json
+[2026-04-09 17:31:22] [delete.py] Returned archive list count=4

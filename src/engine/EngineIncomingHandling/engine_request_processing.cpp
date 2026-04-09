@@ -41,10 +41,17 @@ static bool isCgiRequestForLocation(const std::string& path, const LocationConfi
 }
 
 // there is a few function are using these static variable
+
+// this is key -> webservsid=abc123 <- value
 static const std::string ConstantSessionCookieName = "webservsid";
 static const time_t ConstantSessionTimeToLiveSeconds = 3600;
 
 // if a session lived too long since last used, longer than TTL, then it should die
+// session
+// _sessions
+// ├── "abc123" → 1712500000
+// ├── "xyz789" → 1712500100
+// ├── "k9lmno" → 1712500200
 void Engine::pruneExpiredSessions(time_t now)
 {
 	// go throught each session stored in _sessions
@@ -57,24 +64,29 @@ void Engine::pruneExpiredSessions(time_t now)
 	}
 }
 
+// time now + rand digit + sessionCounter, everything in hex
 std::string Engine::generateSessionId(time_t now)
 {
 	++_sessionCounter;
 	std::ostringstream oss;
 	oss << std::hex
 		<< static_cast<unsigned long>(now)
-		<< static_cast<unsigned long>(::getpid())
 		<< static_cast<unsigned long>(std::rand())
 		<< _sessionCounter;
 	return oss.str();
 }
 
+// cannot return reference because i might return ""
+//
+// session id: cookieSessionId -> time
 std::string Engine::ensureSessionCookieHeader(const HttpRequest& request)
 {
 	time_t now = std::time(NULL);
 	pruneExpiredSessions(now);
+	// the first time client request should have null existingSessionId 
+	const std::string* existingSessionId = request.getCookieValue(ConstantSessionCookieName);
 
-	const std::string* existingSessionId = request.getCookie(ConstantSessionCookieName);
+	// if the client session exist, refresh its last used time
 	if (existingSessionId != NULL && !existingSessionId->empty())
 	{
 		std::map<std::string, time_t>::iterator it = _sessions.find(*existingSessionId);
@@ -85,19 +97,24 @@ std::string Engine::ensureSessionCookieHeader(const HttpRequest& request)
 		}
 	}
 
+	// if above "if" statement failed, session is not found in _session
+	// generate a unique session id that does not already exist in _sessions
 	std::string sessionId;
-	do
+	while (true)
 	{
 		sessionId = generateSessionId(now);
+		if (_sessions.find(sessionId) == _sessions.end())
+			break;
 	}
-	while (_sessions.find(sessionId) != _sessions.end());
-
 	_sessions[sessionId] = now;
 
-	std::ostringstream header;
-	header << "Set-Cookie: " << ConstantSessionCookieName << "=" << sessionId
+	// response to client
+	// this is RFC standard 6265
+	// Set-Cookie: webservsid=69d75a62104f54011; Path=/; Max-Age=3600; HttpOnly
+	std::ostringstream SetCookieHeader;
+	SetCookieHeader << "Set-Cookie: " << ConstantSessionCookieName << "=" << sessionId
 		<< "; Path=/; Max-Age=" << ConstantSessionTimeToLiveSeconds << "; HttpOnly";
-	return header.str();
+	return SetCookieHeader.str();
 }
 
 
@@ -163,7 +180,7 @@ bool Engine::handleRequestParsing(Connection* conn, const std::string& rawReques
 
 
 
-
+#include <iostream>
 bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig, const LocationConfig* location, bool shouldClose, bool& producedResponse)
 {
 	//defensive
@@ -175,7 +192,10 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 		return false;
 	}
 
+	// sessionSetCookieHeader: webservsid=69d75a62104f54011; Path=/; Max-Age=3600; HttpOnly
 	std::string sessionSetCookieHeader = ensureSessionCookieHeader(request);
+	// in the previous function, if valid session is found in _session, it will return ""
+	// means no new cookie needs to be sent, else will set new cookie
 	if (sessionSetCookieHeader.empty())
 		conn->clearPendingSetCookieHeader();
 	else
@@ -184,6 +204,7 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 	if (!isMethodAllowed(request.getMethod(), location))
 	{
 		std::string response = buildErrorResponse(405, conn->shouldClose(), serverConfig, methodNotAllowedHeaders(location));
+		// if there is a pending cookie header, append it to the response
 		if (!conn->getPendingSetCookieHeader().empty())
 		{
 			response = appendHeaderToResponse(response, conn->getPendingSetCookieHeader());
@@ -268,6 +289,7 @@ bool Engine::processBufferedRequests(Connection* conn, bool& producedResponse)
 		if (!handleRequestParsing(conn, rawRequest, request, serverConfig))
 			return false;
 
+		// return the pointer to the location config
 		const LocationConfig* location = NULL;
 		if (serverConfig != NULL)
 			location = findBestLocation(*serverConfig, request.getPath());
