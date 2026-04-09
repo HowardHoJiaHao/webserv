@@ -23,7 +23,7 @@ class ConfigFiles
 		std::vector<ServerConfig>	_serverConfigs;
 		std::string					_prefix;
 
-		void	initDummy(void);
+		void	initDefault(void);
 		void	loadFromFile(const std::string& path);
 
 	public:

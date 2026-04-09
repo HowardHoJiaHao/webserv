@@ -34,6 +34,7 @@ class LocationConfig
 
 	public:
 		LocationConfig(void);
+		~LocationConfig(void);
 
 		void	setPath(const std::string& path);
 		void	setAllowedMethods(const std::vector<std::string>& method);

@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   dummyConfigFiles.cpp                               :+:      :+:    :+:   */
+/*   ConfigFiles.cpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: Ho Wai Keong <hwai_keo@student.42kl.edu    +#+  +:+       +#+        */
+/*   By: ktiew <ktiew@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/18 09:35:36 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/02/19 10:23:31 by Ho Wai Keon      ###   ########.fr       */
+/*   Created: 2025/05/20 12:29:07 by ktiew             #+#    #+#             */
+/*   Updated: 2026/02/21 23:54:27 by ktiew            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,31 +15,31 @@
 #include <fstream>
 #include <sstream>
 
-ConfigFiles::ConfigFiles()
+ConfigFiles::ConfigFiles(void)
+	: _prefix("")
 {
-	_prefix.clear();
-	initDummy();
+	initDefault();
 }
 
 ConfigFiles::ConfigFiles(const std::string& path)
+	: _prefix("")
 {
-	_prefix.clear();
 	if (ConfigParser::trim(path).empty())
-		initDummy();
+		initDefault();
 	else
 		loadFromFile(path);
 }
 
-ConfigFiles::~ConfigFiles()
+ConfigFiles::~ConfigFiles(void)
 {
 }
 
-const std::vector<ServerConfig>& ConfigFiles::getServers() const
+const std::vector<ServerConfig>& ConfigFiles::getServers(void) const
 {
 	return _serverConfigs;
 }
 
-const std::string& ConfigFiles::getPrefix() const
+const std::string& ConfigFiles::getPrefix(void) const
 {
 	return _prefix;
 }
@@ -56,7 +56,6 @@ void ConfigFiles::loadFromFile(const std::string& path)
 
 	_serverConfigs.clear();
 	size_t i = 0;
-	_prefix.clear();
 	if (i < tokens.size() && tokens[i].value == "prefix")
 	{
 		size_t line = tokens[i++].line;
@@ -99,13 +98,12 @@ void ConfigFiles::loadFromFile(const std::string& path)
 		throw std::runtime_error("Config parse error: no server block found");
 }
 
-void ConfigFiles::initDummy()
+void ConfigFiles::initDefault(void)
 {
 	// first server
 	ServerConfig server1;
 	server1.setHost("127.0.0.1");
 	server1.setPort(8080);
-	server1.setServerName("test1");
 	server1.setRoot("./www1");
 	server1.setIndex("index.html");
 	server1.setMaxBodySize(1000000);
@@ -142,7 +140,6 @@ void ConfigFiles::initDummy()
 	ServerConfig server2;
 	server2.setHost("127.0.0.1");
 	server2.setPort(8081);
-	server2.setServerName("test2");
 	server2.setRoot("./www2");
 	server2.setIndex("home.html");
 	server2.setMaxBodySize(1000000);

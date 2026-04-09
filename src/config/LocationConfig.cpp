@@ -3,16 +3,16 @@
 /*                                                        :::      ::::::::   */
 /*   LocationConfig.cpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ktiew <ktiew@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/19 09:55:21 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Created: 2025/05/20 12:29:07 by ktiew             #+#    #+#             */
+/*   Updated: 2026/02/21 23:54:27 by ktiew            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "LocationConfig.hpp"
 
-LocationConfig::LocationConfig()
+LocationConfig::LocationConfig(void)
 	: _path(""),
 	_allowedMethods(),
 	_root(""),
@@ -25,7 +25,12 @@ LocationConfig::LocationConfig()
 	_hasReturn(false),
 	_returnStatus(0),
 	_returnTarget("")
-	{}
+{
+}
+
+LocationConfig::~LocationConfig(void)
+{
+}
 
 void LocationConfig::setPath(const std::string& path)
 {
@@ -79,62 +84,62 @@ void LocationConfig::setReturnDirective(bool enabled, int status, const std::str
 	_returnTarget = target;
 }
 
-const std::string& LocationConfig::getPath() const
+const std::string& LocationConfig::getPath(void) const
 {
 	return _path;
 }
 
-const std::vector<std::string>& LocationConfig::getAllowedMethods() const
+const std::vector<std::string>& LocationConfig::getAllowedMethods(void) const
 {
 	return _allowedMethods;
 }
 
-const std::string& LocationConfig::getRoot() const
+const std::string& LocationConfig::getRoot(void) const
 {
 	return _root;
 }
 
-const std::string& LocationConfig::getIndex() const
+const std::string& LocationConfig::getIndex(void) const
 {
 	return _index;
 }
 
-bool LocationConfig::isUploadEnabled() const
+bool LocationConfig::isUploadEnabled(void) const
 {
 	return _uploadEnabled;
 }
 
-const std::string& LocationConfig::getUploadPath() const
+const std::string& LocationConfig::getUploadPath(void) const
 {
 	return _uploadPath;
 }
 
-bool LocationConfig::isAutoindex() const
+bool LocationConfig::isAutoindex(void) const
 {
 	return _autoindex;
 }
 
-bool LocationConfig::isCgiEnabled() const
+bool LocationConfig::isCgiEnabled(void) const
 {
 	return _cgiEnabled;
 }
 
-const std::vector<std::string>& LocationConfig::getCgiExtensions() const
+const std::vector<std::string>& LocationConfig::getCgiExtensions(void) const
 {
 	return _cgiExtensions;
 }
 
-bool LocationConfig::hasReturnDirective() const
+bool LocationConfig::hasReturnDirective(void) const
 {
 	return _hasReturn;
 }
 
-int LocationConfig::getReturnStatus() const
+int LocationConfig::getReturnStatus(void) const
 {
 	return _returnStatus;
 }
 
-const std::string& LocationConfig::getReturnTarget() const
+const std::string& LocationConfig::getReturnTarget(void) const
 {
 	return _returnTarget;
 }

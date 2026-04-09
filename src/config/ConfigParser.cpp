@@ -3,7 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   ConfigParser.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   Created: 2026/04/07                                     by GitHub Copilot */
+/*   By: ktiew <ktiew@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/05/20 12:29:07 by ktiew             #+#    #+#             */
+/*   Updated: 2026/02/21 23:54:27 by ktiew            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -314,13 +317,6 @@ ServerConfig	ConfigParser::parseServerBlock(const std::vector<ConfigToken>& toke
 			if (i >= tokens.size())
 				throw parseError(tokens[i - 1].line, "missing host value");
 			server.setHost(tokens[i++].value);
-			expectToken(tokens, i, ";");
-		}
-		else if (key == "server_name")
-		{
-			if (i >= tokens.size())
-				throw parseError(tokens[i - 1].line, "missing server_name value");
-			server.setServerName(tokens[i++].value);
 			expectToken(tokens, i, ";");
 		}
 		else if (key == "root")
