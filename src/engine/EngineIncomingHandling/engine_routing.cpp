@@ -250,18 +250,22 @@ std::string Engine::handleGet(const HttpRequest& request, bool shouldClose, cons
 	std::string mappedPath = mapRequestPathForLocationRoot(request.getPath(), location);
 	std::string path = FileHandler::resolvePath(mappedPath, root, indexName);
 
+	//create a variable to store the file status(telling is file/directory, file size, permission, timestamp)
 	struct stat s;
-	// check what is the path
+	// check what is the path, does the path exist on disk and is it a directory
 	if (stat(path.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
 	{
 		std::string indexPath = path + "/" + indexName;
-		// try index
+		// check the indexPath file is exist
 		if (FileHandler::fileExists(indexPath))
 			path = indexPath;
-		// try autoindex
+		// the directory exist but no index file and autoindex is on
+		// no index file, but autoindex is enabled
 		else if (location != NULL && location->isAutoindex())
 		{
+			//show directory listing
 			std::string listing = FileHandler::generateDirectoryListing(request.getPath(), path);
+			// failed to open directory, permission denied, error reading files
 			if (listing.empty())
 				return buildErrorResponse(500, shouldClose, &serverConfig);
 			return buildStandardResponse(200, listing, "text/html", shouldClose);
@@ -270,12 +274,14 @@ std::string Engine::handleGet(const HttpRequest& request, bool shouldClose, cons
 		else
 			return buildErrorResponse(403, shouldClose, &serverConfig);
 	}
-
+	// file does not exist
 	if (!FileHandler::fileExists(path))
 		return buildErrorResponse(404, shouldClose, &serverConfig);
-	std::string content = FileHandler::readFile(path);
-	std::string mime = FileHandler::getMimeType(path);
-	return buildStandardResponse(200, content, mime, shouldClose);
+	
+	// read file content
+	std::string fileContent = FileHandler::readFile(path);
+	std::string multipurposeInternetMailExtensions = FileHandler::getMimeType(path);
+	return buildStandardResponse(200, fileContent, multipurposeInternetMailExtensions, shouldClose);
 }
 
 std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location)
