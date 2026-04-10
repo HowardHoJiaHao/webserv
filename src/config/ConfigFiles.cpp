@@ -46,50 +46,32 @@ const std::string& ConfigFiles::getPrefix(void) const
 
 void ConfigFiles::loadFromFile(const std::string& path)
 {
-	std::ifstream in(path.c_str());
+	std::ifstream	in(path.c_str());
 	if (!in.is_open())
 		throw std::runtime_error("Cannot open config file: " + path);
 
-	std::stringstream buffer;
+	std::stringstream	buffer;
 	buffer << in.rdbuf();
-	std::vector<ConfigToken> tokens = ConfigParser::tokenize(buffer.str());
+	std::vector<ConfigToken>	tokens = ConfigParser::tokenize(buffer.str());
 
 	_serverConfigs.clear();
-	size_t i = 0;
+	size_t	i = 0;
 	if (i < tokens.size() && tokens[i].value == "prefix")
 	{
-		size_t line = tokens[i++].line;
+		size_t	line = tokens[i++].line;
 		if (i >= tokens.size() || tokens[i].value == ";" || tokens[i].value == "{" || tokens[i].value == "}")
-		{
-			std::ostringstream _oss;
-			_oss << "Config parse error at line " << line << ": missing prefix path";
-			throw std::runtime_error(_oss.str());
-		}
+			throw ConfigParser::parseError(line, "missing prefix path");
 		_prefix = tokens[i++].value;
 		ConfigParser::expectToken(tokens, i, ";");
 		if (!ConfigParser::isDirectoryPath(_prefix))
-		{
-			std::ostringstream _oss;
-			_oss << "Config parse error at line " << line << ": prefix must be an existing directory: " << _prefix;
-			throw std::runtime_error(_oss.str());
-		}
+			throw ConfigParser::parseError(line, "prefix must be an existing directory: " + _prefix);
 	}
 	else if (i < tokens.size() && tokens[i].value != "server")
-	{
-		{
-			std::ostringstream _oss;
-			_oss << "Config parse error at line " << tokens[i].line << ": expected 'prefix' or 'server' block";
-			throw std::runtime_error(_oss.str());
-		}
-	}
+		throw ConfigParser::parseError(tokens[i].line, "expected 'prefix' or 'server' block");
 	while (i < tokens.size())
 	{
 		if (tokens[i].value != "server")
-			{
-				std::ostringstream _oss;
-				_oss << "Config parse error at line " << tokens[i].line << ": expected 'server' block";
-				throw std::runtime_error(_oss.str());
-			}
+			throw ConfigParser::parseError(tokens[i].line, "expected 'server' block");
 		ServerConfig server = ConfigParser::parseServerBlock(tokens, i, _prefix);
 		_serverConfigs.push_back(server);
 	}
@@ -101,7 +83,7 @@ void ConfigFiles::loadFromFile(const std::string& path)
 void ConfigFiles::initDefault(void)
 {
 	// first server
-	ServerConfig server1;
+	ServerConfig	server1;
 	server1.setHost("127.0.0.1");
 	server1.setPort(8080);
 	server1.setRoot("./www1");
@@ -110,10 +92,10 @@ void ConfigFiles::initDefault(void)
 	server1.addErrorPage(404, "/404.html");
 	server1.addErrorPage(500, "/500.html");
 
-	LocationConfig loc1;
+	LocationConfig	loc1;
 	loc1.setPath("/");
 	{
-		std::vector<std::string> methods;
+		std::vector<std::string>	methods;
 		methods.push_back("GET");
 		methods.push_back("POST");
 		loc1.setAllowedMethods(methods);
@@ -121,10 +103,10 @@ void ConfigFiles::initDefault(void)
 	loc1.setUploadEnabled(false);
 	loc1.setAutoindex(false);
 	
-	LocationConfig loc2;
+	LocationConfig	loc2;
 	loc2.setPath("/Upload");
 	{
-		std::vector<std::string> methods;
+		std::vector<std::string>	methods;
 		methods.push_back("POST");
 		loc2.setAllowedMethods(methods);
 	}
@@ -137,7 +119,7 @@ void ConfigFiles::initDefault(void)
 	_serverConfigs.push_back(server1);
 
 	//second server
-	ServerConfig server2;
+	ServerConfig	server2;
 	server2.setHost("127.0.0.1");
 	server2.setPort(8081);
 	server2.setRoot("./www2");
@@ -145,10 +127,10 @@ void ConfigFiles::initDefault(void)
 	server2.setMaxBodySize(1000000);
 	server2.addErrorPage(404, "/404.html");
 
-	LocationConfig loc3;
+	LocationConfig	loc3;
 	loc3.setPath("/");
 	{
-		std::vector<std::string> methods;
+		std::vector<std::string>	methods;
 		methods.push_back("GET");
 		loc3.setAllowedMethods(methods);
 	}
