@@ -183,10 +183,6 @@ bool Engine::handleRequestParsing(Connection* conn, const std::string& rawReques
 	return true;
 }
 
-
-
-
-#include <iostream>
 bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig, const LocationConfig* location, bool shouldClose, bool& producedResponse)
 {
 	//defensive
@@ -236,8 +232,7 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 		}
 		return false;
 	}
-	// the moment the first if block is trune, then eventually it will enter this false return and it wont go to the normal request
-
+	// the moment the first if block is true, then eventually it will enter this false return and it wont go to the normal request (next block of code)
 
 	std::string response = routeRequest(request, shouldClose, *serverConfig, location);
 	// if cookie string(_pendingSetCookieHeader) is not empty

@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:23:54 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/03/31 16:48:21 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/10 13:06:21 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,7 +19,8 @@
 
 int	main(int argc, char **argv)
 {
-    //when a client disconnects, SIGPIPE is sent, but we ignore it to avoid crashing
+	//when a client disconnects, SIGPIPE is sent, but we ignore it to avoid crashing
+	// the moment the server tries to write to the client, the client disconnect at the same time
 	signal(SIGPIPE, SIG_IGN);
 	std::srand(static_cast<unsigned int>(std::time(NULL)));
 

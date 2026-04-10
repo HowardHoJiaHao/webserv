@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/23 01:54:02 by ho                #+#    #+#             */
-/*   Updated: 2026/03/31 13:46:55 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/10 18:55:12 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,11 +16,14 @@
 #include <unistd.h>
 #include <dirent.h>
 
-std::string FileHandler::resolvePath(const std::string& urlPath, const std::string& root, const std::string& index)
+// building the final file path
+std::string FileHandler::resolvePath(const std::string& urlPathFromRequest, const std::string& root, const std::string& index)
 {
-	if (urlPath == "/")
+	// use index only when urlPathFromRequest is "/"
+	if (urlPathFromRequest == "/")
 		return root + "/" + index;
-	return root + urlPath;
+	// otherwise, ignore index
+	return root + urlPathFromRequest;
 }
 
 bool FileHandler::fileExists(const std::string& path)

@@ -15,9 +15,21 @@
 
 bool Engine::hasPathTraversal(const std::string& path) const
 {
-	return path.find("..") != std::string::npos;
+	// path is const, not mutable
+	std::string newPath = path; 
+	for (size_t i = 0; i < newPath.size(); ++i)
+	{
+		newPath[i] = std::tolower(static_cast<unsigned char>(newPath[i]));
+	}
+	// hex value of .
+	if (newPath.find("%2e%2e") != std::string::npos)
+		return true;
+	if (newPath.find("..") != std::string::npos)
+		return true;
+	return false;
 }
 
+// it try to access the root from the location first, if not found, then go to server root
 std::string Engine::resolveLocationRoot(const ServerConfig& serverConfig, const LocationConfig* location) const
 {
 	if (location != NULL && !location->getRoot().empty())
@@ -166,19 +178,30 @@ static bool ensureDirectoryExistsEngine(const std::string& path)
 		return false;
 	return S_ISDIR(st.st_mode);
 }
-
+// requestPath is from client: GET /index.html HTTP/1.1\r\n, which is the second part of the request line
+//
+// location with root: use custom root, modify the request path
+// location without root: use default root, keep the request path as is
+//
+// request, strip off the first part of the path(location path), then append the root path at front, depends on location has root or not
 std::string Engine::mapRequestPathForLocationRoot(const std::string& requestPath, const LocationConfig* location) const
 {
+	// also when the location doesnt have this root field, return request path
 	if (location == NULL || location->getRoot().empty())
 		return requestPath;
 
+	// if location path is / only, then it will be incorrect to strip, so just return request path
 	const std::string& locationPath = location->getPath();
 	if (locationPath.empty() || locationPath == "/")
 		return requestPath;
 
+	// nothing to strip off if both are the same
 	if (requestPath == locationPath)
 		return "/";
 
+	//1. request path is longer than location path eg, request path: /haha/form.html, location path: /haha
+	//2. request path starts with location path, taking the request path to compare to location path
+	//3. request path has a slash after the location path
 	if (requestPath.size() > locationPath.size()
 		&& requestPath.compare(0, locationPath.size(), locationPath) == 0
 		&& requestPath[locationPath.size()] == '/')
@@ -215,21 +238,27 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 	return buildErrorResponse(405, shouldClose, &serverConfig, methodNotAllowedHeaders(location));
 }
 
+// http request: /haha/form.html -> location match: /haha -> root: ./www1 -> mappedPath: /form.html -> Finalpath: ./www1/form.html
 std::string Engine::handleGet(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location)
 {
 	if (hasPathTraversal(request.getPath()))
 		return buildErrorResponse(403, shouldClose, &serverConfig);
 
+	//preparing path:- it is where my webserver trying to get the file and send to client, root and indexName from config, mappedPath from request
 	std::string root = resolveLocationRoot(serverConfig, location);
 	std::string indexName = resolveIndexForRequestEngine(serverConfig, location);
 	std::string mappedPath = mapRequestPathForLocationRoot(request.getPath(), location);
 	std::string path = FileHandler::resolvePath(mappedPath, root, indexName);
+
 	struct stat s;
+	// check what is the path
 	if (stat(path.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
 	{
 		std::string indexPath = path + "/" + indexName;
+		// try index
 		if (FileHandler::fileExists(indexPath))
 			path = indexPath;
+		// try autoindex
 		else if (location != NULL && location->isAutoindex())
 		{
 			std::string listing = FileHandler::generateDirectoryListing(request.getPath(), path);
@@ -237,6 +266,7 @@ std::string Engine::handleGet(const HttpRequest& request, bool shouldClose, cons
 				return buildErrorResponse(500, shouldClose, &serverConfig);
 			return buildStandardResponse(200, listing, "text/html", shouldClose);
 		}
+		// forbidden
 		else
 			return buildErrorResponse(403, shouldClose, &serverConfig);
 	}

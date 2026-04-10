@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:37:17 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/09 13:52:31 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/10 13:14:27 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,9 @@
 #include <stdexcept>
 
 // one httpRequest = one client request
+// client sends raw bytes to server.
+// server parse it, make it to a structure object
+// later using it to build response and send back to client
 class HttpRequest
 {
 	private:
