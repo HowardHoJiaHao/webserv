@@ -14,13 +14,89 @@
 #include "ConfigParser.hpp"
 #include <algorithm>
 #include <sstream>
-#include <cstdlib>
 #include <sys/stat.h>
-#include <stdexcept>
+
+ConfigParser::ConfigToken::ConfigToken(int l, const std::string& v)
+	: value(v),
+	line(l)
+{
+}
+
+ConfigParser::ConfigToken::~ConfigToken(void)
+{
+}
 
 bool	ConfigParser::isSupportedReturnStatus(int code)
 {
 	return (code >= 300 && code <= 399);
+}
+
+bool	ConfigParser::isValidIpv4OrLocalhost(const std::string& host)
+{
+	if (host == "localhost")
+		return true;
+	std::istringstream	iss(host);
+	std::string	token;
+	int	parts = 0;
+	while (std::getline(iss, token, '.'))
+	{
+		if (token.empty() || token.size() > 3)
+			return false;
+		for (std::string::const_iterator it = token.begin(); it != token.end(); it++)
+			if (std::isdigit(*it) == 0)
+				return false;
+		std::stringstream	ss(token);
+		int	num;
+		ss >> num;
+		if (ss.fail())
+			return false;
+		if (num < 0 || num > 255)
+			return false;
+		parts++;
+	}
+	return parts == 4;
+}
+
+bool	ConfigParser::isValidPort(const std::string& portstr, int& port)
+{
+	for (std::string::const_iterator it = portstr.begin(); it != portstr.end(); it++)
+		if (std::isdigit(*it) == 0)
+			return false;
+	std::stringstream	ss(portstr);
+	ss >> port;
+	if (ss.fail())
+		return false;
+	return port > 0 && port < 65535;
+}
+
+const ConfigParser::ConfigToken&	ConfigParser::nextTokenOrError(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& context)
+{
+	if (i >= tokens.size())
+		throw parseError(tokens[i - 1].line, "missing " + context + " value");
+	return tokens[i++];
+}
+
+const ConfigParser::ConfigToken&	ConfigParser::expectValueToken(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& context)
+{
+	const ConfigToken&	token = nextTokenOrError(tokens, i, context);
+	if (token.value == ";" || token.value == "{" || token.value == "}")
+		throw parseError(token.line, "missing " + context + " value");
+	return token;
+}
+
+std::string	ConfigParser::requireHost(const ConfigToken& token)
+{
+	if (!isValidIpv4OrLocalhost(token.value))
+		throw parseError(token.line, "invalid host: " + token.value);
+	return token.value;
+}
+
+int	ConfigParser::requirePort(const ConfigToken& token)
+{
+	int	port;
+	if (!isValidPort(token.value, port))
+		throw parseError(token.line, "invalid port: " + token.value);
+	return port;
 }
 
 std::string	ConfigParser::applyPrefixPath(const std::string& prefix, const std::string& path)
@@ -41,28 +117,6 @@ std::runtime_error	ConfigParser::parseError(size_t line, const std::string& mess
 	std::ostringstream	oss;
 	oss << message << code;
 	throw parseError(line, oss.str());
-}
-
-void	ConfigParser::parseListenValue(const std::string& listenValue, ServerConfig& server, size_t line)
-{
-	size_t	colon = listenValue.find(':');
-	if (colon == std::string::npos)
-	{
-		unsigned long	port = parseUnsigned(listenValue, "listen", line);
-		if (port > 65535)
-			throw parseError(line, "invalid listen port: " + listenValue);
-		server.setPort(static_cast<int>(port));
-		if (server.getHost().empty())
-			server.setHost("0.0.0.0");
-		return;
-	}
-	std::string	host = listenValue.substr(0, colon);
-	std::string	portStr = listenValue.substr(colon + 1);
-	unsigned long port = parseUnsigned(portStr, "listen", line);
-	if (port > 65535)
-		throw parseError(line, "invalid listen port: " + portStr);
-	server.setHost(host);
-	server.setPort(static_cast<int>(port));
 }
 
 unsigned long	ConfigParser::parseUnsigned(const std::string& value, const std::string& fieldName, size_t line)
@@ -192,56 +246,75 @@ void	ConfigParser::parseReturn(const std::vector<ConfigToken>& tokens, size_t& i
 void	ConfigParser::parseListen(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
-	if (i >= tokens.size())
-		throw parseError(tokens[i - 1].line, "missing listen value");
-	parseListenValue(tokens[i].value, server, tokens[i].line);
-	i++;
+	const ConfigToken&	token = expectValueToken(tokens, i, "listen");
+	std::string			host;
+	int					port;
+	size_t				colon = token.value.rfind(':');
+
+	if (colon == std::string::npos)
+	{
+		host = "0.0.0.0";
+		port = requirePort(token);
+	}
+	else
+	{
+		ConfigToken	hostToken(token.line, token.value.substr(0, colon));
+		if (hostToken.value.empty())
+			host = "0.0.0.0";
+		else
+			host = requireHost(hostToken);
+		ConfigToken	portToken(token.line, token.value.substr(colon + 1));
+		port = requirePort(portToken);
+	}
+	server.setHost(host);
+	server.setPort(port);
 	expectToken(tokens, i, ";");
 }
 
-void	ConfigParser::parseHost(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
+void ConfigParser::parseHost(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
-	if (i >= tokens.size())
-		throw parseError(tokens[i - 1].line, "missing host value");
-	server.setHost(tokens[i++].value);
+	const ConfigToken&	token = expectValueToken(tokens, i, "host");
+	server.setHost(requireHost(token));
+	expectToken(tokens, i, ";");
+}
+
+void ConfigParser::parsePort(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
+{
+	(void) prefix;
+	const ConfigToken&	token = expectValueToken(tokens, i, "port");
+	server.setPort(requirePort(token));
 	expectToken(tokens, i, ";");
 }
 
 void	ConfigParser::parseRoot(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
-	if (i >= tokens.size())
-		throw parseError(tokens[i - 1].line, "missing root value");
-	server.setRoot(applyPrefixPath(prefix, tokens[i++].value));
+	const ConfigToken&	token = expectValueToken(tokens, i, "root");
+	server.setRoot(applyPrefixPath(prefix, token.value));
 	expectToken(tokens, i, ";");
 }
 
 void	ConfigParser::parseIndex(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
-	if (i >= tokens.size())
-		throw parseError(tokens[i - 1].line, "missing index value");
-	server.setIndex(tokens[i++].value);
+	const ConfigToken&	token = expectValueToken(tokens, i, "index");
+	server.setIndex(token.value);
 	expectToken(tokens, i, ";");
 }
 
 void	ConfigParser::parseClientMaxBodySize(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
-	if (i >= tokens.size())
-		throw parseError(tokens[i - 1].line, "missing client_max_body_size value");
-	unsigned long	size = parseUnsigned(tokens[i].value, "client_max_body_size", tokens[i].line);
-	i++;
+	const ConfigToken&	token = expectValueToken(tokens, i, "client_max_body_size");
+	unsigned long	size = parseUnsigned(token.value, "client_max_body_size", token.line);
 	server.setMaxBodySize(static_cast<size_t>(size));
 	expectToken(tokens, i, ";");
 }
 
 void	ConfigParser::parseErrorPage(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
-	if (i + 1 >= tokens.size())
-		throw parseError(tokens[i - 1].line, "malformed error_page directive");
-	unsigned long code = parseUnsigned(tokens[i].value, "error_page", tokens[i].line);
-	i++;
+	const ConfigToken&	token = expectValueToken(tokens, i, "error_page");
+	unsigned long code = parseUnsigned(token.value, "error_page", token.line);
 	std::string	path = tokens[i++].value;
 	server.addErrorPage(static_cast<int>(code), applyPrefixPath(prefix, path));
 	expectToken(tokens, i, ";");
@@ -249,10 +322,9 @@ void	ConfigParser::parseErrorPage(const std::vector<ConfigToken>& tokens, size_t
 
 void	ConfigParser::parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
-	if (i >= tokens.size())
-		throw parseError(tokens[tokens.size() - 1].line, "missing location path");
+	const ConfigToken&	token = expectValueToken(tokens, i, "location");
 	LocationConfig	loc;
-	loc.setPath(tokens[i++].value);
+	loc.setPath(token.value);
 	expectToken(tokens, i, "{");
 	const std::map<std::string, LocationDirectiveHandler>&	handlers = getLocationHandlers();
 	while (i < tokens.size() && tokens[i].value != "}")
@@ -283,7 +355,7 @@ const	std::map<std::string, bool>&	ConfigParser::getValidOnOffMap(void)
 	return map;
 }
 
-const std::map<std::string, LocationDirectiveHandler>&	ConfigParser::getLocationHandlers(void)
+const std::map<std::string, ConfigParser::LocationDirectiveHandler>&	ConfigParser::getLocationHandlers(void)
 {
 	static std::map<std::string, LocationDirectiveHandler>	map;
 	if (map.empty())
@@ -302,13 +374,14 @@ const std::map<std::string, LocationDirectiveHandler>&	ConfigParser::getLocation
 	return map;
 }
 
-const std::map<std::string, ServerDirectiveHandler>&	ConfigParser::getServerHandlers(void)
+const std::map<std::string, ConfigParser::ServerDirectiveHandler>&	ConfigParser::getServerHandlers(void)
 {
 	static std::map<std::string, ServerDirectiveHandler>	map;
 	if (map.empty())
 	{
 		map["listen"]				= &parseListen;
 		map["host"]					= &parseHost;
+		map["port"]					= &parsePort;
 		map["root"]					= &parseRoot;
 		map["index"]				= &parseIndex;
 		map["client_max_body_size"]	= &parseClientMaxBodySize;
@@ -333,14 +406,14 @@ void	ConfigParser::expectToken(const std::vector<ConfigToken>& tokens, size_t& i
 {
 	if (i >= tokens.size() || tokens[i].value != expected)
 	{
-		size_t line = 1;
+		size_t	line = 1;
 		if (i < tokens.size())
 			line = tokens[i].line;
 		else if (!tokens.empty())
 			line = tokens[tokens.size() - 1].line;
 		throw parseError(line, "expected '" + expected + "'");
 	}
-	++i;
+	i++;
 }
 
 bool	ConfigParser::isDirectoryPath(const std::string& path)
@@ -351,7 +424,7 @@ bool	ConfigParser::isDirectoryPath(const std::string& path)
 	return S_ISDIR(st.st_mode);
 }
 
-std::vector<ConfigToken>	ConfigParser::tokenize(const std::string& content)
+std::vector<ConfigParser::ConfigToken>	ConfigParser::tokenize(const std::string& content)
 {
 	std::vector<ConfigToken>	tokens;
 	std::string	current;
@@ -370,9 +443,7 @@ std::vector<ConfigToken>	ConfigParser::tokenize(const std::string& content)
 				line++;
 			if (!current.empty())
 			{
-				ConfigToken	token;
-				token.value = current;
-				token.line = currentLine;
+				ConfigToken	token(currentLine, current);
 				tokens.push_back(token);
 				current.clear();
 			}
@@ -382,15 +453,12 @@ std::vector<ConfigToken>	ConfigParser::tokenize(const std::string& content)
 		{
 			if (!current.empty())
 			{
-				ConfigToken	token;
-				token.value = current;
-				token.line = currentLine;
+				ConfigToken	token(currentLine, current);
 				tokens.push_back(token);
 				current.clear();
 			}
-			ConfigToken	token;
+			ConfigToken	token(currentLine, current);
 			token.value = std::string(1, c);
-			token.line = line;
 			tokens.push_back(token);
 			continue;
 		}
@@ -398,9 +466,7 @@ std::vector<ConfigToken>	ConfigParser::tokenize(const std::string& content)
 		{
 			if (!current.empty())
 			{
-				ConfigToken	token;
-				token.value = current;
-				token.line = currentLine;
+				ConfigToken	token(currentLine, current);
 				tokens.push_back(token);
 				current.clear();
 			}
@@ -412,9 +478,7 @@ std::vector<ConfigToken>	ConfigParser::tokenize(const std::string& content)
 	}
 	if (!current.empty())
 	{
-		ConfigToken	token;
-		token.value = current;
-		token.line = currentLine;
+		ConfigToken	token(currentLine, current);
 		tokens.push_back(token);
 	}
 	return tokens;
@@ -453,3 +517,7 @@ ServerConfig	ConfigParser::parseServerBlock(const std::vector<ConfigToken>& toke
 		server.setIndex("index.html");
 	return server;
 }
+
+// const std::map<std::string, ServerDirectiveHandler>&	handlers = getServerHandlers();
+// if (handlers.find(token.value) != handlers.end())
+// 	throw parseError(token.line, "missing port value");

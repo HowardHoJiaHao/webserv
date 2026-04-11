@@ -52,7 +52,7 @@ void ConfigFiles::loadFromFile(const std::string& path)
 
 	std::stringstream	buffer;
 	buffer << in.rdbuf();
-	std::vector<ConfigToken>	tokens = ConfigParser::tokenize(buffer.str());
+	std::vector<ConfigParser::ConfigToken>	tokens = ConfigParser::tokenize(buffer.str());
 
 	_serverConfigs.clear();
 	size_t	i = 0;
@@ -72,7 +72,7 @@ void ConfigFiles::loadFromFile(const std::string& path)
 	{
 		if (tokens[i].value != "server")
 			throw ConfigParser::parseError(tokens[i].line, "expected 'server' block");
-		ServerConfig server = ConfigParser::parseServerBlock(tokens, i, _prefix);
+		ServerConfig	server = ConfigParser::parseServerBlock(tokens, i, _prefix);
 		_serverConfigs.push_back(server);
 	}
 
