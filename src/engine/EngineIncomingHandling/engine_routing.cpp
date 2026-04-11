@@ -284,39 +284,71 @@ std::string Engine::handleGet(const HttpRequest& request, bool shouldClose, cons
 	return buildStandardResponse(200, fileContent, multipurposeInternetMailExtensions, shouldClose);
 }
 
+// my post request config
+// location /Upload
+//{
+//		methods POST;
+//		upload_enable on;
+//		upload_path ./uploads;
+//		autoindex off;
+// }
+//
+// this is what client send to server
+//
+// POST /Upload HTTP/1.1
+// Host: 127.0.0.1:8080
+// Content-Length: 11
+//
+// Content-Disposition: form-data; name="file"; filename="hello.txt" <- this one to tell how i will name the file
+// Content-Type: text/plain
+//
+// hello world
 std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location)
 {
+	// if upload is not allowed, return 403
 	if (location == NULL || !location->isUploadEnabled())
 		return buildErrorResponse(403, shouldClose, &serverConfig);
+	// if no upload directory is specified, return 500
 	if (location->getUploadPath().empty())
 		return buildErrorResponse(500, shouldClose, &serverConfig);
 
+	// get the data send by client(file content), store to upload path
 	const std::string& body = request.getBody();
 	std::string uploadDir = location->getUploadPath();
 
+	// ensure the upload folder exist
 	if (!ensureDirectoryExistsEngine(uploadDir))
 		return buildErrorResponse(500, shouldClose, &serverConfig);
 
+	// try get filename from request(content-disposition), if client didnt provide name, generate one	
 	std::string filename = extractUploadFilenameEngine(request);
 	bool hadHeaderFilename = !filename.empty();
 	if (filename.empty())
 		filename = defaultUploadFilenameEngine();
 
+	//combine directory + file name, eg: /uploads/hello.txt
 	std::string uploadPath = uploadDir + "/" + filename;
+	// create new file only, failed if it exists
 	int fd = open(uploadPath.c_str(), O_CREAT | O_WRONLY | O_EXCL, 0644);
+	// if file exist and name come from client
 	if (fd < 0 && errno == EEXIST && hadHeaderFilename)
 	{
+		// if file exist and name come from client, generate new default name
 		filename = defaultUploadFilenameEngine();
 		uploadPath = uploadDir + "/" + filename;
 		fd = open(uploadPath.c_str(), O_CREAT | O_WRONLY | O_EXCL, 0644);
 	}
+	// if still failed, return 500
 	if (fd < 0)
 		return buildErrorResponse(500, shouldClose, &serverConfig);
 
+	//write entire request body to file
 	size_t total = 0;
 	while (total < body.size())
 	{
+		//write chunk to disk, body.data() is actually works like pointer
 		ssize_t written = write(fd, body.data() + total, body.size() - total);
+		// if write failed, close file and return 500
 		if (written <= 0)
 		{
 			close(fd);
@@ -325,6 +357,7 @@ std::string Engine::handlePost(const HttpRequest& request, bool shouldClose, con
 		total += written;
 	}
 	close(fd);
+	//success response
 	return buildStandardResponse(201, "Upload OK", "text/plain", shouldClose);
 }
 
