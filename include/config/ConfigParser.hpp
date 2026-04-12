@@ -37,19 +37,29 @@ class ConfigParser
 		static ServerConfig				parseServerBlock(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& prefix);
 
 	private:
-		typedef void	(*LocationDirectiveHandler)(const std::vector<ConfigToken>&, size_t&, LocationConfig&, const std::string&);
-		typedef void	(*ServerDirectiveHandler)(const std::vector<ConfigToken>&, size_t&, ServerConfig&, const std::string&);
+		typedef void				(*LocationDirectiveHandler)(const std::vector<ConfigToken>&, size_t&, LocationConfig&, const std::string&);
+		typedef void				(*ServerDirectiveHandler)(const std::vector<ConfigToken>&, size_t&, ServerConfig&, const std::string&);
+		typedef const std::string&	(*Validator)(const ConfigToken&);
 
-		static bool					isSupportedReturnStatus(int code);
+		static void					flushToken(std::vector<ConfigToken>& tokens, std::string& current, size_t line);
 		static bool					isValidIpv4OrLocalhost(const std::string& host);
 		static bool					isValidPort(const std::string& portstr, int& port);
 		static const ConfigToken&	nextTokenOrError(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& context);
 		static const ConfigToken&	expectValueToken(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& context);
 		static std::string			requireHost(const ConfigToken& token);
 		static int					requirePort(const ConfigToken& token);
+		static size_t				requireNumericValue(const ConfigToken& token);
+		static int					requireNumericValue(const ConfigToken& token, const std::string& context);
+		static std::string			requireErrorPageTarget(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& prefix);
 		static std::string			applyPrefixPath(const std::string& prefix, const std::string& path);
+		static int					requireReturnCode(const ConfigToken& token);
+		static std::string			requireReturnTarget(const std::vector<ConfigToken>& tokens, size_t& i);
+		static void					applyServerDefaults(ServerConfig& server, const std::string& prefix);
+		static void					ensureUnique(const std::vector<std::string>& values, const ConfigToken& token, const std::string& directive);
+		static const std::string&	requireMethod(const ConfigToken& token);
+		static const std::string&	requireExtension(const ConfigToken& token);
+		static const std::string&	expectValueWithValidator(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& directive, Validator validator);
 		static std::runtime_error	parseError(size_t line, const std::string& message, int code);
-		static unsigned long		parseUnsigned(const std::string& value, const std::string& fieldName, size_t line);
 		static bool					parseValidOnOff(const std::string& value, size_t line, const std::string& directive);
 
 		static void					parseMethods(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix);

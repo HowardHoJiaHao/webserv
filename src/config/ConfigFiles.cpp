@@ -47,18 +47,22 @@ const std::string& ConfigFiles::getPrefix(void) const
 void ConfigFiles::loadFromFile(const std::string& path)
 {
 	std::ifstream	in(path.c_str());
+
 	if (!in.is_open())
 		throw std::runtime_error("Cannot open config file: " + path);
 
 	std::stringstream	buffer;
+
 	buffer << in.rdbuf();
 	std::vector<ConfigParser::ConfigToken>	tokens = ConfigParser::tokenize(buffer.str());
 
 	_serverConfigs.clear();
 	size_t	i = 0;
+
 	if (i < tokens.size() && tokens[i].value == "prefix")
 	{
 		size_t	line = tokens[i++].line;
+
 		if (i >= tokens.size() || tokens[i].value == ";" || tokens[i].value == "{" || tokens[i].value == "}")
 			throw ConfigParser::parseError(line, "missing prefix path");
 		_prefix = tokens[i++].value;
@@ -73,17 +77,17 @@ void ConfigFiles::loadFromFile(const std::string& path)
 		if (tokens[i].value != "server")
 			throw ConfigParser::parseError(tokens[i].line, "expected 'server' block");
 		ServerConfig	server = ConfigParser::parseServerBlock(tokens, i, _prefix);
+
 		_serverConfigs.push_back(server);
 	}
-
 	if (_serverConfigs.empty())
 		throw std::runtime_error("Config parse error: no server block found");
 }
 
 void ConfigFiles::initDefault(void)
 {
-	// first server
 	ServerConfig	server1;
+
 	server1.setHost("127.0.0.1");
 	server1.setPort(8080);
 	server1.setRoot("./www1");
@@ -93,9 +97,11 @@ void ConfigFiles::initDefault(void)
 	server1.addErrorPage(500, "/500.html");
 
 	LocationConfig	loc1;
+
 	loc1.setPath("/");
 	{
 		std::vector<std::string>	methods;
+
 		methods.push_back("GET");
 		methods.push_back("POST");
 		loc1.setAllowedMethods(methods);
@@ -104,9 +110,11 @@ void ConfigFiles::initDefault(void)
 	loc1.setAutoindex(false);
 	
 	LocationConfig	loc2;
+
 	loc2.setPath("/Upload");
 	{
 		std::vector<std::string>	methods;
+
 		methods.push_back("POST");
 		loc2.setAllowedMethods(methods);
 	}
@@ -118,8 +126,8 @@ void ConfigFiles::initDefault(void)
 	server1.addLocation(loc2);
 	_serverConfigs.push_back(server1);
 
-	//second server
 	ServerConfig	server2;
+
 	server2.setHost("127.0.0.1");
 	server2.setPort(8081);
 	server2.setRoot("./www2");
@@ -128,9 +136,11 @@ void ConfigFiles::initDefault(void)
 	server2.addErrorPage(404, "/404.html");
 
 	LocationConfig	loc3;
+
 	loc3.setPath("/");
 	{
 		std::vector<std::string>	methods;
+
 		methods.push_back("GET");
 		loc3.setAllowedMethods(methods);
 	}
