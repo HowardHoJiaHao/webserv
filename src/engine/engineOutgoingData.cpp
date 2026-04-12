@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/08 18:25:51 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/12 18:49:10 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,28 +46,37 @@ void Engine::handleCGIStdinWrite(Connection* currentConn, fd_set& writeSet)
 	}
 }
 
+void Engine::closeConnectionOrResetConnState(std::map<int, Connection*>::iterator& it, Connection* currentConn)
+{
+	if (currentConn->shouldClose())
+	{
+		destroyClientConnection(it);
+		return;
+	}
+	currentConn->setRequestState(Connection::READING_HEADERS);
+	currentConn->setState(Connection::READING);
+	++it;
+}
+
 void Engine::handleClientWrite(std::map<int, Connection*>::iterator& it, int clientFd, fd_set& writeSet)
 {
+	// get connection object
 	Connection* currentConn = it->second;
-
+	// check whether cliendfd is appeared in writeSet
+	// if client is not ready to write, skip
 	if (!FD_ISSET(clientFd, &writeSet))
 	{
 		++it;
 		return;
 	}
 
+	// i fill the writeBuffer during request incoming phase
+	// now i will send it out during this phase
 	std::string& writebuffer = currentConn->getWriteBuffer();
+	// write buffer might be empty before entering send()
 	if (writebuffer.empty())
 	{
-		if (currentConn->shouldClose())
-		{
-			destroyClientConnection(it);
-			return;
-		}
-
-		currentConn->setRequestState(Connection::READING_HEADERS);
-		currentConn->setState(Connection::READING);
-		++it;
+		closeConnectionOrResetConnState(it, currentConn);
 		return;
 	}
 
@@ -77,36 +86,39 @@ void Engine::handleClientWrite(std::map<int, Connection*>::iterator& it, int cli
 		writebuffer.erase(0, sentByte);
 		currentConn->updateLastActivity();
 
+		// just finish writing
 		if (writebuffer.empty())
-		{
-			if (currentConn->shouldClose())
-			{
-				destroyClientConnection(it);
-				return;
-			}
-			currentConn->setRequestState(Connection::READING_HEADERS);
-			currentConn->setState(Connection::READING);
-		}
-		++it;
+			closeConnectionOrResetConnState(it, currentConn);
+		else
+			++it;
 		return;
 	}
-	if (sentByte == 0)
+	// broken connection
+	else if (sentByte == 0)
 	{
 		destroyClientConnection(it);
 		return;
 	}
-	perror("send");
-	destroyClientConnection(it);
+	else if (sentByte < 0)
+	{
+		perror("send");
+		destroyClientConnection(it);
+		return;
+	}
+
 }
 
 void Engine::processOutgoingData(fd_set& writeSet)
 {
+	// iterate the connection
 	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
 			it != _clientConnections.end();)
 	{
+		// get fd and pointer to connection object
 		int clientFd = it->first;
 		Connection* currentConn = it->second;
 
+		// writing to the cgi stdin process
 		if (currentConn->getState() == Connection::CGI_RUNNING)
 			handleCGIStdinWrite(currentConn, writeSet);
 

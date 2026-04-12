@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/09 01:54:56 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/12 18:22:27 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,6 +50,7 @@ class Engine
 		void	handleCGIReadError(Connection* currentConn);
 
 		void processOutgoingData(fd_set& writeSet);
+		void closeConnectionOrResetConnState(std::map<int, Connection*>::iterator& it, Connection* currentConn);
 		void checkTimeouts();
 
 		const ServerConfig* findServerConfig(const std::string& host, int port) const;

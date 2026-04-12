@@ -138,12 +138,17 @@ std::vector<std::string> Engine::methodNotAllowedHeaders(const LocationConfig* l
 
 // =====================		routing		==========================
 
+// prevent overwrite system file or sensitive file
+// prevent path traversal example filename = "../../etc/passwd"
 static bool isUnsafeUploadFilenameEngine(const std::string& name)
 {
 	if (name.empty())
 		return true;
+	// . represent directory, not file, write directory like a file is wrong
+	// .. go up one level
 	if (name == "." || name == "..")
 		return true;
+	// any / or \ ? reject
 	if (name.find('/') != std::string::npos || name.find('\\') != std::string::npos)
 		return true;
 	return false;
@@ -153,24 +158,32 @@ static bool isUnsafeUploadFilenameEngine(const std::string& name)
 // Content-Disposition: form-data; name="file"; filename="hello.txt"
 static std::string extractUploadFilenameEngine(const HttpRequest& request)
 {
+	// get value of the content-disposition
 	const std::string* contentDisposition = request.getHeader("content-disposition");
 	if (contentDisposition == NULL || contentDisposition->empty())
 		return "";
 
+	// reference to represent contentDisposition, turn it lower case, find the keyword "filename="
 	const std::string& headerValue = *contentDisposition;
 	std::string lowered = toLowerAsciiEngine(headerValue);
 	size_t keyPos = lowered.find("filename=");
 	if (keyPos == std::string::npos)
 		return "";
 
+	// skip filename=, if nothing after keyword, return null
 	size_t valueStart = keyPos + 9;
 	if (valueStart >= headerValue.size())
 		return "";
 
+	// create valueEndCursor
 	size_t valueEnd = std::string::npos;
+
+	// if the value is wrapped in quotes, find the closing quote, else find the semicolon
+	// set valueEnd position
 	if (headerValue[valueStart] == '"' || headerValue[valueStart] == '\'')
 	{
 		char quote = headerValue[valueStart];
+		// skip start quote
 		++valueStart;
 		valueEnd = headerValue.find(quote, valueStart);
 	}
@@ -179,11 +192,14 @@ static std::string extractUploadFilenameEngine(const HttpRequest& request)
 		valueEnd = headerValue.find(';', valueStart);
 	}
 
+	// if valueEnd is not found, set it to the end of the string
 	if (valueEnd == std::string::npos)
 		valueEnd = headerValue.size();
+	// empty filename, filename=""
 	if (valueEnd <= valueStart)
 		return "";
 
+	//extract string after filename=, remove spaces if any
 	std::string extracted = trimAsciiEngine(headerValue.substr(valueStart, valueEnd - valueStart));
 	if (isUnsafeUploadFilenameEngine(extracted))
 		return "";
