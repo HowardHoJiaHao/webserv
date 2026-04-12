@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   connection.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:48:52 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/13 02:52:27 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -144,14 +144,14 @@ int Connection::getCGIPid() const
 	return _cgi->pid;
 }
 
-int Connection::getCGIStdinFd() const
+int Connection::getCGIInputFd() const
 {
 	if (!_cgi)
 		return -1;
 	return _cgi->stdin_fd;
 }
 
-int Connection::getCGIStdoutFd() const
+int Connection::getCGIOutputFd() const
 {
 	if (!_cgi)
 	{
@@ -160,7 +160,7 @@ int Connection::getCGIStdoutFd() const
 	return _cgi->stdout_fd;
 }
 
-bool Connection::isCGIStdinClosed() const
+bool Connection::isCGIInputClosed() const
 {
 	if (!_cgi)
 		return true;
@@ -180,13 +180,13 @@ void Connection::setCGIPid(pid_t pid)
 		_cgi->pid = pid;
 }
 
-void Connection::setCGIStdinFd(int fd)
+void Connection::setCGIInputFd(int fd)
 {
 	if (_cgi)
 		_cgi->stdin_fd = fd;
 }
 
-void Connection::setCGIStdoutFd(int fd)
+void Connection::setCGIOutputFd(int fd)
 {
 	if (_cgi)
 		_cgi->stdout_fd = fd;
@@ -202,7 +202,7 @@ void Connection::setServerConfig(const ServerConfig* config)
 	_serverConfig = config;
 }
 
-void Connection::setCGIStdinClosed(bool value)
+void Connection::setCGIInputClosed(bool value)
 {
 	if (_cgi)
 		_cgi->stdin_closed = value;

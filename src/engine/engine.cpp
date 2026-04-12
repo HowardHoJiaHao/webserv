@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/13 02:42:14 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/13 03:03:41 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -146,13 +146,14 @@ void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, in
 		// safeguard cgi related fd against select() limit
 		if (currentConn->getState() == Connection::CGI_RUNNING)
 		{
-			int cgiFd = currentConn->getCGIStdoutFd();
+			int cgiOutputFd = currentConn->getCGIOutputFd();
 			Connection::CGIContext* cgi = currentConn->getCGI();
 			// check cgi stdout fd valid for select limit
-			if (cgiFd != -1 && !isFdSelectable(cgiFd))
+			if (cgiOutputFd != -1 && !isFdSelectable(cgiOutputFd))
 				dropConnection = true;
 			// check cgi stdin fd valid for select limit
-			if (cgi != NULL && cgi->stdin_fd != -1 && !isFdSelectable(cgi->stdin_fd))
+			int cgiInputFd = currentConn->getCGIInputFd();
+			if (cgi != NULL && cgiInputFd != -1 && !isFdSelectable(cgiInputFd))
 				dropConnection = true;
 		}
 
@@ -174,23 +175,25 @@ void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, in
 		if (currentConn->getState() == Connection::CGI_RUNNING)
 		{
 			Connection::CGIContext* cgi = currentConn->getCGI();
-			int cgi_fd = currentConn->getCGIStdoutFd();
-			if (cgi_fd != -1)
+			int cgiOutputFd = currentConn->getCGIOutputFd();
+			if (cgiOutputFd != -1)
 			{
-				FD_SET(cgi_fd, &readSet);
-				if (cgi_fd > maxFd)
-					maxFd = cgi_fd;
+				FD_SET(cgiOutputFd, &readSet);
+				if (cgiOutputFd > maxFd)
+					maxFd = cgiOutputFd;
 			}
-			if (cgi != NULL
-				&& cgi->stdin_fd != -1
-				&& !currentConn->isCGIStdinClosed()
-				&& cgi->stdin_offset < cgi->stdin_buffer.size())
+			int cgiInputFd = currentConn->getCGIInputFd();
+			if (cgi != NULL // cgi exist
+				&& cgiInputFd != -1 // stdin pipe is valid
+				&& !currentConn->isCGIInputClosed() // stdin pipe is not closed
+				&& cgi->stdin_offset < cgi->stdin_buffer.size()) // there are still data left to read
 			{
-				FD_SET(cgi->stdin_fd, &writeSet);
-				if (cgi->stdin_fd > maxFd)
-					maxFd = cgi->stdin_fd;
+				FD_SET(cgiInputFd, &writeSet);
+				if (cgiInputFd > maxFd)
+					maxFd = cgiInputFd;
 			}
 		}
+		// update and track highest fd
 		if (fd > maxFd)
 			maxFd = fd;
 		++it;

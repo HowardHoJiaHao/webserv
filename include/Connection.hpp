@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Connection.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/13 02:52:27 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -83,16 +83,16 @@ class Connection
 		// ===========		getter	==============
 		CGIContext*			getCGI() const;
 		int					getCGIPid() const;
-		int					getCGIStdinFd() const;
-		int					getCGIStdoutFd() const;
-		bool				isCGIStdinClosed() const;
+		int					getCGIInputFd() const;
+		int					getCGIOutputFd() const;
+		bool				isCGIInputClosed() const;
 
 		// ==========	setter	=============
 		void				setCGI(CGIContext* cgi);
 		void				setCGIPid(pid_t pid);
-		void				setCGIStdinFd(int fd);
-		void				setCGIStdoutFd(int fd);
-		void				setCGIStdinClosed(bool value);
+		void				setCGIInputFd(int fd);
+		void				setCGIOutputFd(int fd);
+		void				setCGIInputClosed(bool value);
 
 		// =========	other	=============
 		void				clearCGI();

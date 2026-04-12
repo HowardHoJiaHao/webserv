@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engineIncomingData.cpp                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/13 02:52:28 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -100,13 +100,13 @@ void Engine::handleCGIReadError(Connection* currentConn)
 
 bool Engine::processCGIOutput(Connection* currentConn, fd_set& readSet)
 {
-	int cgi_fd = currentConn->getCGIStdoutFd();
-	if (cgi_fd == -1 || !FD_ISSET(cgi_fd, &readSet))
+	int cgiOutputFd = currentConn->getCGIOutputFd();
+	if (cgiOutputFd == -1 || !FD_ISSET(cgiOutputFd, &readSet))
 		return false;
 
 	char buffer[1024];
 	Connection::CGIContext* cgi = currentConn->getCGI();
-	ssize_t bytes = read(cgi_fd, buffer, sizeof(buffer));
+	ssize_t bytes = read(cgiOutputFd, buffer, sizeof(buffer));
 	if (bytes > 0)
 	{
 		if (cgi != NULL)

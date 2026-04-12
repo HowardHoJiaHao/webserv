@@ -282,36 +282,37 @@ void	Engine::setupCGIParent(Connection* conn, const HttpRequest& request, int in
 	close(out_pipe[1]);
 
 	Connection::CGIContext* cgi = new Connection::CGIContext();
-	cgi->pid = pid;
-	cgi->stdin_fd = in_pipe[1];
-	cgi->stdout_fd = out_pipe[0];
 	cgi->stdin_closed = false;
 	cgi->stdin_buffer = request.getBody();
 	cgi->stdin_offset = 0;
 	cgi->stdout_buffer.clear();
 	cgi->start_time = std::time(NULL);
 
-	if (cgi->stdin_fd != -1 && fcntl(cgi->stdin_fd, F_SETFL, O_NONBLOCK) == -1)
+	conn->setCGI(cgi);
+	conn->setCGIPid(pid);
+	conn->setCGIInputFd(in_pipe[1]);
+	conn->setCGIOutputFd(out_pipe[0]);
+
+	if (conn->getCGIInputFd() != -1 && fcntl(conn->getCGIInputFd(), F_SETFL, O_NONBLOCK) == -1)
 	{
-		close(cgi->stdin_fd);
-		cgi->stdin_fd = -1;
-		cgi->stdin_closed = true;
+		close(conn->getCGIInputFd());
+		conn->setCGIInputFd(-1);
+		conn->setCGIInputClosed(true);
 	}
-	if (cgi->stdout_fd != -1 && fcntl(cgi->stdout_fd, F_SETFL, O_NONBLOCK) == -1)
+	if (conn->getCGIOutputFd() != -1 && fcntl(conn->getCGIOutputFd(), F_SETFL, O_NONBLOCK) == -1)
 	{
-		close(cgi->stdout_fd);
-		cgi->stdout_fd = -1;
+		close(conn->getCGIOutputFd());
+		conn->setCGIOutputFd(-1);
 	}
 
 	if (cgi->stdin_buffer.empty())
 	{
-		if (cgi->stdin_fd != -1)
-			close(cgi->stdin_fd);
-		cgi->stdin_fd = -1;
-		cgi->stdin_closed = true;
+		if (conn->getCGIInputFd() != -1)
+			close(conn->getCGIInputFd());
+		conn->setCGIInputFd(-1);
+		conn->setCGIInputClosed(true);
 	}
 
-	conn->setCGI(cgi);
 	conn->setShouldClose(shouldClose);
 	conn->setState(Connection::CGI_RUNNING);
 	conn->updateLastActivity();

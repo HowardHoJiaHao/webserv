@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engineOutgoingData.cpp                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/12 18:49:10 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/13 02:52:27 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,16 +15,16 @@
 void Engine::handleCGIStdinWrite(Connection* currentConn, fd_set& writeSet)
 {
 	Connection::CGIContext* cgi = currentConn->getCGI();
-	int cgi_in = currentConn->getCGIStdinFd();
+	int cgiInputFd = currentConn->getCGIInputFd();
 
-	if (cgi == NULL || cgi_in == -1 || currentConn->isCGIStdinClosed() || !FD_ISSET(cgi_in, &writeSet))
+	if (cgi == NULL || cgiInputFd == -1 || currentConn->isCGIInputClosed() || !FD_ISSET(cgiInputFd, &writeSet))
 		return;
 
 	if (cgi->stdin_offset < cgi->stdin_buffer.size())
 	{
 		const char* data = cgi->stdin_buffer.data() + cgi->stdin_offset;
 		size_t remaining = cgi->stdin_buffer.size() - cgi->stdin_offset;
-		ssize_t written = write(cgi_in, data, remaining);
+		ssize_t written = write(cgiInputFd, data, remaining);
 		if (written > 0)
 		{
 			cgi->stdin_offset += static_cast<size_t>(written);
@@ -33,16 +33,16 @@ void Engine::handleCGIStdinWrite(Connection* currentConn, fd_set& writeSet)
 		else if (written < 0)
 		{
 			perror("write CGI stdin");
-			close(cgi_in);
-			currentConn->setCGIStdinFd(-1);
-			currentConn->setCGIStdinClosed(true);
+			close(cgiInputFd);
+			currentConn->setCGIInputFd(-1);
+			currentConn->setCGIInputClosed(true);
 		}
 	}
-	if (cgi->stdin_offset >= cgi->stdin_buffer.size() && !currentConn->isCGIStdinClosed())
+	if (cgi->stdin_offset >= cgi->stdin_buffer.size() && !currentConn->isCGIInputClosed())
 	{
-		close(cgi_in);
-		currentConn->setCGIStdinFd(-1);
-		currentConn->setCGIStdinClosed(true);
+		close(cgiInputFd);
+		currentConn->setCGIInputFd(-1);
+		currentConn->setCGIInputClosed(true);
 	}
 }
 
