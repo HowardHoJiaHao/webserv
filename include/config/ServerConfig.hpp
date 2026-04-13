@@ -39,17 +39,15 @@ class ServerConfig
 		void	setIndex(const std::string& index);
 		void	setMaxBodySize(size_t size);
 		void	addErrorPage(int code, const std::string& path);
-
 		void	addLocation(const LocationConfig& location);
 
-		const	std::string& getHost(void)const;
-		int		getPort(void)const;
-		const	std::string& getRoot(void)const;
-		const	std::string& getIndex(void)const;
-		size_t	getMaxBodySize(void) const;
-
-		const	std::string*					getErrorPage(int code) const;
-		const	std::vector<LocationConfig>&	getLocations(void)const;
+		const std::string&					getHost(void)const;
+		int									getPort(void)const;
+		const std::string&					getRoot(void)const;
+		const std::string&					getIndex(void)const;
+		size_t								getMaxBodySize(void) const;
+		const std::string*					getErrorPage(int code) const;
+		const std::vector<LocationConfig>&	getLocations(void)const;
 };
 
 #endif

@@ -32,114 +32,114 @@ LocationConfig::~LocationConfig(void)
 {
 }
 
-void LocationConfig::setPath(const std::string& path)
+void	LocationConfig::setPath(const std::string& path)
 {
 	_path = path;
 }
 
-void LocationConfig::setAllowedMethods(const std::vector<std::string>& methods)
+void	LocationConfig::setAllowedMethods(const std::vector<std::string>& methods)
 {
 	_allowedMethods = methods;
 }
 
-void LocationConfig::setRoot(const std::string& root)
+void	LocationConfig::setRoot(const std::string& root)
 {
 	_root = root;
 }
 
-void LocationConfig::setIndex(const std::string& index)
+void	LocationConfig::setIndex(const std::string& index)
 {
 	_index = index;
 }
 
-void LocationConfig::setUploadEnabled(bool enabled)
+void	LocationConfig::setUploadEnabled(bool enabled)
 {
 	_uploadEnabled = enabled;
 }
 
-void LocationConfig::setUploadPath(const std::string& path)
+void	LocationConfig::setUploadPath(const std::string& path)
 {
 	_uploadPath = path;
 }
 
-void LocationConfig::setAutoindex(bool enabled)
+void	LocationConfig::setAutoindex(bool enabled)
 {
 	_autoindex = enabled;
 }
 
-void LocationConfig::setCgiEnabled(bool enabled)
+void	LocationConfig::setCgiEnabled(bool enabled)
 {
 	_cgiEnabled = enabled;
 }
 
-void LocationConfig::setCgiExtensions(const std::vector<std::string>& extensions)
+void	LocationConfig::setCgiExtensions(const std::vector<std::string>& extensions)
 {
 	_cgiExtensions = extensions;
 }
 
-void LocationConfig::setReturnDirective(bool enabled, int status, const std::string& target)
+void	LocationConfig::setReturnDirective(bool enabled, int status, const std::string& target)
 {
 	_hasReturn = enabled;
 	_returnStatus = status;
 	_returnTarget = target;
 }
 
-const std::string& LocationConfig::getPath(void) const
+const std::string&	LocationConfig::getPath(void) const
 {
 	return _path;
 }
 
-const std::vector<std::string>& LocationConfig::getAllowedMethods(void) const
+const std::vector<std::string>&	LocationConfig::getAllowedMethods(void) const
 {
 	return _allowedMethods;
 }
 
-const std::string& LocationConfig::getRoot(void) const
+const std::string&	LocationConfig::getRoot(void) const
 {
 	return _root;
 }
 
-const std::string& LocationConfig::getIndex(void) const
+const std::string&	LocationConfig::getIndex(void) const
 {
 	return _index;
 }
 
-bool LocationConfig::isUploadEnabled(void) const
+bool	LocationConfig::isUploadEnabled(void) const
 {
 	return _uploadEnabled;
 }
 
-const std::string& LocationConfig::getUploadPath(void) const
+const std::string&	LocationConfig::getUploadPath(void) const
 {
 	return _uploadPath;
 }
 
-bool LocationConfig::isAutoindex(void) const
+bool	LocationConfig::isAutoindex(void) const
 {
 	return _autoindex;
 }
 
-bool LocationConfig::isCgiEnabled(void) const
+bool	LocationConfig::isCgiEnabled(void) const
 {
 	return _cgiEnabled;
 }
 
-const std::vector<std::string>& LocationConfig::getCgiExtensions(void) const
+const std::vector<std::string>&	LocationConfig::getCgiExtensions(void) const
 {
 	return _cgiExtensions;
 }
 
-bool LocationConfig::hasReturnDirective(void) const
+bool	LocationConfig::hasReturnDirective(void) const
 {
 	return _hasReturn;
 }
 
-int LocationConfig::getReturnStatus(void) const
+int	LocationConfig::getReturnStatus(void) const
 {
 	return _returnStatus;
 }
 
-const std::string& LocationConfig::getReturnTarget(void) const
+const std::string&	LocationConfig::getReturnTarget(void) const
 {
 	return _returnTarget;
 }

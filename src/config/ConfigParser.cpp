@@ -26,6 +26,66 @@ ConfigParser::ConfigToken::~ConfigToken(void)
 {
 }
 
+std::string	ConfigParser::trim(const std::string& s)
+{
+	size_t	start = 0;
+
+	while (start < s.size() && (s[start] == ' ' || s[start] == '\t' || s[start] == '\r' || s[start] == '\n'))
+		start++;
+	size_t	end = s.size();
+
+	while (end > start && (s[end - 1] == ' ' || s[end - 1] == '\t' || s[end - 1] == '\r' || s[end - 1] == '\n'))
+		end--;
+	return s.substr(start, end - start);
+}
+
+std::runtime_error	ConfigParser::parseError(size_t line, const std::string& message)
+{
+	std::ostringstream	oss;
+
+	oss << "Config parse error at line " << line << ": " << message;
+	return std::runtime_error(oss.str());
+}
+
+std::runtime_error	ConfigParser::parseError(size_t line, const std::string& message, int code)
+{
+	std::ostringstream	oss;
+
+	oss << message << code;
+	throw parseError(line, oss.str());
+}
+
+void	ConfigParser::expectToken(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& expected)
+{
+	if (i >= tokens.size() || tokens[i].value != expected)
+	{
+		size_t	line = 1;
+
+		if (i < tokens.size())
+			line = tokens[i].line;
+		else if (!tokens.empty())
+			line = tokens[tokens.size() - 1].line;
+		throw parseError(line, "expected '" + expected + "'");
+	}
+	i++;
+}
+
+const ConfigParser::ConfigToken&	ConfigParser::nextTokenOrError(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& context)
+{
+	if (i >= tokens.size())
+		throw parseError(tokens[i - 1].line, "missing " + context + " value");
+	return tokens[i++];
+}
+
+const ConfigParser::ConfigToken&	ConfigParser::expectValueToken(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& context)
+{
+	const ConfigToken&	token = nextTokenOrError(tokens, i, context);
+
+	if (token.value == ";" || token.value == "{" || token.value == "}")
+		throw parseError(token.line, "missing " + context + " value");
+	return token;
+}
+
 void	ConfigParser::flushToken(std::vector<ConfigToken>& tokens, std::string& current, size_t line)
 {
 	if (!current.empty())
@@ -33,6 +93,56 @@ void	ConfigParser::flushToken(std::vector<ConfigToken>& tokens, std::string& cur
 		tokens.push_back(ConfigToken(line, current));
 		current.clear();
 	}
+}
+
+std::vector<ConfigParser::ConfigToken>	ConfigParser::tokenize(const std::string& content)
+{
+	std::vector<ConfigToken>	tokens;
+	std::string	current;
+	size_t	currentLine = 1;
+	size_t	line = 1;
+
+	for (size_t i = 0; i < content.size(); i++)
+	{
+		char	c = content[i];
+
+		if (c == '\n')
+			line++;
+		if (c == '#')
+		{
+			while (i < content.size() && content[i] != '\n')
+				i++;
+			if (i < content.size() && content[i] == '\n')
+				line++;
+			flushToken(tokens, current, currentLine);
+			continue;
+		}
+		if (c == '{' || c == '}' || c == ';')
+		{
+			flushToken(tokens, current, currentLine);
+			tokens.push_back(ConfigToken(line, std::string(1, c)));
+			continue;
+		}
+		if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+		{
+			flushToken(tokens, current, currentLine);
+			continue;
+		}
+		if (current.empty())
+			currentLine = line;
+		current += c;
+	}
+	flushToken(tokens, current, currentLine);
+	return tokens;
+}
+
+bool	ConfigParser::isDirectoryPath(const std::string& path)
+{
+	struct stat	st;
+
+	if (stat(path.c_str(), &st) != 0)
+		return false;
+	return S_ISDIR(st.st_mode);
 }
 
 bool	ConfigParser::isValidIpv4OrLocalhost(const std::string& host)
@@ -67,23 +177,7 @@ bool	ConfigParser::isValidPort(const std::string& portstr, int& port)
 	ss >> port;
 	if (ss.fail() || !ss.eof())
 		return false;
-	return port > 0 && port < 65535;
-}
-
-const ConfigParser::ConfigToken&	ConfigParser::nextTokenOrError(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& context)
-{
-	if (i >= tokens.size())
-		throw parseError(tokens[i - 1].line, "missing " + context + " value");
-	return tokens[i++];
-}
-
-const ConfigParser::ConfigToken&	ConfigParser::expectValueToken(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& context)
-{
-	const ConfigToken&	token = nextTokenOrError(tokens, i, context);
-
-	if (token.value == ";" || token.value == "{" || token.value == "}")
-		throw parseError(token.line, "missing " + context + " value");
-	return token;
+	return port > 0 && port < 65536;
 }
 
 std::string	ConfigParser::requireHost(const ConfigToken& token)
@@ -124,6 +218,59 @@ int	ConfigParser::requireNumericValue(const ConfigToken& token, const std::strin
 	return code;
 }
 
+const std::string&	ConfigParser::requireMethod(const ConfigToken& token)
+{
+	if (token.value != "GET" && token.value != "POST" && token.value != "DELETE")
+		throw parseError(token.line, "invalid method '" + token.value + "' (expected GET/POST/DELETE)");
+	return token.value;
+}
+
+const std::string&	ConfigParser::requireExtension(const ConfigToken& token)
+{
+	const std::string&	ext = token.value;
+
+	if (ext.size() < 2 || ext[0] != '.' || ext.find('/') != std::string::npos)
+		throw parseError(token.line, "invalid cgi_ext extension: " + ext);
+	return ext;
+}
+
+void	ConfigParser::ensureUnique(const std::vector<std::string>& values, const ConfigToken& token, const std::string& directive)
+{
+	if (std::find(values.begin(), values.end(), token.value) != values.end())
+		throw parseError(token.line, "duplicate " + directive + ": " + token.value);
+}
+
+const std::string&	ConfigParser::expectValueWithValidator(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& directive, Validator validator)
+{
+	const ConfigToken&	token = expectValueToken(tokens, i, directive);
+
+	return validator(token);
+}
+
+bool	ConfigParser::parseValidOnOff(const std::string& value, size_t line, const std::string& directive)
+{
+	const std::map<std::string, bool>&			map = getValidOnOffMap();
+	std::map<std::string, bool>::const_iterator	it = map.find(value);
+
+	if (it != map.end())
+		return it->second;
+	throw parseError(line, directive + " must be 'on/true/1' or 'off/false/0'");
+}
+
+std::string	ConfigParser::applyPrefixPath(const std::string& prefix, const std::string& path)
+{
+	if (trim(prefix).empty() || trim(path).empty())
+		return path;
+	const bool	prefixEndsWithSlash = (!prefix.empty() && prefix[prefix.size() - 1] == '/');
+	const bool	pathStartsWithSlash = (!path.empty() && path[0] == '/');
+
+	if (prefixEndsWithSlash && pathStartsWithSlash)
+		return prefix + path.substr(1);
+	if (!prefixEndsWithSlash && !pathStartsWithSlash)
+		return prefix + "/" + path;
+	return prefix + path;
+}
+
 std::string	ConfigParser::requireErrorPageTarget(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& prefix)
 {
 	const ConfigToken&	token = expectValueToken(tokens, i, "error_page target");
@@ -147,20 +294,6 @@ std::string	ConfigParser::requireReturnTarget(const std::vector<ConfigToken>& to
 	return token.value;
 }
 
-std::string	ConfigParser::applyPrefixPath(const std::string& prefix, const std::string& path)
-{
-	if (trim(prefix).empty() || trim(path).empty())
-		return path;
-	const bool	prefixEndsWithSlash = (!prefix.empty() && prefix[prefix.size() - 1] == '/');
-	const bool	pathStartsWithSlash = (!path.empty() && path[0] == '/');
-
-	if (prefixEndsWithSlash && pathStartsWithSlash)
-		return prefix + path.substr(1);
-	if (!prefixEndsWithSlash && !pathStartsWithSlash)
-		return prefix + "/" + path;
-	return prefix + path;
-}
-
 void	ConfigParser::applyServerDefaults(ServerConfig& server, const std::string& prefix)
 {
 	if (server.getHost().empty())
@@ -173,51 +306,20 @@ void	ConfigParser::applyServerDefaults(ServerConfig& server, const std::string& 
 		server.setIndex("index.html");
 }
 
-void	ConfigParser::ensureUnique(const std::vector<std::string>& values, const ConfigToken& token, const std::string& directive)
+const	std::map<std::string, bool>&	ConfigParser::getValidOnOffMap(void)
 {
-	if (std::find(values.begin(), values.end(), token.value) != values.end())
-		throw parseError(token.line, "duplicate " + directive + ": " + token.value);
-}
+	static std::map<std::string, bool>	map;
 
-const std::string&	ConfigParser::requireMethod(const ConfigToken& token)
-{
-	if (token.value != "GET" && token.value != "POST" && token.value != "DELETE")
-		throw parseError(token.line, "invalid method '" + token.value + "' (expected GET/POST/DELETE)");
-	return token.value;
-}
-
-const std::string&	ConfigParser::requireExtension(const ConfigToken& token)
-{
-	const std::string&	ext = token.value;
-
-	if (ext.size() < 2 || ext[0] != '.' || ext.find('/') != std::string::npos)
-		throw parseError(token.line, "invalid cgi_ext extension: " + ext);
-	return ext;
-}
-
-const std::string&	ConfigParser::expectValueWithValidator(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& directive, Validator validator)
-{
-	const ConfigToken&	token = expectValueToken(tokens, i, directive);
-
-	return validator(token);
-}
-
-std::runtime_error	ConfigParser::parseError(size_t line, const std::string& message, int code)
-{
-	std::ostringstream	oss;
-
-	oss << message << code;
-	throw parseError(line, oss.str());
-}
-
-bool	ConfigParser::parseValidOnOff(const std::string& value, size_t line, const std::string& directive)
-{
-	const std::map<std::string, bool>&			map = getValidOnOffMap();
-	std::map<std::string, bool>::const_iterator	it = map.find(value);
-
-	if (it != map.end())
-		return it->second;
-	throw parseError(line, directive + " must be 'on/true/1' or 'off/false/0'");
+	if (map.empty())
+	{
+		map["on"]		= true;
+		map["true"]		= true;
+		map["1"]		= true;
+		map["off"]		= false;
+		map["false"]	= false;
+		map["0"]		= false;
+	}
+	return map;
 }
 
 void ConfigParser::parseMethods(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
@@ -245,11 +347,11 @@ void	ConfigParser::parseRoot(const std::vector<ConfigToken>& tokens, size_t& i, 
 	expectToken(tokens, i, ";");
 }
 
-void	ConfigParser::parseUploadEnable(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
+void	ConfigParser::parseUploadEnabled(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "upload_enable");
-	loc.setUploadEnabled(parseValidOnOff(token.value, token.line, "upload_enable"));
+	const ConfigToken&	token = expectValueToken(tokens, i, "upload_enabled");
+	loc.setUploadEnabled(parseValidOnOff(token.value, token.line, "upload_enabled"));
 	expectToken(tokens, i, ";");
 }
 
@@ -301,6 +403,26 @@ void	ConfigParser::parseReturn(const std::vector<ConfigToken>& tokens, size_t& i
 
 	loc.setReturnDirective(true, requireReturnCode(token), requireReturnTarget(tokens, i));
 	expectToken(tokens, i, ";");
+}
+
+const std::map<std::string, ConfigParser::LocationDirectiveHandler>&	ConfigParser::getLocationHandlers(void)
+{
+	static std::map<std::string, LocationDirectiveHandler>	map;
+
+	if (map.empty())
+	{
+		map["methods"]			= &parseMethods;
+		map["allow_methods"]	= &parseMethods;
+		map["root"]				= &parseRoot;
+		map["upload_enabled"]	= &parseUploadEnabled;
+		map["upload_path"]		= &parseUploadPath;
+		map["autoindex"]		= &parseAutoindex;
+		map["cgi_enabled"]		= &parseCgiEnabled;
+		map["cgi_ext"]			= &parseCgiExtensions;
+		map["cgi_extensions"]	= &parseCgiExtensions;
+		map["return"]			= &parseReturn;
+	}
+	return map;
 }
 
 void	ConfigParser::parseListen(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
@@ -409,42 +531,6 @@ void	ConfigParser::parseLocationBlock(const std::vector<ConfigToken>& tokens, si
 	server.addLocation(loc);
 }
 
-const	std::map<std::string, bool>&	ConfigParser::getValidOnOffMap(void)
-{
-	static std::map<std::string, bool>	map;
-
-	if (map.empty())
-	{
-		map["on"]		= true;
-		map["true"]		= true;
-		map["1"]		= true;
-		map["off"]		= false;
-		map["false"]	= false;
-		map["0"]		= false;
-	}
-	return map;
-}
-
-const std::map<std::string, ConfigParser::LocationDirectiveHandler>&	ConfigParser::getLocationHandlers(void)
-{
-	static std::map<std::string, LocationDirectiveHandler>	map;
-
-	if (map.empty())
-	{
-		map["methods"]			= &parseMethods;
-		map["allow_methods"]	= &parseMethods;
-		map["root"]				= &parseRoot;
-		map["upload_enable"]	= &parseUploadEnable;
-		map["upload_path"]		= &parseUploadPath;
-		map["autoindex"]		= &parseAutoindex;
-		map["cgi_enabled"]		= &parseCgiEnabled;
-		map["cgi_ext"]			= &parseCgiExtensions;
-		map["cgi_extensions"]	= &parseCgiExtensions;
-		map["return"]			= &parseReturn;
-	}
-	return map;
-}
-
 const std::map<std::string, ConfigParser::ServerDirectiveHandler>&	ConfigParser::getServerHandlers(void)
 {
 	static std::map<std::string, ServerDirectiveHandler>	map;
@@ -461,92 +547,6 @@ const std::map<std::string, ConfigParser::ServerDirectiveHandler>&	ConfigParser:
 		map["location"]				= &parseLocationBlock;
 	}
 	return map;
-}
-
-std::string	ConfigParser::trim(const std::string& s)
-{
-	size_t	start = 0;
-
-	while (start < s.size() && (s[start] == ' ' || s[start] == '\t' || s[start] == '\r' || s[start] == '\n'))
-		start++;
-	size_t	end = s.size();
-
-	while (end > start && (s[end - 1] == ' ' || s[end - 1] == '\t' || s[end - 1] == '\r' || s[end - 1] == '\n'))
-		end--;
-	return s.substr(start, end - start);
-}
-
-void	ConfigParser::expectToken(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& expected)
-{
-	if (i >= tokens.size() || tokens[i].value != expected)
-	{
-		size_t	line = 1;
-
-		if (i < tokens.size())
-			line = tokens[i].line;
-		else if (!tokens.empty())
-			line = tokens[tokens.size() - 1].line;
-		throw parseError(line, "expected '" + expected + "'");
-	}
-	i++;
-}
-
-bool	ConfigParser::isDirectoryPath(const std::string& path)
-{
-	struct stat	st;
-
-	if (stat(path.c_str(), &st) != 0)
-		return false;
-	return S_ISDIR(st.st_mode);
-}
-
-std::vector<ConfigParser::ConfigToken>	ConfigParser::tokenize(const std::string& content)
-{
-	std::vector<ConfigToken>	tokens;
-	std::string	current;
-	size_t	currentLine = 1;
-	size_t	line = 1;
-
-	for (size_t i = 0; i < content.size(); i++)
-	{
-		char	c = content[i];
-
-		if (c == '\n')
-			line++;
-		if (c == '#')
-		{
-			while (i < content.size() && content[i] != '\n')
-				i++;
-			if (i < content.size() && content[i] == '\n')
-				line++;
-			flushToken(tokens, current, currentLine);
-			continue;
-		}
-		if (c == '{' || c == '}' || c == ';')
-		{
-			flushToken(tokens, current, currentLine);
-			tokens.push_back(ConfigToken(line, std::string(1, c)));
-			continue;
-		}
-		if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-		{
-			flushToken(tokens, current, currentLine);
-			continue;
-		}
-		if (current.empty())
-			currentLine = line;
-		current += c;
-	}
-	flushToken(tokens, current, currentLine);
-	return tokens;
-}
-
-std::runtime_error	ConfigParser::parseError(size_t line, const std::string& message)
-{
-	std::ostringstream	oss;
-
-	oss << "Config parse error at line " << line << ": " << message;
-	return std::runtime_error(oss.str());
 }
 
 ServerConfig	ConfigParser::parseServerBlock(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& prefix)
@@ -570,4 +570,38 @@ ServerConfig	ConfigParser::parseServerBlock(const std::vector<ConfigToken>& toke
 	expectToken(tokens, i, "}");
 	applyServerDefaults(server, prefix);
 	return server;
+}
+
+const ConfigParser::ConfigToken&	ConfigParser::requirePrefixTarget(const std::vector<ConfigToken>& tokens, size_t& i, ConfigFiles& config)
+{
+	if (!config.getServers().empty())
+		throw parseError(tokens[i].line, "'prefix' must appear before any 'server' block");
+	expectToken(tokens, i, "prefix");
+	return expectValueToken(tokens, i, "prefix");
+}
+
+void ConfigParser::parsePrefix(const std::vector<ConfigToken>& tokens, size_t& i, ConfigFiles& config)
+{
+	const ConfigToken&	token = requirePrefixTarget(tokens, i, config);
+
+	config.setPrefix(token.value);
+	expectToken(tokens, i, ";");
+	if (!isDirectoryPath(config.getPrefix()))
+		throw parseError(token.line, "prefix must be an existing directory: " + config.getPrefix());
+}
+
+void ConfigParser::parseServerBlockWrapper(const std::vector<ConfigToken>& tokens, size_t& i, ConfigFiles& config)
+{
+	config.addServer(parseServerBlock(tokens, i, config.getPrefix()));
+}
+
+const std::map<std::string, ConfigParser::TopLevelDirectiveHandler>&	ConfigParser::getTopLevelHandlers(void)
+{
+	static std::map<std::string, TopLevelDirectiveHandler>	handlers;
+	if (handlers.empty())
+	{
+		handlers["prefix"] = &ConfigParser::parsePrefix;
+		handlers["server"] = &ConfigParser::parseServerBlockWrapper;
+	}
+	return handlers;
 }

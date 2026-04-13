@@ -47,18 +47,18 @@ class LocationConfig
 		void	setCgiExtensions(const std::vector<std::string>& extensions);
 		void	setReturnDirective(bool enabled, int status, const std::string& target);
 
-		const	std::string& getPath(void) const;
-		const	std::vector<std::string>& getAllowedMethods(void) const;
-		const	std::string& getRoot(void) const;
-		const	std::string& getIndex(void) const;
-		bool	isUploadEnabled(void) const;
-		const	std::string& getUploadPath(void) const;
-		bool	isAutoindex(void) const;
-		bool	isCgiEnabled(void) const;
-		const	std::vector<std::string>& getCgiExtensions(void) const;
-		bool	hasReturnDirective(void) const;
-		int		getReturnStatus(void) const;
-		const	std::string& getReturnTarget(void) const;
+		const std::string&				getPath(void) const;
+		const std::vector<std::string>&	getAllowedMethods(void) const;
+		const std::string&				getRoot(void) const;
+		const std::string&				getIndex(void) const;
+		bool							isUploadEnabled(void) const;
+		const std::string&				getUploadPath(void) const;
+		bool							isAutoindex(void) const;
+		bool							isCgiEnabled(void) const;
+		const std::vector<std::string>&	getCgiExtensions(void) const;
+		bool							hasReturnDirective(void) const;
+		int								getReturnStatus(void) const;
+		const std::string&				getReturnTarget(void) const;
 };
 
 #endif

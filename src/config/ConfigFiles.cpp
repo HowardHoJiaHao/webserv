@@ -34,57 +34,40 @@ ConfigFiles::~ConfigFiles(void)
 {
 }
 
-const std::vector<ServerConfig>& ConfigFiles::getServers(void) const
+const std::vector<ServerConfig>&	ConfigFiles::getServers(void) const
 {
 	return _serverConfigs;
 }
 
-const std::string& ConfigFiles::getPrefix(void) const
+const std::string&	ConfigFiles::getPrefix(void) const
 {
 	return _prefix;
 }
 
-void ConfigFiles::loadFromFile(const std::string& path)
+void	ConfigFiles::setPrefix(const std::string& prefix)
+{
+	_prefix = prefix;
+}
+
+void	ConfigFiles::addServer(const ServerConfig& server)
+{
+	_serverConfigs.push_back(server);
+}
+
+std::string	ConfigFiles::readFromFile(const std::string& path)
 {
 	std::ifstream	in(path.c_str());
 
 	if (!in.is_open())
 		throw std::runtime_error("Cannot open config file: " + path);
 
-	std::stringstream	buffer;
+	std::ostringstream	buffer;
 
 	buffer << in.rdbuf();
-	std::vector<ConfigParser::ConfigToken>	tokens = ConfigParser::tokenize(buffer.str());
-
-	_serverConfigs.clear();
-	size_t	i = 0;
-
-	if (i < tokens.size() && tokens[i].value == "prefix")
-	{
-		size_t	line = tokens[i++].line;
-
-		if (i >= tokens.size() || tokens[i].value == ";" || tokens[i].value == "{" || tokens[i].value == "}")
-			throw ConfigParser::parseError(line, "missing prefix path");
-		_prefix = tokens[i++].value;
-		ConfigParser::expectToken(tokens, i, ";");
-		if (!ConfigParser::isDirectoryPath(_prefix))
-			throw ConfigParser::parseError(line, "prefix must be an existing directory: " + _prefix);
-	}
-	else if (i < tokens.size() && tokens[i].value != "server")
-		throw ConfigParser::parseError(tokens[i].line, "expected 'prefix' or 'server' block");
-	while (i < tokens.size())
-	{
-		if (tokens[i].value != "server")
-			throw ConfigParser::parseError(tokens[i].line, "expected 'server' block");
-		ServerConfig	server = ConfigParser::parseServerBlock(tokens, i, _prefix);
-
-		_serverConfigs.push_back(server);
-	}
-	if (_serverConfigs.empty())
-		throw std::runtime_error("Config parse error: no server block found");
+	return buffer.str();
 }
 
-void ConfigFiles::initDefault(void)
+void	ConfigFiles::initDefault(void)
 {
 	ServerConfig	server1;
 
@@ -149,4 +132,27 @@ void ConfigFiles::initDefault(void)
 
 	server2.addLocation(loc3);
 	_serverConfigs.push_back(server2);
+}
+
+void	ConfigFiles::loadFromFile(const std::string& path)
+{
+	std::vector<ConfigParser::ConfigToken>	tokens = ConfigParser::tokenize(readFromFile(path));
+
+	_serverConfigs.clear();
+	size_t	i = 0;
+
+	const std::map<std::string, ConfigParser::TopLevelDirectiveHandler>&	handlers = ConfigParser::getTopLevelHandlers();
+
+	while (i < tokens.size())
+	{
+		std::string	key = tokens[i].value;
+		std::map<std::string, ConfigParser::TopLevelDirectiveHandler>::const_iterator	it = handlers.find(key);
+
+		if (it != handlers.end())
+			it->second(tokens, i, *this);
+		else
+			throw ConfigParser::parseError(tokens[i].line, "unknown top-level directive '" + key + "'");
+	}
+	if (_serverConfigs.empty())
+		throw std::runtime_error("Config parse error: no server block");
 }

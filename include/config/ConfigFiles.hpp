@@ -23,6 +23,8 @@ class ConfigFiles
 		std::vector<ServerConfig>	_serverConfigs;
 		std::string					_prefix;
 
+		static std::string	readFromFile(const std::string& path);
+
 		void	initDefault(void);
 		void	loadFromFile(const std::string& path);
 
@@ -33,6 +35,9 @@ class ConfigFiles
 
 		const std::vector<ServerConfig>&	getServers(void) const;
 		const std::string&					getPrefix(void) const;
+		void								setPrefix(const std::string& prefix);
+		void								addServer(const ServerConfig& server);
+
 };
 
 #endif
