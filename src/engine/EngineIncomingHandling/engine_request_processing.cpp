@@ -265,7 +265,7 @@ bool Engine::attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t
 
 	std::string& readBuffer = conn->getReadBuffer();
 	size_t headerEnd = readBuffer.find("\r\n\r\n");
-	// sometimes request size is too huge, then i reject it
+	// sometimes header request size is too huge, then i reject it
 	if (!enforceRequestSizeLimits(conn, headerEnd))
 		return false;
 
@@ -284,6 +284,7 @@ bool Engine::processBufferedRequests(Connection* conn, bool& producedResponse)
 
 	while (true)
 	{
+		// this block handle incomplete, if incomplete happen, then it break here, and return true, return to previous call, then move to next connection
 		bool isExtracted = false;
 		if (!handleRequestExtraction(conn, rawRequest, isExtracted))
 			return false;
@@ -320,15 +321,18 @@ bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEndPos)
 
 	std::string& requestBuffer = conn->getReadBuffer();
 	const ServerConfig* serverConfig = conn->getServerConfig();
-	// get MaxBodySize from the config
+	// get MaxBodySize from the config if i have
 	size_t maxBodySizeLimit = MAX_REQUEST_SIZE;
+	// define  max buffered request size for later 
 	if (serverConfig != NULL)
 		maxBodySizeLimit = serverConfig->getMaxBodySize();
 	size_t maxBufferedRequestSize = maxBodySizeLimit + maxHeaderSize;
 
-	// if the header is gabbage without \r\n\r\n
+	// only related to header
+	// if the header is gabbage without \r\n\r\n, \r\n\r\n was not found yet, buffer too big
 	if (headerEndPos == std::string::npos && requestBuffer.size() > maxHeaderSize)
 	{
+		// reject 413...
 		conn->setShouldClose(true);
 		requestBuffer.clear();
 		conn->setWriteBuffer(buildErrorResponse(413, conn->shouldClose(), serverConfig));
@@ -336,7 +340,7 @@ bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEndPos)
 		return false;
 	}
 
-	//total buffer is too big
+	//the whole request including body (ofen post), total buffer is too big
 	if (requestBuffer.size() > maxBufferedRequestSize)
 	{
 		conn->setShouldClose(true);
@@ -352,6 +356,8 @@ bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEndPos)
 // buffer is the data received from the client by using recv(), which returning bytes
 void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes)
 {
+	// in this if condition, only way for it to return is request header too big
+	// to check if the header is complete and ready for later
 	if (!attemptIncomingHeader(conn, buffer, bytes))
 		return;
 

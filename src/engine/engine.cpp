@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/13 18:51:09 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/14 00:36:23 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -263,6 +263,7 @@ void Engine::checkTimeouts()
 {
 	// define thresholds
 	const time_t headerTimeoutSec = 5;
+	const time_t headerTotalTimeoutSec = 15; //for whole request duration
 	const time_t bodyReadTimeout = 30;
 	const time_t writeTimeoutSec = 60;
 	const time_t cgiTimeoutSec = 10;
@@ -310,8 +311,17 @@ void Engine::checkTimeouts()
 		}
 
 		bool timedOut = false;
-		if (currentConn->getRequestState() == Connection::READING_HEADERS && elapsed > headerTimeoutSec)
-			timedOut = true;
+		if (currentConn->getRequestState() == Connection::READING_HEADERS)
+		{
+			if (elapsed > headerTimeoutSec)
+				timedOut = true;
+			// when request sent first byte, this will be true
+			// slowloris handling
+			else if (currentConn->hasStartedRequest()
+				&& currentConn->getRequestStartTime() > 0
+				&& (now - currentConn->getRequestStartTime()) > headerTotalTimeoutSec) // elapsed time has broke time limit
+				timedOut = true;
+		}
 		else if (currentConn->getRequestState() == Connection::READING_BODY && elapsed > bodyReadTimeout)
 			timedOut = true;
 

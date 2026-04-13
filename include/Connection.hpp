@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Connection.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/13 14:49:49 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/14 00:30:23 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -79,6 +79,11 @@ class Connection
 
 		void	updateLastActivity();
 		time_t	getLastActivity() const;
+		void	setRequestStartTime(time_t startTime);
+		time_t	getRequestStartTime() const;
+		bool	hasStartedRequest() const;
+		void	setHasStartedRequest(bool value);
+		void	resetRequestStartTime();
 
 		// ========		cgi in connection	==========
 		// ===========		getter	==============
@@ -111,6 +116,8 @@ class Connection
 		bool				_shouldClose;
 		std::string			_pendingSetCookieHeader;
 		time_t				_lastActivity;
+		time_t			_requestStartTime;
+		bool			_hasStartedRequest;
 
 		// point to the struct object (cgi context)
 		CGIContext*			_cgi;
