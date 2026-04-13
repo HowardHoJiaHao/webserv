@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/12 18:22:27 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/13 17:32:40 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -66,7 +66,7 @@ class Engine
 		
 		void handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes);
 
-		bool attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t bytes, size_t& headerEnd);
+		bool attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t bytes);
 		bool processBufferedRequests(Connection* conn, bool& producedResponse);
 		bool enforceRequestSizeLimits(Connection* conn, size_t headerEnd);
 		bool handleRequestExtraction(Connection* conn, std::string& rawRequest, bool& extracted);

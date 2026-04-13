@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Connection.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/13 02:52:27 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/13 14:49:49 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,13 +20,14 @@
 class Connection
 {
 	public:
+		// Socket transport mode: controls I/O phase (recv/send/CGI process communication)
 		enum State
 		{
 			READING,
 			WRITING,
 			CGI_RUNNING,
 		};
-
+		
 		// runtime state container for cgi execution
 		struct CGIContext
 		{
@@ -39,16 +40,16 @@ class Connection
 			std::string	stdout_buffer;
 			time_t		start_time;
 
-			CGIContext()
+			CGIContext() // initializer
 				: pid(-1), stdin_fd(-1), stdout_fd(-1), stdin_closed(false),
 				  stdin_buffer(), stdin_offset(0), stdout_buffer(), start_time(0){}
 		};
 
+		// HTTP request parse phase: tracks which part of request we are parsing (headers vs body)
 		enum RequestState
 		{
 			READING_HEADERS,
-			READING_BODY,
-			COMPLETE
+			READING_BODY
 		};
 
 		Connection(int fd);

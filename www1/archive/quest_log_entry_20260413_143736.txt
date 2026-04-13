@@ -1,0 +1,8 @@
+--- Quest Log Entry ---
+
+Adventurer Name: wadwa
+Current Level: 19
+Gender: male
+Character Class: A
+Quest Notes:
+wafwa

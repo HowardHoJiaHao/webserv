@@ -152,7 +152,7 @@ bool Engine::handleRequestExtraction(Connection* conn, std::string& rawRequest, 
 		return true;
 	}
 	// success case
-	conn->setRequestState(Connection::COMPLETE);
+	conn->setRequestState(Connection::READING_BODY);
 	extracted = true;
 	return true;
 }
@@ -255,15 +255,16 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 // \r\n
 
 // conn is client socket connection
-// headerEnd starts with no position
 
-bool Engine::attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t bytes, size_t& headerEnd)
+bool Engine::attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t bytes)
 {
+	// store the buffer that output from the recv()
 	conn->appendToHeaderBuffer(buffer, bytes);
+	// for timeout control
 	conn->updateLastActivity();
 
 	std::string& readBuffer = conn->getReadBuffer();
-	headerEnd = readBuffer.find("\r\n\r\n");
+	size_t headerEnd = readBuffer.find("\r\n\r\n");
 	// sometimes request size is too huge, then i reject it
 	if (!enforceRequestSizeLimits(conn, headerEnd))
 		return false;
@@ -273,7 +274,7 @@ bool Engine::attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t
 		conn->setRequestState(Connection::READING_HEADERS);
 	// found that \r\n\r\n
 	else
-		conn->setRequestState(Connection::READING_BODY); // should it be reading completion
+		conn->setRequestState(Connection::READING_BODY);
 	return true;
 }
 
@@ -348,17 +349,17 @@ bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEndPos)
 	return true;
 }
 
+// buffer is the data received from the client by using recv(), which returning bytes
 void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes)
 {
-	size_t headerEnd = std::string::npos;
-	if (!attemptIncomingHeader(conn, buffer, bytes, headerEnd))
+	if (!attemptIncomingHeader(conn, buffer, bytes))
 		return;
 
-	bool producedResponse = false;
-	if (!processBufferedRequests(conn, producedResponse))
+	bool isProducedResponse = false;
+	if (!processBufferedRequests(conn, isProducedResponse))
 		return;
 
-	if (producedResponse)
+	if (isProducedResponse)
 		conn->setState(Connection::WRITING);
 	else
 		conn->setState(Connection::READING);

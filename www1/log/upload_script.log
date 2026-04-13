@@ -225,3 +225,14 @@ File saved successfully. Size: 1242 bytes
 [2026-04-10 14:00:51] [form.py] Request started
 [2026-04-10 14:00:51] [form.py] Invalid request method: GET
 [2026-04-10 14:00:51] [form.py] Request failed with parse error: Only POST requests are allowed
+[2026-04-13 14:37:17] [delete.py] Request started method=GET query=
+[2026-04-13 14:37:17] [delete.py] Rendered archive page
+[2026-04-13 14:37:17] [delete.py] Request started method=GET query=format=json
+[2026-04-13 14:37:17] [delete.py] Returned archive list count=5
+[2026-04-13 14:37:20] [delete.py] Request started method=GET query=
+[2026-04-13 14:37:20] [delete.py] Rendered archive page
+[2026-04-13 14:37:20] [delete.py] Request started method=GET query=format=json
+[2026-04-13 14:37:20] [delete.py] Returned archive list count=5
+[2026-04-13 14:37:36] [form.py] Request started
+[2026-04-13 14:37:36] [form.py] Saved quest log entry to /home/hwai-keo/webserv/www1/archive/quest_log_entry_20260413_143736.txt
+[2026-04-13 14:37:36] [form.py] Request completed successfully

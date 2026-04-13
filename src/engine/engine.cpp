@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/13 03:03:41 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/13 18:51:09 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -261,6 +261,7 @@ void Engine::destroyClientConnection(std::map<int, Connection*>::iterator& it)
 
 void Engine::checkTimeouts()
 {
+	// define thresholds
 	const time_t headerTimeoutSec = 5;
 	const time_t bodyReadTimeout = 30;
 	const time_t writeTimeoutSec = 60;
@@ -272,12 +273,13 @@ void Engine::checkTimeouts()
 	{
 		Connection* currentConn = it->second;
 		time_t elapsed = now - currentConn->getLastActivity();
+		// write too long, destroy connection
 		if (currentConn->getState() == Connection::WRITING && elapsed > writeTimeoutSec)
 		{
 			destroyClientConnection(it);
 			continue;
 		}
-
+		// normal case
 		if (currentConn->getState() == Connection::WRITING)
 		{
 			++it;
@@ -286,7 +288,7 @@ void Engine::checkTimeouts()
 		// for buildErrorResponse
 		const ServerConfig* serverConfig = currentConn->getServerConfig();
 
-		// if cgi script run too long, kill it, clean up, send 504 eror
+		// if cgi script run too long, this (parent) kill cgi process by sigkill signal, clean up, send 504 eror
 		if (currentConn->getState() == Connection::CGI_RUNNING)
 		{
 			Connection::CGIContext* cgi = currentConn->getCGI();
@@ -310,7 +312,7 @@ void Engine::checkTimeouts()
 		bool timedOut = false;
 		if (currentConn->getRequestState() == Connection::READING_HEADERS && elapsed > headerTimeoutSec)
 			timedOut = true;
-		else if (currentConn->getState() == Connection::READING && elapsed > bodyReadTimeout)
+		else if (currentConn->getRequestState() == Connection::READING_BODY && elapsed > bodyReadTimeout)
 			timedOut = true;
 
 		if (timedOut)
@@ -318,7 +320,6 @@ void Engine::checkTimeouts()
 			currentConn->setShouldClose(true);
 			currentConn->getReadBuffer().clear();
 			currentConn->setWriteBuffer(buildErrorResponse(408, true, serverConfig));
-			currentConn->setRequestState(Connection::COMPLETE);
 			currentConn->setState(Connection::WRITING);
 			++it;
 			continue;
@@ -372,6 +373,8 @@ void Engine::run()
 			perror("select");
 			break;
 		}
+		// start counting the time for later functions
+		// everything is in sequential, not parallel, might take 2 - 3 loops to clear connections
 		checkTimeouts();
 		acceptPendingClientConnections(readSet);
 		processIncomingData(readSet);
