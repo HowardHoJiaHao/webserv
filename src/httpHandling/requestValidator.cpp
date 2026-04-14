@@ -178,22 +178,28 @@ static bool parseContentLength(const std::string& headersPart, size_t& contentLe
 	return true;
 }
 
-bool validateAndExtractRequestFromBuffer(std::string& buffer, std::string& rawRequest, bool* isInvalidContentLength)
+// i will take buffer content, cut and paste to rawRequest, and erase the buffer
+// true means the request is complete, and the rawRequest is filled
+bool httpRequestCompletenessChecking(std::string& buffer, std::string& rawRequest, bool* isInvalidContentLength)
 {
 	if (isInvalidContentLength != NULL)
 		*isInvalidContentLength = false;
 
+	// evaluate bodyStart pos, and extract headerPart
 	size_t headerEnd = buffer.find("\r\n\r\n");
 	if (headerEnd == std::string::npos)
 		return false;
 	size_t bodyStart = headerEnd + 4;
 	std::string headersPart = buffer.substr(0, headerEnd);
 
+	// is header using chunkEncoding
 	if (hasChunkedEncoding(headersPart))
 	{
+		//validate chunked structure, check is body is complete, check completeness
 		size_t requestEndPos = 0;
 		if (!validateAndMeasureChunkedBody(buffer, bodyStart, requestEndPos))
 			return false;
+		// only extract to rawRequest when request is full
 		rawRequest = buffer.substr(0, requestEndPos);
 		buffer.erase(0, requestEndPos);
 		return true;
@@ -208,9 +214,12 @@ bool validateAndExtractRequestFromBuffer(std::string& buffer, std::string& rawRe
 	if (hasContentLength)
 		totalSize += contentLength;
 
+	// if buffer is not enough, return false
+	// expect to wait more bytes from recv()
 	if (buffer.size() < totalSize)
 		return false;
 
+	// only extract to rawRequest when request is full (complete)
 	rawRequest = buffer.substr(0, totalSize);
 	buffer.erase(0, totalSize);
 	return true;

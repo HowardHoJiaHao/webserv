@@ -123,15 +123,18 @@ std::string Engine::ensureSessionCookieHeader(const HttpRequest& request)
 	return SetCookieHeader.str();
 }
 
-
-
+//	==========		INPUT		==========
+// rawRequest is empty when it was started
+// extracted is a flag that is initialized as falsed
+// conn has the read buffer to be processed
 bool Engine::handleRequestExtraction(Connection* conn, std::string& rawRequest, bool& extracted)
 {
 	extracted = false;
 	std::string& readBuffer = conn->getReadBuffer();
 	bool isInvalidContentLength = false;
 	//extract one complete HTTP request from buffer into rawRequest, as reference
-	if (!validateAndExtractRequestFromBuffer(readBuffer, rawRequest, &isInvalidContentLength))
+	// if header complete, body complete(post only), valid format: return true, the if block skipped
+	if (!httpRequestCompletenessChecking(readBuffer, rawRequest, &isInvalidContentLength))
 	{
 		// broken header / invalid format
 		if (isInvalidContentLength)
@@ -141,14 +144,16 @@ bool Engine::handleRequestExtraction(Connection* conn, std::string& rawRequest, 
 			conn->setState(Connection::WRITING);
 			return false;
 		}
-		// if not malformed and
-		// incomplete extract Request, not enough of data extracted
+
+		// ======= is the header complete? =======
+		// if not, next loop will continue read header
 		size_t headerEnd = readBuffer.find("\r\n\r\n");
 		// incomplete headerEnd read
 		if (headerEnd == std::string::npos)
 			conn->setRequestState(Connection::READING_HEADERS);
 		else
 			conn->setRequestState(Connection::READING_BODY);
+		// headerEnd is complete, but body might not, return will cause loop to continue and wait few more bytes by recv()
 		return true;
 	}
 	// success case
@@ -278,16 +283,18 @@ bool Engine::attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t
 	return true;
 }
 
+// validate -> extract -> parse -> execute -> response
 bool Engine::processBufferedRequests(Connection* conn, bool& producedResponse)
 {
 	std::string rawRequest;
 
 	while (true)
 	{
-		// this block handle incomplete, if incomplete happen, then it break here, and return true, return to previous call, then move to next connection
+		// this block handle http completeness, if incomplete happen, then it break here, and return true, return to previous call, then move to next connection
 		bool isExtracted = false;
 		if (!handleRequestExtraction(conn, rawRequest, isExtracted))
 			return false;
+		// this block expecting a complete full http request, get / delete no need body, post need body by matching content length
 		if (!isExtracted)
 			break;
 
@@ -360,11 +367,14 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	// to check if the header is complete and ready for later
 	if (!attemptIncomingHeader(conn, buffer, bytes))
 		return;
+	// the _readBuffer has the value, last activity updated, request is valid, safe to continue, not oversized (positive outcome)
 
 	bool isProducedResponse = false;
+	// basically here, given a request, it is validated, extracted, parsed, executed (get/post/delete), produce response
 	if (!processBufferedRequests(conn, isProducedResponse))
 		return;
 
+	// response like 200, 404 that will sent to client
 	if (isProducedResponse)
 		conn->setState(Connection::WRITING);
 	else
