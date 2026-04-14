@@ -270,7 +270,7 @@ bool Engine::attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t
 
 	std::string& readBuffer = conn->getReadBuffer();
 	size_t headerEnd = readBuffer.find("\r\n\r\n");
-	// sometimes header request size is too huge, then i reject it
+	// sometimes if header request size is too huge, then i reject it
 	if (!enforceRequestSizeLimits(conn, headerEnd))
 		return false;
 
@@ -363,7 +363,7 @@ bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEndPos)
 // buffer is the data received from the client by using recv(), which returning bytes
 void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes)
 {
-	// in this if condition, only way for it to return is request header too big
+	// in this if condition, only way for it to return is request header too big, then return false
 	// to check if the header is complete and ready for later
 	if (!attemptIncomingHeader(conn, buffer, bytes))
 		return;
