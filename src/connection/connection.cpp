@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   connection.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:48:52 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/14 00:30:23 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,8 @@ Connection::Connection(int fd)
 	_shouldClose(false),
 	_pendingSetCookieHeader(""),
 	_lastActivity(std::time(NULL)),
+	_requestStartTime(0),
+	_hasStartedRequest(false),
 	_cgi(NULL),
 	_serverConfig(NULL)
 	{}
@@ -130,6 +132,32 @@ time_t Connection::getLastActivity() const
 	return _lastActivity;
 }
 
+void Connection::setRequestStartTime(time_t startTime)
+{
+	_requestStartTime = startTime;
+}
+
+time_t Connection::getRequestStartTime() const
+{
+	return _requestStartTime;
+}
+
+bool Connection::hasStartedRequest() const
+{
+	return _hasStartedRequest;
+}
+
+void Connection::setHasStartedRequest(bool value)
+{
+	_hasStartedRequest = value;
+}
+
+void Connection::resetRequestStartTime()
+{
+	_requestStartTime = 0;
+	_hasStartedRequest = false;
+}
+
 Connection::CGIContext* Connection::getCGI() const
 {
 	return _cgi;
@@ -144,14 +172,14 @@ int Connection::getCGIPid() const
 	return _cgi->pid;
 }
 
-int Connection::getCGIStdinFd() const
+int Connection::getCGIInputFd() const
 {
 	if (!_cgi)
 		return -1;
 	return _cgi->stdin_fd;
 }
 
-int Connection::getCGIStdoutFd() const
+int Connection::getCGIOutputFd() const
 {
 	if (!_cgi)
 	{
@@ -160,7 +188,7 @@ int Connection::getCGIStdoutFd() const
 	return _cgi->stdout_fd;
 }
 
-bool Connection::isCGIStdinClosed() const
+bool Connection::isCGIInputClosed() const
 {
 	if (!_cgi)
 		return true;
@@ -180,13 +208,13 @@ void Connection::setCGIPid(pid_t pid)
 		_cgi->pid = pid;
 }
 
-void Connection::setCGIStdinFd(int fd)
+void Connection::setCGIInputFd(int fd)
 {
 	if (_cgi)
 		_cgi->stdin_fd = fd;
 }
 
-void Connection::setCGIStdoutFd(int fd)
+void Connection::setCGIOutputFd(int fd)
 {
 	if (_cgi)
 		_cgi->stdout_fd = fd;
@@ -202,7 +230,7 @@ void Connection::setServerConfig(const ServerConfig* config)
 	_serverConfig = config;
 }
 
-void Connection::setCGIStdinClosed(bool value)
+void Connection::setCGIInputClosed(bool value)
 {
 	if (_cgi)
 		_cgi->stdin_closed = value;

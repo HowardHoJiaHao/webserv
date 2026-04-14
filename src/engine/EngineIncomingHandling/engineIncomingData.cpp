@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engineIncomingData.cpp                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/14 01:20:29 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -100,13 +100,13 @@ void Engine::handleCGIReadError(Connection* currentConn)
 
 bool Engine::processCGIOutput(Connection* currentConn, fd_set& readSet)
 {
-	int cgi_fd = currentConn->getCGIStdoutFd();
-	if (cgi_fd == -1 || !FD_ISSET(cgi_fd, &readSet))
+	int cgiOutputFd = currentConn->getCGIOutputFd();
+	if (cgiOutputFd == -1 || !FD_ISSET(cgiOutputFd, &readSet))
 		return false;
 
 	char buffer[1024];
 	Connection::CGIContext* cgi = currentConn->getCGI();
-	ssize_t bytes = read(cgi_fd, buffer, sizeof(buffer));
+	ssize_t bytes = read(cgiOutputFd, buffer, sizeof(buffer));
 	if (bytes > 0)
 	{
 		if (cgi != NULL)
@@ -137,7 +137,7 @@ bool Engine::processCGIOutput(Connection* currentConn, fd_set& readSet)
 // User-Agent: Mozilla/5.0
 // Accept: text/html
 
-
+// after keep alive => no connection? => timeout and connection drops, it has nothing to do with second if conditions
 void Engine::handleClientSocketRead(std::map<int, Connection*>::iterator& it, int clientFd, fd_set& readSet)
 {
 	if (FD_ISSET(clientFd, &readSet))
@@ -147,13 +147,21 @@ void Engine::handleClientSocketRead(std::map<int, Connection*>::iterator& it, in
 		ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
 		if (bytes > 0)
 		{
+			// start the timer on the first byte of the request
+			if (!it->second->hasStartedRequest())
+			{
+				it->second->setRequestStartTime(std::time(NULL));
+				it->second->setHasStartedRequest(true);
+			}
 			handleClientRequest(it->second, buffer, bytes);
 			++it;
 		}
+		// client has closed the connection, not request completion, only client side problem
 		else if (bytes == 0)
 		{
 			destroyClientConnection(it);
 		}
+		// other error
 		else
 		{
 			perror("recv");

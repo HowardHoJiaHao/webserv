@@ -65,14 +65,14 @@ class ConfigParser
 		static bool					parseValidOnOff(const std::string& value, size_t line, const std::string& directive);
 
 		static std::string							applyPrefixPath(const std::string& prefix, const std::string& path);
-		static std::string							requireErrorPageTarget(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& prefix);
+		static std::string							requireTarget(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& directive);
 		static int									requireReturnCode(const ConfigToken& token);
-		static std::string							requireReturnTarget(const std::vector<ConfigToken>& tokens, size_t& i);
 		static void									applyServerDefaults(ServerConfig& server, const std::string& prefix);
 		static const std::map<std::string, bool>&	getValidOnOffMap(void);
 
 		static void														parseMethods(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix);
 		static void														parseRoot(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix);
+		static void														parseIndex(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix);
 		static void														parseUploadEnabled(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix);
 		static void														parseUploadPath(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix);
 		static void														parseAutoindex(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix);

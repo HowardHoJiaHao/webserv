@@ -271,11 +271,11 @@ std::string	ConfigParser::applyPrefixPath(const std::string& prefix, const std::
 	return prefix + path;
 }
 
-std::string	ConfigParser::requireErrorPageTarget(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& prefix)
+std::string	ConfigParser::requireTarget(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& directive)
 {
-	const ConfigToken&	token = expectValueToken(tokens, i, "error_page target");
+	const ConfigToken&	token = expectValueToken(tokens, i, directive);
 
-	return applyPrefixPath(prefix, token.value);
+	return token.value;
 }
 
 int	ConfigParser::requireReturnCode(const ConfigToken& token)
@@ -285,13 +285,6 @@ int	ConfigParser::requireReturnCode(const ConfigToken& token)
 	if (code < 300 || code > 399)
 		throw parseError(token.line, "unsupported return status code: ", code);
 	return code;
-}
-
-std::string	ConfigParser::requireReturnTarget(const std::vector<ConfigToken>& tokens, size_t& i)
-{
-	const ConfigToken&	token = expectValueToken(tokens, i, "return target");
-
-	return token.value;
 }
 
 void	ConfigParser::applyServerDefaults(ServerConfig& server, const std::string& prefix)
@@ -344,6 +337,14 @@ void	ConfigParser::parseRoot(const std::vector<ConfigToken>& tokens, size_t& i, 
 {
 	const ConfigToken&	token = expectValueToken(tokens, i, "root");
 	loc.setRoot(applyPrefixPath(prefix, token.value));
+	expectToken(tokens, i, ";");
+}
+
+void	ConfigParser::parseIndex(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
+{
+	(void) prefix;
+	const ConfigToken&	token = expectValueToken(tokens, i, "index");
+	loc.setIndex(token.value);
 	expectToken(tokens, i, ";");
 }
 
@@ -401,7 +402,7 @@ void	ConfigParser::parseReturn(const std::vector<ConfigToken>& tokens, size_t& i
 	(void) prefix;
 	const ConfigToken&	token = expectValueToken(tokens, i, "return");
 
-	loc.setReturnDirective(true, requireReturnCode(token), requireReturnTarget(tokens, i));
+	loc.setReturnDirective(true, requireReturnCode(token), requireTarget(tokens, i, "return target"));
 	expectToken(tokens, i, ";");
 }
 
@@ -414,6 +415,7 @@ const std::map<std::string, ConfigParser::LocationDirectiveHandler>&	ConfigParse
 		map["methods"]			= &parseMethods;
 		map["allow_methods"]	= &parseMethods;
 		map["root"]				= &parseRoot;
+		map["index"]			= &parseIndex;
 		map["upload_enabled"]	= &parseUploadEnabled;
 		map["upload_path"]		= &parseUploadPath;
 		map["autoindex"]		= &parseAutoindex;
@@ -501,9 +503,10 @@ void	ConfigParser::parseClientMaxBodySize(const std::vector<ConfigToken>& tokens
 
 void	ConfigParser::parseErrorPage(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
+	(void) prefix;
 	const ConfigToken&	token = expectValueToken(tokens, i, "error_page");
 
-	server.addErrorPage(requireNumericValue(token, "error_page"), requireErrorPageTarget(tokens, i, prefix));
+	server.addErrorPage(requireNumericValue(token, "error_page"), requireTarget(tokens, i, "error_page target"));
 	expectToken(tokens, i, ";");
 }
 

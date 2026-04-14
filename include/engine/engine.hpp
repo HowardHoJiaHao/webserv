@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/13 17:32:40 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,7 +30,7 @@ class Engine
 		const ConfigFiles& 								_config;
 		std::map<std::pair<std::string,int>, int> 		_listenSockets;
 		std::map<int, Connection*> 						_clientConnections; // <- client socket + state + buffer
-		std::map<std::string, time_t>					_sessions;
+		std::map<std::string, time_t>					_sessions;	// <- should be global rather than per connection, because session survive when connection gone
 		unsigned long									_sessionCounter;
 
 		void registerListenSocketsForSelect(fd_set& readSet, int& maxFd);
@@ -50,6 +50,7 @@ class Engine
 		void	handleCGIReadError(Connection* currentConn);
 
 		void processOutgoingData(fd_set& writeSet);
+		void closeConnectionOrResetConnState(std::map<int, Connection*>::iterator& it, Connection* currentConn);
 		void checkTimeouts();
 
 		const ServerConfig* findServerConfig(const std::string& host, int port) const;
@@ -65,7 +66,7 @@ class Engine
 		
 		void handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes);
 
-		bool attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t bytes, size_t& headerEnd);
+		bool attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t bytes);
 		bool processBufferedRequests(Connection* conn, bool& producedResponse);
 		bool enforceRequestSizeLimits(Connection* conn, size_t headerEnd);
 		bool handleRequestExtraction(Connection* conn, std::string& rawRequest, bool& extracted);

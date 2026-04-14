@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Connection.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/14 00:30:23 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,13 +20,14 @@
 class Connection
 {
 	public:
+		// Socket transport mode: controls I/O phase (recv/send/CGI process communication)
 		enum State
 		{
 			READING,
 			WRITING,
 			CGI_RUNNING,
 		};
-
+		
 		// runtime state container for cgi execution
 		struct CGIContext
 		{
@@ -39,16 +40,16 @@ class Connection
 			std::string	stdout_buffer;
 			time_t		start_time;
 
-			CGIContext()
+			CGIContext() // initializer
 				: pid(-1), stdin_fd(-1), stdout_fd(-1), stdin_closed(false),
 				  stdin_buffer(), stdin_offset(0), stdout_buffer(), start_time(0){}
 		};
 
+		// HTTP request parse phase: tracks which part of request we are parsing (headers vs body)
 		enum RequestState
 		{
 			READING_HEADERS,
-			READING_BODY,
-			COMPLETE
+			READING_BODY
 		};
 
 		Connection(int fd);
@@ -78,21 +79,26 @@ class Connection
 
 		void	updateLastActivity();
 		time_t	getLastActivity() const;
+		void	setRequestStartTime(time_t startTime);
+		time_t	getRequestStartTime() const;
+		bool	hasStartedRequest() const;
+		void	setHasStartedRequest(bool value);
+		void	resetRequestStartTime();
 
 		// ========		cgi in connection	==========
 		// ===========		getter	==============
 		CGIContext*			getCGI() const;
 		int					getCGIPid() const;
-		int					getCGIStdinFd() const;
-		int					getCGIStdoutFd() const;
-		bool				isCGIStdinClosed() const;
+		int					getCGIInputFd() const;
+		int					getCGIOutputFd() const;
+		bool				isCGIInputClosed() const;
 
 		// ==========	setter	=============
 		void				setCGI(CGIContext* cgi);
 		void				setCGIPid(pid_t pid);
-		void				setCGIStdinFd(int fd);
-		void				setCGIStdoutFd(int fd);
-		void				setCGIStdinClosed(bool value);
+		void				setCGIInputFd(int fd);
+		void				setCGIOutputFd(int fd);
+		void				setCGIInputClosed(bool value);
 
 		// =========	other	=============
 		void				clearCGI();
@@ -110,6 +116,8 @@ class Connection
 		bool				_shouldClose;
 		std::string			_pendingSetCookieHeader;
 		time_t				_lastActivity;
+		time_t			_requestStartTime;
+		bool			_hasStartedRequest;
 
 		// point to the struct object (cgi context)
 		CGIContext*			_cgi;

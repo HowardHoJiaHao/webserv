@@ -1,0 +1,10 @@
+{
+	"chat.mcp.serverSampling": {
+		"webserv/.vscode/mcp.json: repo-inspector": {
+			"allowedModels": [
+				"copilot/oswe-vscode-prime"
+			]
+		}
+	},
+	"C_Cpp.default.compilerPath": "/usr/bin/clang"
+}

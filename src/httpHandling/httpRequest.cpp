@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   httpRequest.cpp                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/21 16:47:13 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/12 02:54:15 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,6 +44,14 @@ const std::string& HttpRequest::getVersion() const
 	return _version;
 }
 
+// POST /Upload HTTP/1.1
+// Host: 127.0.0.1:8080
+// User-Agent: Mozilla/5.0
+// Accept: */*
+// Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryABC123
+// Content-Length: 345
+// Content-Disposition: form-data; name="file"; filename="hello.txt" <- the goal is return the value part of this line
+
 const std::string* HttpRequest::getHeader(const std::string& key) const
 {
 	std::map<std::string, std::string>::const_iterator it = _headers.find(toLowerAsciiEngine(key));
@@ -57,7 +65,13 @@ const std::map<std::string, std::string>& HttpRequest::getHeaders() const
 	return _headers;
 }
 
-const std::string* HttpRequest::getCookie(const std::string& key) const
+// the key is "webservsid"
+// _cookie map example: "webservsid" → "abc123" (focused)
+//						"theme" → "dark" (unusued)
+// 						"lang"	→	"en"
+//
+// returning the pointer to the value of the key, eg: abc123 (cookie can be null)
+const std::string* HttpRequest::getCookieValue(const std::string& key) const
 {
 	std::map<std::string, std::string>::const_iterator it = _cookies.find(toLowerAsciiEngine(key));
 	if (it == _cookies.end())

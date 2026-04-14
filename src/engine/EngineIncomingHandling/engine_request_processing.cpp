@@ -21,15 +21,21 @@ static std::string normalizeCgiExtension(const std::string& ext)
 		return ext;
 	return "." + ext;
 }
-
+//refer to config
+// location /cgi-bin
+//{
+//     cgi_enabled on;
+//     cgi_ext .py .pl;
+// }
+// is cgi enabled on and the extension matched (config vs request: GET /cgi-bin/test.py)
 static bool isCgiRequestForLocation(const std::string& path, const LocationConfig& location)
 {
 	if (!location.isCgiEnabled())
 		return false;
-
+	// if no cgi extension is set, then no cgi request
 	const std::vector<std::string>& exts = location.getCgiExtensions();
 	if (exts.empty())
-		return true;
+		return false;
 
 	for (size_t i = 0; i < exts.size(); ++i)
 	{
@@ -40,38 +46,53 @@ static bool isCgiRequestForLocation(const std::string& path, const LocationConfi
 	return false;
 }
 
-static const char* kSessionCookieName = "webservsid";
-static const time_t kSessionTtlSeconds = 3600;
+// there is a few function are using these static variable
 
+// this is key -> webservsid=abc123 <- value
+static const std::string ConstantSessionCookieName = "webservsid";
+static const time_t ConstantSessionTimeToLiveSeconds = 3600;
+
+// if a session lived too long since last used, longer than TTL, then it should die
+// session
+// _sessions
+// ├── "abc123" → 1712500000
+// ├── "xyz789" → 1712500100
+// ├── "k9lmno" → 1712500200
 void Engine::pruneExpiredSessions(time_t now)
 {
+	// go throught each session stored in _sessions
 	for (std::map<std::string, time_t>::iterator it = _sessions.begin(); it != _sessions.end();)
 	{
-		if (now - it->second > kSessionTtlSeconds)
+		if (now - it->second > ConstantSessionTimeToLiveSeconds)
 			_sessions.erase(it++);
 		else
 			++it;
 	}
 }
 
+// time now + rand digit + sessionCounter, everything in hex
 std::string Engine::generateSessionId(time_t now)
 {
 	++_sessionCounter;
 	std::ostringstream oss;
 	oss << std::hex
 		<< static_cast<unsigned long>(now)
-		<< static_cast<unsigned long>(::getpid())
 		<< static_cast<unsigned long>(std::rand())
 		<< _sessionCounter;
 	return oss.str();
 }
 
+// cannot return reference because i might return ""
+//
+// session id: cookieSessionId -> time
 std::string Engine::ensureSessionCookieHeader(const HttpRequest& request)
 {
 	time_t now = std::time(NULL);
 	pruneExpiredSessions(now);
+	// the first time client request should have null existingSessionId 
+	const std::string* existingSessionId = request.getCookieValue(ConstantSessionCookieName);
 
-	const std::string* existingSessionId = request.getCookie(kSessionCookieName);
+	// if the client session exist, refresh its last used time
 	if (existingSessionId != NULL && !existingSessionId->empty())
 	{
 		std::map<std::string, time_t>::iterator it = _sessions.find(*existingSessionId);
@@ -82,19 +103,24 @@ std::string Engine::ensureSessionCookieHeader(const HttpRequest& request)
 		}
 	}
 
+	// if above "if" statement failed, session is not found in _session
+	// generate a unique session id that does not already exist in _sessions
 	std::string sessionId;
-	do
+	while (true)
 	{
 		sessionId = generateSessionId(now);
+		if (_sessions.find(sessionId) == _sessions.end())
+			break;
 	}
-	while (_sessions.find(sessionId) != _sessions.end());
-
 	_sessions[sessionId] = now;
 
-	std::ostringstream header;
-	header << "Set-Cookie: " << kSessionCookieName << "=" << sessionId
-		<< "; Path=/; Max-Age=" << kSessionTtlSeconds << "; HttpOnly";
-	return header.str();
+	// response to client
+	// this is RFC standard 6265
+	// Set-Cookie: webservsid=69d75a62104f54011; Path=/; Max-Age=3600; HttpOnly
+	std::ostringstream SetCookieHeader;
+	SetCookieHeader << "Set-Cookie: " << ConstantSessionCookieName << "=" << sessionId
+		<< "; Path=/; Max-Age=" << ConstantSessionTimeToLiveSeconds << "; HttpOnly";
+	return SetCookieHeader.str();
 }
 
 
@@ -126,7 +152,7 @@ bool Engine::handleRequestExtraction(Connection* conn, std::string& rawRequest, 
 		return true;
 	}
 	// success case
-	conn->setRequestState(Connection::COMPLETE);
+	conn->setRequestState(Connection::READING_BODY);
 	extracted = true;
 	return true;
 }
@@ -157,12 +183,9 @@ bool Engine::handleRequestParsing(Connection* conn, const std::string& rawReques
 	return true;
 }
 
-
-
-
-
 bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig, const LocationConfig* location, bool shouldClose, bool& producedResponse)
 {
+	//defensive
 	if (serverConfig == NULL)
 	{
 		conn->setShouldClose(true);
@@ -171,7 +194,10 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 		return false;
 	}
 
+	// sessionSetCookieHeader: webservsid=69d75a62104f54011; Path=/; Max-Age=3600; HttpOnly
 	std::string sessionSetCookieHeader = ensureSessionCookieHeader(request);
+	// in the previous function, if valid session is found in _session, it will return ""
+	// means no new cookie needs to be sent, else will set new cookie
 	if (sessionSetCookieHeader.empty())
 		conn->clearPendingSetCookieHeader();
 	else
@@ -180,6 +206,7 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 	if (!isMethodAllowed(request.getMethod(), location))
 	{
 		std::string response = buildErrorResponse(405, conn->shouldClose(), serverConfig, methodNotAllowedHeaders(location));
+		// if there is a pending cookie header, append it to the response
 		if (!conn->getPendingSetCookieHeader().empty())
 		{
 			response = appendHeaderToResponse(response, conn->getPendingSetCookieHeader());
@@ -192,8 +219,10 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 
 	if (location != NULL && isCgiRequestForLocation(request.getPath(), *location))
 	{
+		// start cgi process, forking the server, setting up pipes, preparing the connection to communicate with external program
 		if (!launchCGI(conn, request, *serverConfig, location, conn->shouldClose()))
 		{
+			// if cgi launching failed, send existing response with cookie, switch to writing state
 			if (!conn->getPendingSetCookieHeader().empty())
 			{
 				conn->setWriteBuffer(appendHeaderToResponse(conn->getWriteBuffer(), conn->getPendingSetCookieHeader()));
@@ -203,9 +232,11 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 		}
 		return false;
 	}
+	// the moment the first if block is true, then eventually it will enter this false return and it wont go to the normal request (next block of code)
 
 	std::string response = routeRequest(request, shouldClose, *serverConfig, location);
-	if (!conn->getPendingSetCookieHeader().empty())
+	// if cookie string(_pendingSetCookieHeader) is not empty
+	if (conn->getPendingSetCookieHeader().size() > 0)
 	{
 		response = appendHeaderToResponse(response, conn->getPendingSetCookieHeader());
 		conn->clearPendingSetCookieHeader();
@@ -224,16 +255,17 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 // \r\n
 
 // conn is client socket connection
-// headerEnd starts with no position
 
-bool Engine::attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t bytes, size_t& headerEnd)
+bool Engine::attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t bytes)
 {
+	// store the buffer that output from the recv()
 	conn->appendToHeaderBuffer(buffer, bytes);
+	// for timeout control
 	conn->updateLastActivity();
 
 	std::string& readBuffer = conn->getReadBuffer();
-	headerEnd = readBuffer.find("\r\n\r\n");
-	// sometimes request size is too huge, then i reject it
+	size_t headerEnd = readBuffer.find("\r\n\r\n");
+	// sometimes header request size is too huge, then i reject it
 	if (!enforceRequestSizeLimits(conn, headerEnd))
 		return false;
 
@@ -242,7 +274,7 @@ bool Engine::attemptIncomingHeader(Connection* conn, const char* buffer, ssize_t
 		conn->setRequestState(Connection::READING_HEADERS);
 	// found that \r\n\r\n
 	else
-		conn->setRequestState(Connection::READING_BODY); // should it be reading completion
+		conn->setRequestState(Connection::READING_BODY);
 	return true;
 }
 
@@ -252,6 +284,7 @@ bool Engine::processBufferedRequests(Connection* conn, bool& producedResponse)
 
 	while (true)
 	{
+		// this block handle incomplete, if incomplete happen, then it break here, and return true, return to previous call, then move to next connection
 		bool isExtracted = false;
 		if (!handleRequestExtraction(conn, rawRequest, isExtracted))
 			return false;
@@ -264,6 +297,7 @@ bool Engine::processBufferedRequests(Connection* conn, bool& producedResponse)
 		if (!handleRequestParsing(conn, rawRequest, request, serverConfig))
 			return false;
 
+		// return the pointer to the location config
 		const LocationConfig* location = NULL;
 		if (serverConfig != NULL)
 			location = findBestLocation(*serverConfig, request.getPath());
@@ -287,15 +321,18 @@ bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEndPos)
 
 	std::string& requestBuffer = conn->getReadBuffer();
 	const ServerConfig* serverConfig = conn->getServerConfig();
-	// get MaxBodySize from the config
+	// get MaxBodySize from the config if i have
 	size_t maxBodySizeLimit = MAX_REQUEST_SIZE;
+	// define  max buffered request size for later 
 	if (serverConfig != NULL)
 		maxBodySizeLimit = serverConfig->getMaxBodySize();
 	size_t maxBufferedRequestSize = maxBodySizeLimit + maxHeaderSize;
 
-	// if the header is gabbage without \r\n\r\n
+	// only related to header
+	// if the header is gabbage without \r\n\r\n, \r\n\r\n was not found yet, buffer too big
 	if (headerEndPos == std::string::npos && requestBuffer.size() > maxHeaderSize)
 	{
+		// reject 413...
 		conn->setShouldClose(true);
 		requestBuffer.clear();
 		conn->setWriteBuffer(buildErrorResponse(413, conn->shouldClose(), serverConfig));
@@ -303,7 +340,7 @@ bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEndPos)
 		return false;
 	}
 
-	//total buffer is too big
+	//the whole request including body (ofen post), total buffer is too big
 	if (requestBuffer.size() > maxBufferedRequestSize)
 	{
 		conn->setShouldClose(true);
@@ -316,17 +353,19 @@ bool Engine::enforceRequestSizeLimits(Connection* conn, size_t headerEndPos)
 	return true;
 }
 
+// buffer is the data received from the client by using recv(), which returning bytes
 void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t bytes)
 {
-	size_t headerEnd = std::string::npos;
-	if (!attemptIncomingHeader(conn, buffer, bytes, headerEnd))
+	// in this if condition, only way for it to return is request header too big
+	// to check if the header is complete and ready for later
+	if (!attemptIncomingHeader(conn, buffer, bytes))
 		return;
 
-	bool producedResponse = false;
-	if (!processBufferedRequests(conn, producedResponse))
+	bool isProducedResponse = false;
+	if (!processBufferedRequests(conn, isProducedResponse))
 		return;
 
-	if (producedResponse)
+	if (isProducedResponse)
 		conn->setState(Connection::WRITING);
 	else
 		conn->setState(Connection::READING);

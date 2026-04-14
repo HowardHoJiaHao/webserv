@@ -34,17 +34,41 @@ std::string Engine::buildStandardResponse(int code, const std::string& body, con
 	return buildResponse(status.str(), body, contentType, shouldClose, std::vector<std::string>());
 }
 
+// example of response
+// HTTP/1.1 404 Not Found
+// Content-Type: text/plain
+// Content-Length: 0
+// Connection: keep-alive
+
+// HTTP/1.1 301 Moved Permanently
+// Content-Type: text/plain
+// Content-Length: 0
+// Location: https://example.com
+// Connection: keep-alive
+
+// HTTP/1.1 405 Method Not Allowed
+// Content-Type: text/plain
+// Content-Length: 0
+// Allow: GET
+// Connection: keep-alive
+
+// location /42kl
+// {
+//     return 301 https://42kl.edu.my/; <- return target and return code is here
+// }
 std::string Engine::buildRedirectResponse(int code, const std::string& target, bool shouldClose)
 {
+	// parser should handle this instead, which throw error
+	// enable me a limited possible response for later reasonPhraseForStatusCodeEngine()
 	if (code != 301 && code != 302 && code != 303 && code != 307 && code != 308)
 		code = 302;
 
-	std::vector<std::string> headers;
-	headers.push_back("Location: " + target);
+	std::vector<std::string> extraheaders;
+	extraheaders.push_back("Location: " + target);
 
 	std::ostringstream status;
 	status << code << " " << reasonPhraseForStatusCodeEngine(code);
-	return buildResponse(status.str(), "", "text/plain", shouldClose, headers);
+	return buildResponse(status.str(), "", "text/plain", shouldClose, extraheaders);
 }
 
 std::string Engine::buildResponse
