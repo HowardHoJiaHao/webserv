@@ -17,6 +17,6 @@
 
 bool hasChunkedTransferEncodingValue(const std::string& value);
 bool decodeChunkedBodyForRequest(const std::string& encodedBody, size_t maxBodySize, std::string& decodedBody, bool* bodyTooLarge);
-bool validateAndExtractRequestFromBuffer(std::string& buffer, std::string& rawRequest, bool* isInvalidContentLength);
+bool httpRequestCompletenessChecking(std::string& buffer, std::string& rawRequest, bool* isInvalidContentLength);
 
 #endif

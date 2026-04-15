@@ -52,7 +52,7 @@ std::string Engine::resolveLocationRoot(const ServerConfig& serverConfig, const 
 // server config as below
 // location: /
 // location: /images
-// location: /images/png	<=  this win
+// location: /images/png	<=  this win(more specific)
 const LocationConfig* Engine::findBestLocation(const ServerConfig& serverConfig, const std::string& ClientRequestPath) const
 {
 	const std::vector<LocationConfig>& locations = serverConfig.getLocations();
