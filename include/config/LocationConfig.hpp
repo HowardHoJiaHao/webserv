@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   LocationConfig.hpp                                 :+:      :+:    :+:   */
+/*   Location.hpp                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ktiew <ktiew@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/17 23:29:41 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Created: 2025/05/20 12:29:07 by ktiew             #+#    #+#             */
+/*   Updated: 2026/02/21 23:54:27 by ktiew            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,33 @@
 #include <string>
 #include <vector>
 
+/*
+LocationConfig represents one `location { ... }` part inside a server.
+
+Beginner idea:
+
+- Think of a "location" like a rule for a specific URL path.
+  Example: `/images` or `/upload`.
+
+When a request comes in, webserv finds the best matching location and then uses
+the settings stored here.
+
+It keeps track of:
+
+- Which path this location matches.
+- Which HTTP methods are allowed here (GET/POST/DELETE).
+- Where files should be served from (root) and the default file (index).
+- Upload settings (on/off + where to save uploads).
+- Autoindex (show a folder listing or not).
+- CGI settings (on/off + which file extensions can run as CGI).
+- Optional `return` (send a redirect/response immediately).
+
+This class is only a "settings holder":
+
+- It does not serve files by itself.
+- It does not run CGI by itself.
+  The engine/routing code uses these values to decide what to do.
+*/
 class LocationConfig
 {
 	private:
@@ -33,7 +60,8 @@ class LocationConfig
 		std::string					_returnTarget;
 
 	public:
-		LocationConfig();
+		LocationConfig(void);
+		~LocationConfig(void);
 
 		void	setPath(const std::string& path);
 		void	setAllowedMethods(const std::vector<std::string>& method);
@@ -46,18 +74,18 @@ class LocationConfig
 		void	setCgiExtensions(const std::vector<std::string>& extensions);
 		void	setReturnDirective(bool enabled, int status, const std::string& target);
 
-		const	std::string& getPath() const;
-		const	std::vector<std::string>& getAllowedMethods() const;
-		const	std::string& getRoot() const;
-		const	std::string& getIndex() const;
-		bool	isUploadEnabled() const;
-		const	std::string& getUploadPath() const;
-		bool	isAutoindex() const;
-		bool	isCgiEnabled() const;
-		const	std::vector<std::string>& getCgiExtensions() const;
-		bool	hasReturnDirective() const;
-		int		getReturnStatus() const;
-		const	std::string& getReturnTarget() const;
+		const std::string&				getPath(void) const;
+		const std::vector<std::string>&	getAllowedMethods(void) const;
+		const std::string&				getRoot(void) const;
+		const std::string&				getIndex(void) const;
+		bool							isUploadEnabled(void) const;
+		const std::string&				getUploadPath(void) const;
+		bool							isAutoindex(void) const;
+		bool							isCgiEnabled(void) const;
+		const std::vector<std::string>&	getCgiExtensions(void) const;
+		bool							hasReturnDirective(void) const;
+		int								getReturnStatus(void) const;
+		const std::string&				getReturnTarget(void) const;
 };
 
 #endif

@@ -6,7 +6,7 @@
 /*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/14 15:22:08 by hho-jia-         ###   ########.fr       */
+/*   Updated: 2026/04/15 18:08:15 by hho-jia-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,16 +20,14 @@
 class Connection
 {
 	public:
-		// READING: collect/parse request
-		// CGI_RUNNING: wait/read CGI stdout
-		// WRITING: send HTTP response to client
+		// Socket transport mode: controls I/O phase (recv/send/CGI process communication)
 		enum State
 		{
 			READING,
 			WRITING,
 			CGI_RUNNING,
 		};
-
+		
 		// runtime state container for cgi execution
 		struct CGIContext
 		{
@@ -42,16 +40,16 @@ class Connection
 			std::string	stdout_buffer;  // to store output buffer
 			time_t		start_time;
 
-			CGIContext()
+			CGIContext() // initializer
 				: pid(-1), stdin_fd(-1), stdout_fd(-1), stdin_closed(false),
 				  stdin_buffer(), stdin_offset(0), stdout_buffer(), start_time(0){}
 		};
 
+		// HTTP request parse phase: tracks which part of request we are parsing (headers vs body)
 		enum RequestState
 		{
 			READING_HEADERS,
-			READING_BODY,
-			COMPLETE
+			READING_BODY
 		};
 
 		Connection(int fd);
@@ -81,6 +79,11 @@ class Connection
 
 		void	updateLastActivity();
 		time_t	getLastActivity() const;
+		void	setRequestStartTime(time_t startTime);
+		time_t	getRequestStartTime() const;
+		bool	hasStartedRequest() const;
+		void	setHasStartedRequest(bool value);
+		void	resetRequestStartTime();
 
 		// ========		cgi in connection	==========
 		// ===========		getter	==============
@@ -110,9 +113,11 @@ class Connection
 		State				_state; // readin, writing, cgi_running
 		bool				_closed;
 		RequestState 		_requestState;
-		bool				_shouldClose; // after response close flag
-		std::string			_pendingSetCookieHeader; // cookie
-		time_t				_lastActivity; // Last time that is updated
+		bool				_shouldClose;
+		std::string			_pendingSetCookieHeader;
+		time_t				_lastActivity;
+		time_t			_requestStartTime;
+		bool			_hasStartedRequest;
 
 		// point to the struct object (cgi context)
 		CGIContext*			_cgi;

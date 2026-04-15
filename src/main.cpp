@@ -11,15 +11,13 @@
 /* ************************************************************************** */
 
 #include "Webserv.hpp"
-#include "ConfigFiles.hpp"
-#include "engine.hpp"
 #include <csignal>
 #include <ctime>
 #include <cstdlib>
 
 int	main(int argc, char **argv)
 {
-	//when a client disconnects, SIGPIPE is sent, but we ignore it to avoid crashing
+	// when a client disconnects, SIGPIPE is sent, but we ignore it to avoid crashing
 	// the moment the server tries to write to the client, the client disconnect at the same time
 	signal(SIGPIPE, SIG_IGN);
 	std::srand(static_cast<unsigned int>(std::time(NULL)));
@@ -28,8 +26,9 @@ int	main(int argc, char **argv)
 	{
 		try
 		{
-			ConfigFiles		config(argc == 2 ? argv[1] : "");
+			ConfigFiles	config(argc == 2 ? argv[1] : "");
 			Engine	engine(config);
+
 			engine.setupListeningSockets();
 			engine.run();
 		}
@@ -46,5 +45,4 @@ int	main(int argc, char **argv)
 	}
 	return (0);
 }
-
 // the config is comes from argv

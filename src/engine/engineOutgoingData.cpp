@@ -6,7 +6,7 @@
 /*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/13 02:52:27 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/14 00:30:23 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -54,6 +54,7 @@ void Engine::closeConnectionOrResetConnState(std::map<int, Connection*>::iterato
 		return;
 	}
 	currentConn->setRequestState(Connection::READING_HEADERS);
+	currentConn->resetRequestStartTime();
 	currentConn->setState(Connection::READING);
 	++it;
 }

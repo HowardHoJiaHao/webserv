@@ -6,7 +6,7 @@
 /*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/15 13:06:00 by hho-jia-         ###   ########.fr       */
+/*   Updated: 2026/04/15 18:08:37 by hho-jia-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -145,7 +145,7 @@ bool Engine::processCGIOutput(Connection* currentConn, fd_set& readSet)
 // User-Agent: Mozilla/5.0
 // Accept: text/html
 
-
+// after keep alive => no connection? => timeout and connection drops, it has nothing to do with second if conditions
 void Engine::handleClientSocketRead(std::map<int, Connection*>::iterator& it, int clientFd, fd_set& readSet)
 {
 	if (FD_ISSET(clientFd, &readSet))
@@ -155,13 +155,21 @@ void Engine::handleClientSocketRead(std::map<int, Connection*>::iterator& it, in
 		ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
 		if (bytes > 0)
 		{
+			// start the timer on the first byte of the request
+			if (!it->second->hasStartedRequest())
+			{
+				it->second->setRequestStartTime(std::time(NULL));
+				it->second->setHasStartedRequest(true);
+			}
 			handleClientRequest(it->second, buffer, bytes);
 			++it;
 		}
+		// client has closed the connection, not request completion, only client side problem
 		else if (bytes == 0)
 		{
 			destroyClientConnection(it);
 		}
+		// other error
 		else
 		{
 			perror("recv");
