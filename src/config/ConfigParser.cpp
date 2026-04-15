@@ -16,16 +16,59 @@
 #include <sstream>
 #include <sys/stat.h>
 
+/*
+ConfigParser (Beginner friendly):
+This class reads the webserv config file and turns it into C++ objects.
+
+If you're new to programming, the key idea is simple:
+- The config file is just text.
+- We read the text and split it into small pieces (words and symbols).
+- Then we interpret those pieces and fill ServerConfig and LocationConfig.
+
+Mini example of the supported config style:
+
+	prefix ./;               # optional base directory for paths
+	server {
+		listen 127.0.0.1:8080;
+		root ./www1;
+		index index.html;
+
+		location / {
+			methods GET POST;
+			autoindex off;
+		}
+	}
+
+Glossary:
+- token: a single word or symbol from the config (like "server" or "{")
+- directive: a command in the config (like "listen" or "root")
+- handler map: a lookup table (string -> function) to call the right parser
+*/
+
+/*
+ConfigToken Constructor:
+A token is one small piece of the config file (word or symbol) plus its line
+number. Keeping the line helps produce friendly error messages.
+*/
 ConfigParser::ConfigToken::ConfigToken(int l, const std::string& v)
 	: value(v),
 	line(l)
 {
 }
 
+/*
+ConfigToken Destructor:
+Nothing special to clean up.
+*/
 ConfigParser::ConfigToken::~ConfigToken(void)
 {
 }
 
+/*
+trim:
+Removes spaces/newlines at the start and end of a string.
+Used to treat an "empty" config path as "no file provided".
+*/
 std::string	ConfigParser::trim(const std::string& s)
 {
 	size_t	start = 0;
@@ -39,6 +82,11 @@ std::string	ConfigParser::trim(const std::string& s)
 	return s.substr(start, end - start);
 }
 
+/*
+parseError:
+Creates a readable exception message like:
+	"Config parse error at line 12: expected ';'"
+*/
 std::runtime_error	ConfigParser::parseError(size_t line, const std::string& message)
 {
 	std::ostringstream	oss;
@@ -47,6 +95,11 @@ std::runtime_error	ConfigParser::parseError(size_t line, const std::string& mess
 	return std::runtime_error(oss.str());
 }
 
+/*
+parseError (with code):
+Helper for messages that want to include a number (example: status code).
+Throws immediately.
+*/
 std::runtime_error	ConfigParser::parseError(size_t line, const std::string& message, int code)
 {
 	std::ostringstream	oss;
@@ -55,6 +108,11 @@ std::runtime_error	ConfigParser::parseError(size_t line, const std::string& mess
 	throw parseError(line, oss.str());
 }
 
+/*
+expectToken:
+Checks that the next token is exactly what we expect (like "{" or ";").
+If not, throw a helpful error.
+*/
 void	ConfigParser::expectToken(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& expected)
 {
 	if (i >= tokens.size() || tokens[i].value != expected)
@@ -70,6 +128,11 @@ void	ConfigParser::expectToken(const std::vector<ConfigToken>& tokens, size_t& i
 	i++;
 }
 
+/*
+nextTokenOrError:
+Gets the next token.
+If there is no next token, it means the config ended too early, so we throw.
+*/
 const ConfigParser::ConfigToken&	ConfigParser::nextTokenOrError(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& context)
 {
 	if (i >= tokens.size())
@@ -77,6 +140,11 @@ const ConfigParser::ConfigToken&	ConfigParser::nextTokenOrError(const std::vecto
 	return tokens[i++];
 }
 
+/*
+expectValueToken:
+Gets the next token, but rejects special symbols like ';' '{' '}' as values.
+This prevents mistakes like writing "root ;" (missing the path).
+*/
 const ConfigParser::ConfigToken&	ConfigParser::expectValueToken(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& context)
 {
 	const ConfigToken&	token = nextTokenOrError(tokens, i, context);
@@ -86,6 +154,10 @@ const ConfigParser::ConfigToken&	ConfigParser::expectValueToken(const std::vecto
 	return token;
 }
 
+/*
+flushToken:
+Helper for tokenize(): when we finish building a word, push it into the list.
+*/
 void	ConfigParser::flushToken(std::vector<ConfigToken>& tokens, std::string& current, size_t line)
 {
 	if (!current.empty())
@@ -95,6 +167,16 @@ void	ConfigParser::flushToken(std::vector<ConfigToken>& tokens, std::string& cur
 	}
 }
 
+/*
+tokenize:
+Splits the config text into tokens.
+
+Rules (easy version):
+- Spaces separate words
+- '#' starts a comment until the end of the line
+- '{', '}', ';' become their own tokens
+- Each token remembers its line number
+*/
 std::vector<ConfigParser::ConfigToken>	ConfigParser::tokenize(const std::string& content)
 {
 	std::vector<ConfigToken>	tokens;
@@ -136,6 +218,11 @@ std::vector<ConfigParser::ConfigToken>	ConfigParser::tokenize(const std::string&
 	return tokens;
 }
 
+/*
+isDirectoryPath:
+Returns true only if the path exists AND is a directory.
+Used for validating the "prefix" directive.
+*/
 bool	ConfigParser::isDirectoryPath(const std::string& path)
 {
 	struct stat	st;
@@ -145,6 +232,10 @@ bool	ConfigParser::isDirectoryPath(const std::string& path)
 	return S_ISDIR(st.st_mode);
 }
 
+/*
+isValidIpv4OrLocalhost:
+Accepts "localhost" or an IPv4 address like 127.0.0.1.
+*/
 bool	ConfigParser::isValidIpv4OrLocalhost(const std::string& host)
 {
 	if (host == "localhost")
@@ -170,6 +261,10 @@ bool	ConfigParser::isValidIpv4OrLocalhost(const std::string& host)
 	return parts == 4;
 }
 
+/*
+isValidPort:
+Parses a port like "8080" into an integer and checks it is 1..65535.
+*/
 bool	ConfigParser::isValidPort(const std::string& portstr, int& port)
 {
 	std::stringstream	ss(portstr);
@@ -180,6 +275,11 @@ bool	ConfigParser::isValidPort(const std::string& portstr, int& port)
 	return port > 0 && port < 65536;
 }
 
+/*
+requireHost:
+Validates a host token and returns it.
+Throws if invalid.
+*/
 std::string	ConfigParser::requireHost(const ConfigToken& token)
 {
 	if (!isValidIpv4OrLocalhost(token.value))
@@ -187,6 +287,11 @@ std::string	ConfigParser::requireHost(const ConfigToken& token)
 	return token.value;
 }
 
+/*
+requirePort:
+Validates a port token and returns it as an int.
+Throws if invalid.
+*/
 int	ConfigParser::requirePort(const ConfigToken& token)
 {
 	int	port;
@@ -196,6 +301,10 @@ int	ConfigParser::requirePort(const ConfigToken& token)
 	return port;
 }
 
+/*
+requireNumericValue (size_t):
+Reads a positive number used by directives like client_max_body_size.
+*/
 size_t	ConfigParser::requireNumericValue(const ConfigToken& token)
 {
 	std::stringstream	ss(token.value);
@@ -207,6 +316,10 @@ size_t	ConfigParser::requireNumericValue(const ConfigToken& token)
 	return num;
 }
 
+/*
+requireNumericValue (int + context):
+Reads a number into an int and uses 'context' to build a nicer error message.
+*/
 int	ConfigParser::requireNumericValue(const ConfigToken& token, const std::string& context)
 {
 	std::stringstream	ss(token.value);
@@ -218,6 +331,10 @@ int	ConfigParser::requireNumericValue(const ConfigToken& token, const std::strin
 	return code;
 }
 
+/*
+requireMethod:
+Only allow methods supported by this project: GET, POST, DELETE.
+*/
 const std::string&	ConfigParser::requireMethod(const ConfigToken& token)
 {
 	if (token.value != "GET" && token.value != "POST" && token.value != "DELETE")
@@ -225,6 +342,10 @@ const std::string&	ConfigParser::requireMethod(const ConfigToken& token)
 	return token.value;
 }
 
+/*
+requireExtension:
+Validates CGI extensions like .py or .pl.
+*/
 const std::string&	ConfigParser::requireExtension(const ConfigToken& token)
 {
 	const std::string&	ext = token.value;
@@ -234,12 +355,21 @@ const std::string&	ConfigParser::requireExtension(const ConfigToken& token)
 	return ext;
 }
 
+/*
+ensureUnique:
+Prevents duplicates in lists (example: "methods GET GET;").
+*/
 void	ConfigParser::ensureUnique(const std::vector<std::string>& values, const ConfigToken& token, const std::string& directive)
 {
 	if (std::find(values.begin(), values.end(), token.value) != values.end())
 		throw parseError(token.line, "duplicate " + directive + ": " + token.value);
 }
 
+/*
+expectValueWithValidator:
+Reads one value token and validates it using the provided function.
+This avoids repeating the same checks in multiple directive parsers.
+*/
 const std::string&	ConfigParser::expectValueWithValidator(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& directive, Validator validator)
 {
 	const ConfigToken&	token = expectValueToken(tokens, i, directive);
@@ -247,6 +377,12 @@ const std::string&	ConfigParser::expectValueWithValidator(const std::vector<Conf
 	return validator(token);
 }
 
+/*
+parseValidOnOff:
+Parses a boolean setting from text:
+- on/true/1 means true
+- off/false/0 means false
+*/
 bool	ConfigParser::parseValidOnOff(const std::string& value, size_t line, const std::string& directive)
 {
 	const std::map<std::string, bool>&			map = getValidOnOffMap();
@@ -257,6 +393,14 @@ bool	ConfigParser::parseValidOnOff(const std::string& value, size_t line, const 
 	throw parseError(line, directive + " must be 'on/true/1' or 'off/false/0'");
 }
 
+/*
+applyPrefixPath:
+If the config has a prefix, add it in front of a path.
+Example: prefix="/home/me/project" and root="./www" becomes
+"/home/me/project/./www" (with clean slash handling).
+
+If prefix is empty, return the path unchanged.
+*/
 std::string	ConfigParser::applyPrefixPath(const std::string& prefix, const std::string& path)
 {
 	if (trim(prefix).empty() || trim(path).empty())
@@ -271,6 +415,10 @@ std::string	ConfigParser::applyPrefixPath(const std::string& prefix, const std::
 	return prefix + path;
 }
 
+/*
+requireTarget:
+Reads a generic "target" value for directives like error_page and return.
+*/
 std::string	ConfigParser::requireTarget(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& directive)
 {
 	const ConfigToken&	token = expectValueToken(tokens, i, directive);
@@ -278,6 +426,11 @@ std::string	ConfigParser::requireTarget(const std::vector<ConfigToken>& tokens, 
 	return token.value;
 }
 
+/*
+requireReturnCode:
+Validates the status code used by "return".
+This project supports redirect codes (300..399).
+*/
 int	ConfigParser::requireReturnCode(const ConfigToken& token)
 {
 	int	code = requireNumericValue(token, "return");
@@ -287,6 +440,11 @@ int	ConfigParser::requireReturnCode(const ConfigToken& token)
 	return code;
 }
 
+/*
+applyServerDefaults:
+If the config file did not set some server values, fill them with defaults.
+This makes small configs easier for beginners.
+*/
 void	ConfigParser::applyServerDefaults(ServerConfig& server, const std::string& prefix)
 {
 	if (server.getHost().empty())
@@ -299,6 +457,10 @@ void	ConfigParser::applyServerDefaults(ServerConfig& server, const std::string& 
 		server.setIndex("index.html");
 }
 
+/*
+getValidOnOffMap:
+Stores the accepted words for booleans and their meaning.
+*/
 const	std::map<std::string, bool>&	ConfigParser::getValidOnOffMap(void)
 {
 	static std::map<std::string, bool>	map;
@@ -315,6 +477,11 @@ const	std::map<std::string, bool>&	ConfigParser::getValidOnOffMap(void)
 	return map;
 }
 
+/*
+parseMethods (inside location):
+Reads something like: methods GET POST;
+It keeps reading values until it sees ';'.
+*/
 void ConfigParser::parseMethods(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
@@ -333,6 +500,11 @@ void ConfigParser::parseMethods(const std::vector<ConfigToken>& tokens, size_t& 
 	loc.setAllowedMethods(methods);
 }
 
+/*
+parseRoot (inside location):
+Reads: root <path>;
+Prefix is applied if configured.
+*/
 void	ConfigParser::parseRoot(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	const ConfigToken&	token = expectValueToken(tokens, i, "root");
@@ -340,6 +512,10 @@ void	ConfigParser::parseRoot(const std::vector<ConfigToken>& tokens, size_t& i, 
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseIndex (inside location):
+Reads: index <file>;
+*/
 void	ConfigParser::parseIndex(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
@@ -348,6 +524,10 @@ void	ConfigParser::parseIndex(const std::vector<ConfigToken>& tokens, size_t& i,
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseUploadEnabled (inside location):
+Reads: upload_enabled on/off;
+*/
 void	ConfigParser::parseUploadEnabled(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
@@ -356,6 +536,11 @@ void	ConfigParser::parseUploadEnabled(const std::vector<ConfigToken>& tokens, si
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseUploadPath (inside location):
+Reads: upload_path <path>;
+Prefix is applied if configured.
+*/
 void	ConfigParser::parseUploadPath(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	const ConfigToken&	token = expectValueToken(tokens, i, "upload_path");
@@ -363,6 +548,10 @@ void	ConfigParser::parseUploadPath(const std::vector<ConfigToken>& tokens, size_
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseAutoindex (inside location):
+Reads: autoindex on/off;
+*/
 void	ConfigParser::parseAutoindex(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
@@ -371,6 +560,10 @@ void	ConfigParser::parseAutoindex(const std::vector<ConfigToken>& tokens, size_t
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseCgiEnabled (inside location):
+Reads: cgi_enabled on/off;
+*/
 void	ConfigParser::parseCgiEnabled(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
@@ -379,6 +572,10 @@ void	ConfigParser::parseCgiEnabled(const std::vector<ConfigToken>& tokens, size_
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseCgiExtensions (inside location):
+Reads: cgi_ext .py .pl;
+*/
 void	ConfigParser::parseCgiExtensions(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
@@ -397,6 +594,11 @@ void	ConfigParser::parseCgiExtensions(const std::vector<ConfigToken>& tokens, si
 	loc.setCgiExtensions(extensions);
 }
 
+/*
+parseReturn (inside location):
+Reads a redirect rule:
+	return 301 /somewhere;
+*/
 void	ConfigParser::parseReturn(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
@@ -406,6 +608,13 @@ void	ConfigParser::parseReturn(const std::vector<ConfigToken>& tokens, size_t& i
 	expectToken(tokens, i, ";");
 }
 
+/*
+getLocationHandlers:
+Creates (once) a table like:
+	"methods" -> parseMethods
+	"root"    -> parseRoot
+so the parser can quickly find the right function for each directive.
+*/
 const std::map<std::string, ConfigParser::LocationDirectiveHandler>&	ConfigParser::getLocationHandlers(void)
 {
 	static std::map<std::string, LocationDirectiveHandler>	map;
@@ -427,6 +636,14 @@ const std::map<std::string, ConfigParser::LocationDirectiveHandler>&	ConfigParse
 	return map;
 }
 
+/*
+parseListen (inside server):
+Reads:
+	listen 8080;
+or
+	listen 127.0.0.1:8080;
+If host is omitted, it uses 0.0.0.0.
+*/
 void	ConfigParser::parseListen(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
@@ -457,6 +674,10 @@ void	ConfigParser::parseListen(const std::vector<ConfigToken>& tokens, size_t& i
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseHost (inside server):
+Reads: host <ip/localhost>;
+*/
 void ConfigParser::parseHost(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
@@ -466,6 +687,10 @@ void ConfigParser::parseHost(const std::vector<ConfigToken>& tokens, size_t& i, 
 	expectToken(tokens, i, ";");
 }
 
+/*
+parsePort (inside server):
+Reads: port <number>;
+*/
 void ConfigParser::parsePort(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
@@ -475,6 +700,11 @@ void ConfigParser::parsePort(const std::vector<ConfigToken>& tokens, size_t& i, 
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseRoot (inside server):
+Reads: root <path>;
+Prefix is applied if configured.
+*/
 void	ConfigParser::parseRoot(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	const ConfigToken&	token = expectValueToken(tokens, i, "root");
@@ -483,6 +713,10 @@ void	ConfigParser::parseRoot(const std::vector<ConfigToken>& tokens, size_t& i, 
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseIndex (inside server):
+Reads: index <file>;
+*/
 void	ConfigParser::parseIndex(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
@@ -492,6 +726,10 @@ void	ConfigParser::parseIndex(const std::vector<ConfigToken>& tokens, size_t& i,
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseClientMaxBodySize (inside server):
+Reads: client_max_body_size <number>;
+*/
 void	ConfigParser::parseClientMaxBodySize(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
@@ -501,6 +739,11 @@ void	ConfigParser::parseClientMaxBodySize(const std::vector<ConfigToken>& tokens
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseErrorPage (inside server):
+Reads: error_page 404 /404.html;
+If the same code is set multiple times, the latest value replaces the older.
+*/
 void	ConfigParser::parseErrorPage(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
@@ -510,6 +753,16 @@ void	ConfigParser::parseErrorPage(const std::vector<ConfigToken>& tokens, size_t
 	expectToken(tokens, i, ";");
 }
 
+/*
+parseLocationBlock (inside server):
+Reads a section like:
+	location /Upload { ... }
+
+Steps:
+1) Create a LocationConfig
+2) Read directives inside the braces
+3) Add the finished LocationConfig into the current ServerConfig
+*/
 void	ConfigParser::parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	const ConfigToken&	token = expectValueToken(tokens, i, "location");
@@ -534,6 +787,10 @@ void	ConfigParser::parseLocationBlock(const std::vector<ConfigToken>& tokens, si
 	server.addLocation(loc);
 }
 
+/*
+getServerHandlers:
+Like getLocationHandlers, but for "server { ... }" directives.
+*/
 const std::map<std::string, ConfigParser::ServerDirectiveHandler>&	ConfigParser::getServerHandlers(void)
 {
 	static std::map<std::string, ServerDirectiveHandler>	map;
@@ -552,6 +809,14 @@ const std::map<std::string, ConfigParser::ServerDirectiveHandler>&	ConfigParser:
 	return map;
 }
 
+/*
+parseServerBlock:
+Parses one full:
+	server { ... }
+block, producing a ServerConfig object.
+
+If the config contains an unknown directive name, it throws a parse error.
+*/
 ServerConfig	ConfigParser::parseServerBlock(const std::vector<ConfigToken>& tokens, size_t& i, const std::string& prefix)
 {
 	ServerConfig	server;
@@ -575,6 +840,12 @@ ServerConfig	ConfigParser::parseServerBlock(const std::vector<ConfigToken>& toke
 	return server;
 }
 
+/*
+requirePrefixTarget:
+Ensures "prefix" is placed before any "server" blocks.
+This makes the rule easy to explain: set the base directory first, then define
+servers that use it.
+*/
 const ConfigParser::ConfigToken&	ConfigParser::requirePrefixTarget(const std::vector<ConfigToken>& tokens, size_t& i, ConfigFiles& config)
 {
 	if (!config.getServers().empty())
@@ -583,6 +854,11 @@ const ConfigParser::ConfigToken&	ConfigParser::requirePrefixTarget(const std::ve
 	return expectValueToken(tokens, i, "prefix");
 }
 
+/*
+parsePrefix (top-level):
+Reads: prefix <directory>;
+Then checks that the directory exists.
+*/
 void ConfigParser::parsePrefix(const std::vector<ConfigToken>& tokens, size_t& i, ConfigFiles& config)
 {
 	const ConfigToken&	token = requirePrefixTarget(tokens, i, config);
@@ -593,11 +869,22 @@ void ConfigParser::parsePrefix(const std::vector<ConfigToken>& tokens, size_t& i
 		throw parseError(token.line, "prefix must be an existing directory: " + config.getPrefix());
 }
 
+/*
+parseServerBlockWrapper (top-level):
+Reads one server block and stores it into ConfigFiles.
+*/
 void ConfigParser::parseServerBlockWrapper(const std::vector<ConfigToken>& tokens, size_t& i, ConfigFiles& config)
 {
 	config.addServer(parseServerBlock(tokens, i, config.getPrefix()));
 }
 
+/*
+getTopLevelHandlers:
+Top-level commands are the ones not inside braces.
+This returns a table that tells the parser what to do when it sees:
+- prefix
+- server
+*/
 const std::map<std::string, ConfigParser::TopLevelDirectiveHandler>&	ConfigParser::getTopLevelHandlers(void)
 {
 	static std::map<std::string, TopLevelDirectiveHandler>	handlers;

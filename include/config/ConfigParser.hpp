@@ -17,6 +17,36 @@
 #include <string>
 #include <stdexcept>
 
+/*
+ConfigParser is the "translator" that reads the config file text and builds the
+C++ objects used by webserv.
+
+Why it exists:
+
+- A config file is just text.
+- The engine needs real values (host, port, root folder, locations, etc.).
+
+What it does:
+
+1) Break text into small pieces (tokens)
+	- Each token remembers its line number.
+	- This makes error messages friendly ("error on line 12").
+
+2) Understand the structure
+	- Reads top-level directives.
+	- Reads `server { ... }` blocks.
+	- Reads `location { ... }` blocks inside a server.
+
+3) Check values and fill defaults
+	- Example: ports must be valid numbers.
+	- Example: on/off options must be correct.
+	- Example: relative paths may be combined with `prefix`.
+
+In short:
+
+- Input: config file content (string).
+- Output: ConfigFiles filled with ServerConfig and LocationConfig.
+*/
 class ConfigParser
 {
 	public:

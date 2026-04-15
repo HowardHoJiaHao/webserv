@@ -17,6 +17,29 @@
 #include <vector>
 #include <string>
 
+/*
+ConfigFiles is the "settings book" for the whole webserv program.
+
+When webserv starts, it reads a config file (like nginx-style config).
+This class stores the result in an easy-to-use C++ form.
+
+It keeps track of:
+
+- A list of ServerConfig objects (each one is a `server { ... }` block).
+- A global `prefix` (a base folder used to build full paths).
+
+It supports:
+
+- Starting with default settings (if no file is given).
+- Loading settings from a config file path.
+- Adding a server config manually (helpful for defaults/tests).
+
+In simple terms:
+
+- ConfigParser fills a ConfigFiles object.
+- The engine reads ConfigFiles to know which ports to listen on and how to
+  handle requests.
+*/
 class ConfigFiles
 {
 	private:

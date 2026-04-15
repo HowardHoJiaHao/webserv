@@ -16,6 +16,33 @@
 #include <string>
 #include <vector>
 
+/*
+LocationConfig represents one `location { ... }` part inside a server.
+
+Beginner idea:
+
+- Think of a "location" like a rule for a specific URL path.
+  Example: `/images` or `/upload`.
+
+When a request comes in, webserv finds the best matching location and then uses
+the settings stored here.
+
+It keeps track of:
+
+- Which path this location matches.
+- Which HTTP methods are allowed here (GET/POST/DELETE).
+- Where files should be served from (root) and the default file (index).
+- Upload settings (on/off + where to save uploads).
+- Autoindex (show a folder listing or not).
+- CGI settings (on/off + which file extensions can run as CGI).
+- Optional `return` (send a redirect/response immediately).
+
+This class is only a "settings holder":
+
+- It does not serve files by itself.
+- It does not run CGI by itself.
+  The engine/routing code uses these values to decide what to do.
+*/
 class LocationConfig
 {
 	private:

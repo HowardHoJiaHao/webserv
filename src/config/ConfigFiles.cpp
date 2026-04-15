@@ -15,12 +15,35 @@
 #include <fstream>
 #include <sstream>
 
+/*
+ConfigFiles (Beginner friendly):
+Think of this class as the "final result" of reading a webserv config file.
+
+After the config is loaded, the rest of the program can ask:
+- "What servers do I run?" (host/port/root/index/...)
+- "What locations exist inside each server?" (methods, uploads, CGI, ...)
+
+This class supports two ways to get a configuration:
+1) Built-in default config (useful when you run the program without a file)
+2) Load and parse a config file (using ConfigParser)
+*/
+
+/*
+Default Constructor:
+Builds a config using hard-coded defaults.
+This helps beginners/testers run the server quickly without writing a config.
+*/
 ConfigFiles::ConfigFiles(void)
 	: _prefix("")
 {
 	initDefault();
 }
 
+/*
+Path Constructor:
+- If the path is empty (or just spaces), use the built-in defaults.
+- Otherwise, read that file and parse it into server/location settings.
+*/
 ConfigFiles::ConfigFiles(const std::string& path)
 	: _prefix("")
 {
@@ -30,30 +53,59 @@ ConfigFiles::ConfigFiles(const std::string& path)
 		loadFromFile(path);
 }
 
+/*
+Destructor:
+Nothing special to free (we only use std::string/std::vector).
+*/
 ConfigFiles::~ConfigFiles(void)
 {
 }
 
+/*
+getServers:
+Gives you all configured servers.
+Each ServerConfig is one "server { ... }" block from the config.
+*/
 const std::vector<ServerConfig>&	ConfigFiles::getServers(void) const
 {
 	return _serverConfigs;
 }
 
+/*
+getPrefix:
+Returns the optional prefix directory.
+If it is not set, it will be an empty string.
+*/
 const std::string&	ConfigFiles::getPrefix(void) const
 {
 	return _prefix;
 }
 
+/*
+setPrefix:
+Stores the prefix directory.
+Note: ConfigParser validates whether it exists.
+*/
 void	ConfigFiles::setPrefix(const std::string& prefix)
 {
 	_prefix = prefix;
 }
 
+/*
+addServer:
+Adds one parsed server block into the list.
+ConfigParser calls this after it finishes reading a "server { ... }" section.
+*/
 void	ConfigFiles::addServer(const ServerConfig& server)
 {
 	_serverConfigs.push_back(server);
 }
 
+/*
+readFromFile:
+Reads the whole config file into one big string.
+If the file cannot be opened, throws an exception (std::runtime_error).
+*/
 std::string	ConfigFiles::readFromFile(const std::string& path)
 {
 	std::ifstream	in(path.c_str());
@@ -67,6 +119,14 @@ std::string	ConfigFiles::readFromFile(const std::string& path)
 	return buffer.str();
 }
 
+/*
+initDefault:
+Creates a small default setup:
+- server on 127.0.0.1:8080 serving ./www1
+- server on 127.0.0.1:8081 serving ./www2
+
+This is mainly for local testing and learning.
+*/
 void	ConfigFiles::initDefault(void)
 {
 	ServerConfig	server1;
@@ -134,6 +194,20 @@ void	ConfigFiles::initDefault(void)
 	_serverConfigs.push_back(server2);
 }
 
+/*
+loadFromFile:
+Loads and parses a config file.
+
+Beginner view of what happens:
+1) Read file text
+2) Split it into "tokens" (words and symbols like '{' '}' ';')
+3) Walk through tokens and handle top-level commands like "prefix" and "server"
+
+It will:
+- Clear any old servers before parsing
+- Throw a clear error if it sees an unknown top-level command
+- Throw an error if there are no server blocks at all
+*/
 void	ConfigFiles::loadFromFile(const std::string& path)
 {
 	std::vector<ConfigParser::ConfigToken>	tokens = ConfigParser::tokenize(readFromFile(path));
