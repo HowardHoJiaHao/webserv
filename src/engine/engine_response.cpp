@@ -103,10 +103,16 @@ std::string Engine::appendHeaderToResponse(const std::string& response, const st
 	if (headerLine.empty())
 		return response;
 
+	// If not found, it returns unchanged (it assumes the input is not a valid full HTTP response format).
 	size_t headerEnd = response.find("\r\n\r\n");
 	if (headerEnd == std::string::npos)
 		return response;
 
+	// original:
+	// HTTP status + existing headers + blank line + body
+
+	// after function:
+	// HTTP status + existing headers + new header + blank line + body
 	std::string withHeader = response.substr(0, headerEnd);
 	withHeader += "\r\n";
 	withHeader += headerLine;
@@ -125,6 +131,7 @@ std::string Engine::buildErrorResponse(int code, bool shouldClose, const ServerC
 
 	if (serverConfig != NULL)
 	{
+		// find if the error page exist
 		const std::string* pagePath = serverConfig->getErrorPage(code);
 		if (pagePath != NULL)
 		{

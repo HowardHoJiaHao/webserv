@@ -15,12 +15,13 @@
                 <div class="form-row file-input-row">
                     <div class="file-input-control">
                         <label class="field-label" for="fileToUpload">Choose file</label>
-                        <input id="fileToUpload" type="file" name="file1" required>
+                        <label for="fileToUpload" class="file-button">Choose File</label>
+                        <input id="fileToUpload" type="file" name="file1" required style="display: none;">
                     </div>
                     <div id="filePreview" class="file-box hidden" aria-hidden="true">
-                        <img id="fileThumb" class="file-thumb hidden" src="" alt="preview">
+                        <img id="fileThumb" class="file-thumb" src="" alt="preview">
                         <div class="file-meta">
-                            <span id="fileName" class="file-name">No file selected</span>
+                            <span id="fileName" class="file-name"></span>
                             <span id="fileSize" class="file-size"></span>
                         </div>
                     </div>
@@ -31,31 +32,52 @@
     </div>
         <script>
             (function(){
+                // Get all DOM elements we need for the file preview feature
                 const input = document.getElementById('fileToUpload');
                 const preview = document.getElementById('filePreview');
                 const nameEl = document.getElementById('fileName');
                 const sizeEl = document.getElementById('fileSize');
                 const thumb = document.getElementById('fileThumb');
 
+                // Convert file size from bytes to human-readable format (B, KB, MB)
+                // Examples: 512 bytes -> "512 B", 1048576 bytes -> "1.00 MB"
                 function humanSize(n){
                     if(n<1024) return n+' B';
                     if(n<1024*1024) return (n/1024).toFixed(1)+' KB';
                     return (n/1024/1024).toFixed(2)+' MB';
                 }
 
+                // Listen for when user selects a file from the file picker
                 input.addEventListener('change', function(e){
                     const f = this.files && this.files[0];
-                    if(!f){ preview.style.display='none'; preview.setAttribute('aria-hidden','true'); return; }
+                    
+                    // If no file selected, hide the preview box
+                    if(!f){ preview.classList.add('hidden'); preview.setAttribute('aria-hidden','true'); return; }
+                    
+                    // File was selected, show the preview box and its details
+                    preview.classList.remove('hidden');
+                    preview.setAttribute('aria-hidden','false');
                     nameEl.textContent = f.name;
                     sizeEl.textContent = ' · ' + humanSize(f.size);
-                    preview.style.display='flex'; preview.setAttribute('aria-hidden','false');
 
-                    // show thumbnail if image
-                    if(f.type.startsWith('image/')){
+                    // Check if the file is an image by checking MIME type OR file extension
+                    // This handles both real image files and misnamed files
+                    const imageExtensions = /\.(png|jpg|jpeg|gif|webp|bmp|svg)$/i;
+                    const isImage = f.type.startsWith('image/') || imageExtensions.test(f.name);
+                    
+                    // If it's an image, read the file and display a thumbnail preview
+                    if(isImage){
                         const reader = new FileReader();
-                        reader.onload = function(ev){ thumb.src = ev.target.result; thumb.style.display='block'; };
+                        reader.onload = function(ev){ 
+                            thumb.src = ev.target.result; 
+                            thumb.classList.remove('hidden');
+                        };
                         reader.readAsDataURL(f);
-                    } else { thumb.style.display='none'; thumb.src=''; }
+                    } else { 
+                        // Not an image, hide the thumbnail placeholder
+                        thumb.classList.add('hidden');
+                        thumb.src = ''; 
+                    }
                 });
             })();
         </script>

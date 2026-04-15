@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Connection.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/13 02:52:27 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/14 15:22:08 by hho-jia-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,9 @@
 class Connection
 {
 	public:
+		// READING: collect/parse request
+		// CGI_RUNNING: wait/read CGI stdout
+		// WRITING: send HTTP response to client
 		enum State
 		{
 			READING,
@@ -30,13 +33,13 @@ class Connection
 		// runtime state container for cgi execution
 		struct CGIContext
 		{
-			pid_t		pid;
-			int			stdin_fd;
-			int			stdout_fd;
-			bool		stdin_closed;
+			pid_t		pid; //pid 
+			int			stdin_fd; // entering into cgi
+			int			stdout_fd; // output fd
+			bool		stdin_closed; // checking if closed
 			std::string	stdin_buffer;
 			size_t		stdin_offset;
-			std::string	stdout_buffer;
+			std::string	stdout_buffer;  // to store output buffer
 			time_t		start_time;
 
 			CGIContext()
@@ -103,13 +106,13 @@ class Connection
 	private:
 		int 				_fd;
 		std::string 		_readBuffer;
-		std::string 		_writeBuffer;
-		State				_state;
+		std::string 		_writeBuffer;  // this is to put proper http request return
+		State				_state; // readin, writing, cgi_running
 		bool				_closed;
 		RequestState 		_requestState;
-		bool				_shouldClose;
-		std::string			_pendingSetCookieHeader;
-		time_t				_lastActivity;
+		bool				_shouldClose; // after response close flag
+		std::string			_pendingSetCookieHeader; // cookie
+		time_t				_lastActivity; // Last time that is updated
 
 		// point to the struct object (cgi context)
 		CGIContext*			_cgi;

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engineIncomingData.cpp                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/03 17:23:36 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/13 02:52:28 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/15 13:06:00 by hho-jia-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,12 +42,15 @@ void Engine::parseCGIHeaders(const std::string& headerSection, std::string& stat
 	}
 }
 
+// This function transforms CGI output into a proper HTTP response and puts it in the write buffer to send to the client.
 void Engine::buildResponseFromCGIOutput(Connection* currentConn, const std::string& cgiOutput)
 {
 	const std::string pendingSetCookieHeader = currentConn->getPendingSetCookieHeader();
 
+	// if already have http headerline
 	if (cgiOutput.find("HTTP/1.") == 0)
 	{
+		// put cookie header inside
 		if (!pendingSetCookieHeader.empty())
 			currentConn->getWriteBuffer().append(appendHeaderToResponse(cgiOutput, pendingSetCookieHeader));
 		else
@@ -100,13 +103,16 @@ void Engine::handleCGIReadError(Connection* currentConn)
 
 bool Engine::processCGIOutput(Connection* currentConn, fd_set& readSet)
 {
+	// Get CGI output fd
 	int cgiOutputFd = currentConn->getCGIOutputFd();
+	// Checking is valid CGI, fd_isset return 1 if ready 
 	if (cgiOutputFd == -1 || !FD_ISSET(cgiOutputFd, &readSet))
 		return false;
 
 	char buffer[1024];
 	Connection::CGIContext* cgi = currentConn->getCGI();
 	ssize_t bytes = read(cgiOutputFd, buffer, sizeof(buffer));
+	// put the output form the cgi into the buffer
 	if (bytes > 0)
 	{
 		if (cgi != NULL)
@@ -117,8 +123,10 @@ bool Engine::processCGIOutput(Connection* currentConn, fd_set& readSet)
 	if (bytes == 0)
 	{
 		pid_t pid = currentConn->getCGIPid();
+		// With no hang make sure it dont end or block the pid
 		if (pid > 0)
 			waitpid(pid, NULL, WNOHANG);
+		// get all accumulated output into a string	
 		std::string cgiOutput;
 		if (cgi != NULL)
 			cgiOutput = cgi->stdout_buffer;

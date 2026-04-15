@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
+/*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/13 03:03:41 by ho               ###   ########.fr       */
+/*   Updated: 2026/04/15 15:05:26 by hho-jia-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -300,7 +300,8 @@ void Engine::checkTimeouts()
 				}
 				currentConn->clearCGI();
 				currentConn->setShouldClose(true);
-				currentConn->setWriteBuffer(buildErrorResponse(504, true, serverConfig));
+				// currentConn->setWriteBuffer(buildErrorResponse(504, true, serverConfig));
+				currentConn->setWriteBuffer(buildRedirectResponse(303, "/500.html", true));
 				currentConn->setState(Connection::WRITING);
 			}
 			++it;

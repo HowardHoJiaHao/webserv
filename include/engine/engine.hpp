@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:32 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/12 18:22:27 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/15 09:27:01 by hho-jia-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,6 +52,7 @@ class Engine
 		void processOutgoingData(fd_set& writeSet);
 		void closeConnectionOrResetConnState(std::map<int, Connection*>::iterator& it, Connection* currentConn);
 		void checkTimeouts();
+		void cleanup();
 
 		const ServerConfig* findServerConfig(const std::string& host, int port) const;
 		void destroyClientConnection(std::map<int, Connection*>::iterator& it);

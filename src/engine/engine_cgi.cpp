@@ -56,10 +56,12 @@ static std::string normalizeHeaderKeyForEnvCgi(const std::string& key)
 
 static void parseHostAndPortFromHeaderCgi(const std::string& hostHeaderValue, std::string& serverName, std::string& serverPort)
 {
+	// trim front and back of the string
 	std::string value = trimAsciiCgi(hostHeaderValue);
 	if (value.empty())
 		return;
 
+	// Solve this example [::1]:8080
 	if (value[0] == '[')
 	{
 		size_t bracketEnd = value.find(']');
@@ -92,12 +94,12 @@ static void parseHostAndPortFromHeaderCgi(const std::string& hostHeaderValue, st
 	serverName = value;
 }
 
-static std::string buildRequestUriCgi(const HttpRequest& request)
-{
-	if (request.getQuery().empty())
-		return request.getPath();
-	return request.getPath() + "?" + request.getQuery();
-}
+// static std::string buildRequestUriCgi(const HttpRequest& request)
+// {
+// 	if (request.getQuery().empty())
+// 		return request.getPath();
+// 	return request.getPath() + "?" + request.getQuery();
+// }
 
 static void appendForwardedHeaderVarsCgi(const HttpRequest& request, std::vector<std::string>& envStrings)
 {
@@ -130,21 +132,27 @@ bool	Engine::resolveCGIScriptPath(Connection* conn, const HttpRequest& request, 
 
 bool	Engine::validateCGIScript(Connection* conn, const std::string& scriptPath, const ServerConfig& serverConfig, bool shouldClose)
 {
+	// Check for file Exists
 	if (!FileHandler::fileExists(scriptPath))
 	{
 		conn->setShouldClose(shouldClose);
 		conn->setWriteBuffer(buildErrorResponse(404, conn->shouldClose(), &serverConfig));
 		return false;
 	}
-	{
+	{ // create a local scope
 		struct stat st;
+		// stat putting the scriptPath into struct 
 		if (stat(scriptPath.c_str(), &st) != 0 || !S_ISREG(st.st_mode))
 		{
+			// S_ISREG check for regular file like script.py and delete.pl
+			// not regular file , directory , socket , device , pipe
 			conn->setShouldClose(shouldClose);
 			conn->setWriteBuffer(buildErrorResponse(404, conn->shouldClose(), &serverConfig));
 			return false;
 		}
 	}
+
+	// Check if the file is executable
 	if (access(scriptPath.c_str(), X_OK) != 0)
 	{
 		conn->setShouldClose(true);
@@ -212,6 +220,8 @@ void	Engine::setupCGIChildProcess(int in_pipe[2], int out_pipe[2], const std::st
 	if (slashPos != std::string::npos)
 	{
 		std::string scriptDir = (slashPos == 0) ? "/" : scriptPath.substr(0, slashPos);
+		// child changes current working directory to script folder.
+		// Safer and will not take other file incase
 		if (chdir(scriptDir.c_str()) != 0)
 		{
 			perror("chdir failed");
@@ -225,6 +235,7 @@ void	Engine::setupCGIChildProcess(int in_pipe[2], int out_pipe[2], const std::st
 		}
 	}
 
+	// Preparing Server Name , Server Port 
 	std::string serverName = serverConfig.getHost();
 	if (serverName.empty())
 		serverName = "0.0.0.0";
@@ -232,25 +243,30 @@ void	Engine::setupCGIChildProcess(int in_pipe[2], int out_pipe[2], const std::st
 	serverPortOss << serverConfig.getPort();
 	std::string serverPort = serverPortOss.str();
 
+	// This is a fallback to prevent empty, bad port , weird/ multiple saperator (Host: example.com:80:90)
 	const std::string* hostHeader = request.getHeader("host");
 	if (hostHeader != NULL && !hostHeader->empty())
 		parseHostAndPortFromHeaderCgi(*hostHeader, serverName, serverPort);
 
+	
+
 	std::vector<std::string> envStrings;
-	envStrings.push_back("REQUEST_METHOD=" + request.getMethod());
-	envStrings.push_back("QUERY_STRING=" + request.getQuery());
-	envStrings.push_back("REQUEST_URI=" + buildRequestUriCgi(request));
-	envStrings.push_back("SCRIPT_NAME=" + request.getPath());
-	envStrings.push_back("SCRIPT_FILENAME=" + scriptPath);
-	envStrings.push_back("PATH_INFO=" + request.getPath());
-	envStrings.push_back("PATH_TRANSLATED=" + scriptPath);
-	envStrings.push_back("SERVER_PROTOCOL=" + request.getVersion());
-	envStrings.push_back("SERVER_SOFTWARE=webserv/1.0");
-	envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
-	envStrings.push_back("SERVER_NAME=" + serverName);
-	envStrings.push_back("SERVER_PORT=" + serverPort);
-	envStrings.push_back("DOCUMENT_ROOT=" + serverConfig.getRoot());
-	envStrings.push_back("REDIRECT_STATUS=200");
+	envStrings.push_back("REQUEST_METHOD=" + request.getMethod()); // ex: GET, POST
+	envStrings.push_back("QUERY_STRING=" + request.getQuery()); // ex: page=2&sort=asc
+
+	// envStrings.push_back("REQUEST_URI=" + buildRequestUriCgi(request)); // ex: /cgi-bin/form.py?page=2&sort=asc
+	// envStrings.push_back("SCRIPT_NAME=" + request.getPath()); // ex: /cgi-bin/form.py
+	// envStrings.push_back("SCRIPT_FILENAME=" + scriptPath); // ex: ./www1/cgi-bin/form.py
+	// envStrings.push_back("PATH_INFO=" + request.getPath()); // ex: /cgi-bin/form.py
+	// envStrings.push_back("PATH_TRANSLATED=" + scriptPath); // ex: ./www1/cgi-bin/form.py
+	// envStrings.push_back("SERVER_PROTOCOL=" + request.getVersion()); // ex: HTTP/1.1
+	// envStrings.push_back("SERVER_SOFTWARE=webserv/1.0"); // server signature
+	// envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1"); // CGI spec version
+	// envStrings.push_back("SERVER_NAME=" + serverName); // ex: localhost
+	// envStrings.push_back("SERVER_PORT=" + serverPort); // ex: 8080
+	// envStrings.push_back("DOCUMENT_ROOT=" + serverConfig.getRoot()); // ex: ./www1
+	// envStrings.push_back("REDIRECT_STATUS=200"); // compatibility for some CGI runtimes
+	
 
 	std::ostringstream contentLength;
 	contentLength << request.getBody().size();
@@ -259,9 +275,11 @@ void	Engine::setupCGIChildProcess(int in_pipe[2], int out_pipe[2], const std::st
 	const std::string* contentTypeHeader = request.getHeader("content-type");
 	if (contentTypeHeader != NULL && !contentTypeHeader->empty())
 		envStrings.push_back("CONTENT_TYPE=" + *contentTypeHeader);
-	else if (request.getMethod() == "POST")
+	else if (request.getMethod() == "POST" || request.getMethod() == "GET") 
 		envStrings.push_back("CONTENT_TYPE=application/octet-stream");
-
+	// so POST usualy need to send value like name , age those so it need default content type for the cgi script to read where GET wants value and there will be no value inside body 
+	
+	// Just to add prefix HTTP but we did not use 
 	appendForwardedHeaderVarsCgi(request, envStrings);
 
 	std::vector<char*> envp;
@@ -272,6 +290,11 @@ void	Engine::setupCGIChildProcess(int in_pipe[2], int out_pipe[2], const std::st
 	char* argv[] = { const_cast<char*>(executablePath.c_str()), NULL};
 
 	execve(executablePath.c_str(), argv, &envp[0]);
+	// Example
+	// const char* argv[] = { "ls", "-l", "/home", NULL };
+	// const char* envp[] = { "PATH=/usr/bin", "HOME=/root", NULL };
+	// execve("/bin/ls", argv, envp);
+
 	perror("execve failed");
 	_exit(1);
 }
@@ -293,6 +316,19 @@ void	Engine::setupCGIParent(Connection* conn, const HttpRequest& request, int in
 	conn->setCGIInputFd(in_pipe[1]);
 	conn->setCGIOutputFd(out_pipe[0]);
 
+	// enable non-blocking mode.
+	// Non-blocking means: do not wait.
+
+	// For a fd in non-blocking mode:
+
+	// read() returns immediately.
+	// write() returns immediately.
+	// If operation cannot proceed now, it returns error (-1, usually EAGAIN/EWOULDBLOCK) instead of pausing your program.
+	// Blocking mode means:
+
+	// read() may wait until data arrives.
+	// write() may wait until buffer has space.
+	// Your whole single-thread event loop can freeze during that wait.
 	if (conn->getCGIInputFd() != -1 && fcntl(conn->getCGIInputFd(), F_SETFL, O_NONBLOCK) == -1)
 	{
 		close(conn->getCGIInputFd());
@@ -322,25 +358,33 @@ bool	Engine::launchCGI(Connection* conn, const HttpRequest& request, const Serve
 {
 	std::string scriptPath;
 
+	// Resolve trancersal path ( .. / %2e%2e)
+	// Get final script path in scriptPath
 	if (!resolveCGIScriptPath(conn, request, serverConfig, location, scriptPath))
 		return false;
 
+	// validate if script exist / executable
 	if (!validateCGIScript(conn, scriptPath, serverConfig, shouldClose))
 		return false;
 
+	// create pipe and fork 
 	int in_pipe[2];
 	int out_pipe[2];
 	pid_t pid;
 
+	// pipe checking and create fork 
 	if (!createCGIProcess(conn, serverConfig, in_pipe, out_pipe, pid))
 		return false;
 
 	if (pid == 0)
 	{
+		// Pipe redirection
+		// child process and execution
 		setupCGIChildProcess(in_pipe, out_pipe, scriptPath, request, serverConfig);
 		_exit(1);
 	}
 
+	// parent setup nonblocking  and i/o state
 	setupCGIParent(conn, request, in_pipe, out_pipe, pid, shouldClose);
 	return true;
 }

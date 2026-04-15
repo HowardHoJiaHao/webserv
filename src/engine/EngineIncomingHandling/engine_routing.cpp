@@ -25,9 +25,9 @@ bool Engine::hasPathTraversal(const std::string& path) const
 		newPath[i] = std::tolower(static_cast<unsigned char>(newPath[i]));
 	}
 	// hex value of .
-	if (newPath.find("%2e%2e") != std::string::npos)
+	if (newPath.find("%2e%2e") != std::string::npos) // url-encoding for server
 		return true;
-	if (newPath.find("..") != std::string::npos)
+	if (newPath.find("..") != std::string::npos) // for cmd
 		return true;
 	return false;
 }

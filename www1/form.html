@@ -65,11 +65,25 @@
 
     <script>
         (function(){
+            // Get the increment (+) button, decrement (-) button, and age input field
             const inc = document.getElementById('ageInc');
             const dec = document.getElementById('ageDec');
             const input = document.getElementById('age');
-            inc && inc.addEventListener('click', ()=>{ input.value = Math.min(Number(input.value||0)+1, Number(input.max||120)); });
-            dec && dec.addEventListener('click', ()=>{ input.value = Math.max(Number(input.value||0)-1, Number(input.min||0)); });
+            
+            // Add click listener to increment button
+            // The && checks if the button exists before adding listener (prevents errors)
+            // When clicked: Add 1 to current age, but cap it at the max value (120)
+            // Number(input.value||0) converts the age to a number, or defaults to 0 if empty
+            inc && inc.addEventListener('click', ()=>{ 
+                input.value = Math.min(Number(input.value||0)+1, Number(input.max||120)); 
+            });
+            
+            // Add click listener to decrement button
+            // When clicked: Subtract 1 from current age, but don't go below min value (0)
+            // input.min is the HTML minimum attribute
+            dec && dec.addEventListener('click', ()=>{ 
+                input.value = Math.max(Number(input.value||0)-1, Number(input.min||0)); 
+            });
         })();
     </script>
 </body>

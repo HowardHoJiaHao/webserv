@@ -158,8 +158,26 @@ input[type="text"], input[type="file"], textarea, select{
 }
 textarea{ min-height:100px; resize:vertical; }
 
-/* File input: keep default but make spacing consistent */
-input[type="file"]{ padding:0.35rem 0.5rem; }
+/* File input: hide while keeping it functional */
+input[type="file"]{ 
+    display: none;
+}
+
+/* Custom file button styled like a button */
+.file-button {
+    display: inline-block;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: var(--text);
+    font-weight: 500;
+}
+.file-button:hover {
+    background: #e2e8f0;
+}
 
 /* Buttons */
 button{
