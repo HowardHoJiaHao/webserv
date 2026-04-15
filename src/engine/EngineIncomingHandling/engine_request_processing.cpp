@@ -162,6 +162,10 @@ bool Engine::handleRequestExtraction(Connection* conn, std::string& rawRequest, 
 	return true;
 }
 
+// conn is clientSocketConnection: has state, buffer, flags
+// rawRequest is the extracted request from readBuffer
+// request is the parsed request (structured data object)
+// serverConfig is the server config that passed as program parameter
 bool Engine::handleRequestParsing(Connection* conn, const std::string& rawRequest, HttpRequest& request, const ServerConfig* serverConfig)
 {
 	// if the program is run without any config, use marco
@@ -174,12 +178,15 @@ bool Engine::handleRequestParsing(Connection* conn, const std::string& rawReques
 	{
 		request.parse(rawRequest, maxBodySize);
 	}
+	// 413 and 400 is specific to parsing(), with exception flow
 	catch (const std::exception& e)
 	{
 		conn->setShouldClose(true);
+		// specific error
 		if (std::string(e.what()) == "Body too large")
 				conn->setWriteBuffer(buildErrorResponse(413, conn->shouldClose(), serverConfig));
 		else
+		//bad client input
 				conn->setWriteBuffer(buildErrorResponse(400, conn->shouldClose(), serverConfig));
 		conn->setState(Connection::WRITING);
 		return false;
@@ -374,7 +381,7 @@ void Engine::handleClientRequest(Connection* conn, const char* buffer, ssize_t b
 	if (!processBufferedRequests(conn, isProducedResponse))
 		return;
 
-	// response like 200, 404 that will sent to client
+	// response like 200, 404 that will sent to client, depends on response is produced or not
 	if (isProducedResponse)
 		conn->setState(Connection::WRITING);
 	else

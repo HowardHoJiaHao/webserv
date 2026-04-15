@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/07 16:10:00 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/08 17:29:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/15 15:35:23 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -225,6 +225,7 @@ void HttpRequest::parse(const std::string& rawRequest, size_t maxBodySize)
 	reset();
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
+	// start unwinding to caller, reach catch block, build response
 	if (headerEnd == std::string::npos)
 		throw std::runtime_error("Incomplete request");
 
