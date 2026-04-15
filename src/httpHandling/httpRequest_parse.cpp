@@ -6,7 +6,7 @@
 /*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/07 16:10:00 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/15 18:06:26 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/15 19:00:25 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -214,6 +214,17 @@ void HttpRequest::validateHeaders(size_t maxBodySize)
 	}
 }
 
+// POST /upload HTTP/1.1\r\n 	<= rawRequest
+// Host: example.com\r\n
+// Transfer-Encoding: chunked\r\n
+// \r\n		<== headerEnd
+// 4\r\n
+// Wiki\r\n
+// 5\r\n
+// pedia\r\n
+// 0\r\n
+// \r\n
+
 // "POST /submit HTTP/1.1\r\n" <= rawRequest
 // "Host: example.com\r\n"
 // "Content-Length: 11\r\n"
@@ -229,7 +240,7 @@ void HttpRequest::extractBody(const std::string& rawRequest, size_t headerEnd, s
 	if (bodyStart > rawRequest.size())
 		throw std::runtime_error("Incomplete request");
 
-	// if chunked body header exist
+	// if chunked body header exist, when it has this: Transfer-Encoding: chunked\r\n
 	if (hasChunkedTransferEncoding(_headers))
 	{
 		bool bodyTooLarge = false;
@@ -238,6 +249,7 @@ void HttpRequest::extractBody(const std::string& rawRequest, size_t headerEnd, s
 		{
 			if (bodyTooLarge)
 				throw std::runtime_error("Body too large");
+			// if the function is false
 			throw std::runtime_error("Malformed chunked body");
 		}
 		return;
@@ -262,6 +274,8 @@ void HttpRequest::extractBody(const std::string& rawRequest, size_t headerEnd, s
 // User-Agent: Mozilla/5.0\r\n
 // Accept: */*\r\n
 // \r\n
+
+// maxBodySize comes from config
 void HttpRequest::parse(const std::string& rawRequest, size_t maxBodySize)
 {
 	// clear previous request data

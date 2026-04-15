@@ -89,51 +89,6 @@ static bool parseChunkSizeLine(const std::string& line, size_t& chunkSize)
 	return true;
 }
 
-static bool parseChunkedBodyInternal(const std::string& buffer, size_t bodyStart, size_t maxBodySize, size_t& totalSize, std::string* decodedBody, bool* bodyTooLarge)
-{
-	size_t pos = bodyStart;
-	if (bodyTooLarge != NULL)
-		*bodyTooLarge = false;
-	if (decodedBody != NULL)
-		decodedBody->clear();
-
-	while (true)
-	{
-		size_t lineEndPos = buffer.find("\r\n", pos);
-		if (lineEndPos == std::string::npos)
-			return false;
-
-		size_t byteToRead = 0;
-		if (!parseChunkSizeLine(buffer.substr(pos, lineEndPos - pos), byteToRead))
-			return false;
-
-		pos = lineEndPos + 2;
-		if (buffer.size() < pos + byteToRead + 2)
-			return false;
-
-		if (decodedBody != NULL && byteToRead > 0)
-		{
-			if (decodedBody->size() + byteToRead > maxBodySize)
-			{
-				if (bodyTooLarge != NULL)
-					*bodyTooLarge = true;
-				return false;
-			}
-			decodedBody->append(buffer, pos, byteToRead);
-		}
-
-		pos += byteToRead;
-		if (buffer.substr(pos, 2) != "\r\n")
-			return false;
-		pos += 2;
-		if (byteToRead == 0)
-		{
-			totalSize = pos;
-			return true;
-		}
-	}
-}
-
 // buffer
 // POST /upload HTTP/1.1\r\n
 // Host: example.com\r\n
@@ -186,13 +141,80 @@ static bool validateAndMeasureChunkedBody(const std::string& buffer, size_t body
 		}
 	}
 }
+
+// POST /upload HTTP/1.1\r\n 	<= rawRequest
+// Host: example.com\r\n
+// Transfer-Encoding: chunked\r\n
+// \r\n		<== headerEnd
+// 4\r\n	<== encodedBody is here
+// Wiki\r\n
+// 5\r\n
+// pedia\r\n
+// 0\r\n
+// \r\n
+//
+// maxBodySize Comes from config
+// bodyTooLarge is a flag from the caller
+// decodeBody is the output that i want to pass out, stored in httpRequest::_body
+//
 // for parsing and decoding chunked body
 bool decodeChunkedBodyForRequest(const std::string& encodedBody, size_t maxBodySize, std::string& decodedBody, bool* bodyTooLarge)
 {
-	size_t totalSize = 0;
-	if (!parseChunkedBodyInternal(encodedBody, 0, maxBodySize, totalSize, &decodedBody, bodyTooLarge))
-		return false;
-	return totalSize == encodedBody.size();
+	// reset
+	if (bodyTooLarge != NULL)
+		*bodyTooLarge = false;
+	decodedBody.clear();
+
+	size_t pos = 0;
+	while (true)
+	{
+		// will point to \r after the number(chunkedSize)
+		size_t lineEndPos = encodedBody.find("\r\n", pos);
+		if (lineEndPos == std::string::npos)
+			return false;
+
+		// parse the chunk size, number
+		// return the byteToRead for me
+		size_t byteToRead = 0;
+		if (!parseChunkSizeLine(encodedBody.substr(pos, lineEndPos - pos), byteToRead))
+			return false;
+
+		// update the position
+		pos = lineEndPos + 2;
+		// means not incomplete
+		if (encodedBody.size() < pos + byteToRead + 2)
+			return false;
+
+		// make sure it will skip last chunk
+		// 0\r\n\r\n is final chunk and byte to read should be 0
+		if (byteToRead > 0)
+		{
+			// prevent body is too big, what we have stored so far + upcoming chunk to add
+			if (decodedBody.size() + byteToRead > maxBodySize)
+			{
+				if (bodyTooLarge != NULL)
+					*bodyTooLarge = true;
+				return false;
+			}
+			// append each chunk to decodedBody
+			decodedBody.append(encodedBody, pos, byteToRead);
+		}
+
+		// update new position 
+		pos += byteToRead;
+		// after reading chunk, expect next two byte should be \r\n
+		if (encodedBody.substr(pos, 2) != "\r\n")
+			return false;
+		// skip this \r\n
+		pos += 2;
+
+		// reach last chunk
+		if (byteToRead == 0)
+			break;
+	}
+
+	// check if we have reached the end of the encodedBody
+	return pos == encodedBody.size();
 }
 
 static bool parseContentLength(const std::string& headersPart, size_t& contentLength, bool& hasContentLength, bool* isInvalidContentLength)
