@@ -303,8 +303,8 @@ void Engine::checkTimeouts()
 				}
 				currentConn->clearCGI();
 				currentConn->setShouldClose(true);
-				// currentConn->setWriteBuffer(buildErrorResponse(504, true, serverConfig));
-				currentConn->setWriteBuffer(buildRedirectResponse(303, "/500.html", true));
+				currentConn->setWriteBuffer(buildErrorResponse(504, true, serverConfig));
+				//currentConn->setWriteBuffer(buildRedirectResponse(303, "/500.html", true));
 				currentConn->setState(Connection::WRITING);
 			}
 			++it;
