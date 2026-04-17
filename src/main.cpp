@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
+/*   By: ho <hwai-keo@student.42kl.edu.my>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/17 22:23:54 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/10 13:06:21 by hwai-keo         ###   ########.fr       */
+/*   Updated: 2026/04/17 09:57:52 by ho               ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,7 +29,7 @@ int	main(int argc, char **argv)
 			ConfigFiles	config(argc == 2 ? argv[1] : "");
 			Engine	engine(config);
 
-			engine.setupListeningSockets();
+			engine.setupListeningSockets(); // <- this function will make sure no duplicate host:port
 			engine.run();
 		}
 		catch (std::exception &e)
