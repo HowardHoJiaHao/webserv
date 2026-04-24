@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Connection.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 07:38:37 by hwai-keo          #+#    #+#             */
-/*   Updated: 2026/04/15 18:15:47 by hho-jia-         ###   ########.fr       */
+/*   Updated: 2026/04/24 11:38:47 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -107,7 +107,7 @@ class Connection
 		void setServerConfig(const ServerConfig* config);
 
 	private:
-		int 				_fd;
+		int 				_fd; //socket
 		std::string 		_readBuffer;
 		std::string 		_writeBuffer;  // this is to put proper http request return
 		State				_state; // readin, writing, cgi_running

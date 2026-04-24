@@ -195,6 +195,8 @@ bool Engine::handleRequestParsing(Connection* conn, const std::string& rawReques
 	return true;
 }
 
+#include <iostream>
+
 bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request, const ServerConfig* serverConfig, const LocationConfig* location, bool shouldClose, bool& producedResponse)
 {
 	//defensive
@@ -248,6 +250,7 @@ bool Engine::handleRequestExecution(Connection* conn, const HttpRequest& request
 
 	std::string response = routeRequest(request, shouldClose, *serverConfig, location);
 	// if cookie string(_pendingSetCookieHeader) is not empty
+	std::cout << "the response is : " <<response << std::endl;
 	if (conn->getPendingSetCookieHeader().size() > 0)
 	{
 		response = appendHeaderToResponse(response, conn->getPendingSetCookieHeader());

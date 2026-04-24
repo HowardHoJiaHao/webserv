@@ -39,6 +39,12 @@ bool hasChunkedTransferEncodingValue(const std::string& value)
 // Host: example.com
 // Transfer-Encoding: chunked
 
+// 5\r
+// hello\r
+// 5\r
+// world
+// 0
+
 static bool hasChunkedEncoding(const std::string& headers)
 {
 	std::istringstream stream(headers);

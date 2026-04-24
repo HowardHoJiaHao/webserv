@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   engine.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: hho-jia- <hho-jia-@student.42.fr>          +#+  +:+       +#+        */
+/*   By: hwai-keo <hwai-keo@student.42kl.edu.my>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 20:53:37 by Ho Wai Keon       #+#    #+#             */
-/*   Updated: 2026/04/15 18:15:58 by hho-jia-         ###   ########.fr       */
+/*   Updated: 2026/04/24 11:36:31 by hwai-keo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -106,6 +106,7 @@ void Engine::setupListeningSockets()
 		throw std::runtime_error("No listening sockets created");
 }
 
+// localhost, port : fd
 // check if localhost and 127.0.0.1 since both are local
 // register all the fd from the listening socket to readSet, FOR THIS FUNCTION
 void Engine::registerListenSocketsForSelect(fd_set& readSet, int& maxFd)
@@ -130,6 +131,7 @@ void Engine::registerListenSocketsForSelect(fd_set& readSet, int& maxFd)
 // pointer enable persistency and changing state and stored in map
 void Engine::registerClientSocketForSelect(fd_set& readSet, fd_set& writeSet, int& maxFd)
 {
+	// fd, connection (socket + status + ...)
 	for (std::map<int, Connection*>::iterator it = _clientConnections.begin();
 		it != _clientConnections.end();)
 	{

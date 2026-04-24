@@ -282,6 +282,7 @@ std::string Engine::routeRequest(const HttpRequest& request, bool shouldClose, c
 		return handleDelete(request, shouldClose, serverConfig, location);
 	return buildErrorResponse(405, shouldClose, &serverConfig, methodNotAllowedHeaders(location));
 }
+#include <iostream>
 
 // http request: /haha/form.html -> location match: /haha -> root: ./www1 -> mappedPath: /form.html -> Finalpath: ./www1/form.html
 std::string Engine::handleGet(const HttpRequest& request, bool shouldClose, const ServerConfig& serverConfig, const LocationConfig* location)
@@ -325,7 +326,9 @@ std::string Engine::handleGet(const HttpRequest& request, bool shouldClose, cons
 	
 	// read file content
 	std::string fileContent = FileHandler::readFile(path);
+	//std::cout << "the file content is: " << fileContent << std::endl;
 	std::string multipurposeInternetMailExtensions = FileHandler::getMimeType(path);
+	std::cout << "the mime: " << multipurposeInternetMailExtensions << std::endl;
 	return buildStandardResponse(200, fileContent, multipurposeInternetMailExtensions, shouldClose);
 }
 
