@@ -21,5 +21,7 @@ CGI handling (Python / Perl scripts and forms), file uploads, and request timing
 ```bash
 make
 ./webserv webserv.conf
-# then open http://localhost:<port> as set in the config
+# site 1: http://127.0.0.1:8080  (static pages, autoindex, uploads, CGI in /cgi-bin)
+# site 2: http://127.0.0.1:8081  (/42kl redirects with a 301)
 ```
+`scripts/eval_smoke_pretty.sh` runs an automated pass over the evaluation points (multiple sites, error pages, body size limit, upload, DELETE, method checks, CGI and CGI timeout) using `eval_config.conf`.

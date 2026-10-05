@@ -489,7 +489,7 @@ void ConfigParser::parseMethods(const std::vector<ConfigToken>& tokens, size_t& 
 
 	while (i < tokens.size() && tokens[i].value != ";")
 	{
-		const std::string&	method = expectValueWithValidator(tokens, i, "methods", requireMethod);
+		const std::string	method = expectValueWithValidator(tokens, i, "methods", requireMethod);
 
 		ensureUnique(methods, tokens[i - 1], "methods");
 		methods.push_back(method);
@@ -507,7 +507,7 @@ Prefix is applied if configured.
 */
 void	ConfigParser::parseRoot(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
-	const ConfigToken&	token = expectValueToken(tokens, i, "root");
+	const ConfigToken	token = expectValueToken(tokens, i, "root");
 	loc.setRoot(applyPrefixPath(prefix, token.value));
 	expectToken(tokens, i, ";");
 }
@@ -519,7 +519,7 @@ Reads: index <file>;
 void	ConfigParser::parseIndex(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "index");
+	const ConfigToken	token = expectValueToken(tokens, i, "index");
 	loc.setIndex(token.value);
 	expectToken(tokens, i, ";");
 }
@@ -531,7 +531,7 @@ Reads: upload_enabled on/off;
 void	ConfigParser::parseUploadEnabled(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "upload_enabled");
+	const ConfigToken	token = expectValueToken(tokens, i, "upload_enabled");
 	loc.setUploadEnabled(parseValidOnOff(token.value, token.line, "upload_enabled"));
 	expectToken(tokens, i, ";");
 }
@@ -543,7 +543,7 @@ Prefix is applied if configured.
 */
 void	ConfigParser::parseUploadPath(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
-	const ConfigToken&	token = expectValueToken(tokens, i, "upload_path");
+	const ConfigToken	token = expectValueToken(tokens, i, "upload_path");
 	loc.setUploadPath(applyPrefixPath(prefix, token.value));
 	expectToken(tokens, i, ";");
 }
@@ -555,7 +555,7 @@ Reads: autoindex on/off;
 void	ConfigParser::parseAutoindex(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "autoindex");
+	const ConfigToken	token = expectValueToken(tokens, i, "autoindex");
 	loc.setAutoindex(parseValidOnOff(token.value, token.line, "autoindex"));
 	expectToken(tokens, i, ";");
 }
@@ -567,7 +567,7 @@ Reads: cgi_enabled on/off;
 void	ConfigParser::parseCgiEnabled(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "cgi_enabled");
+	const ConfigToken	token = expectValueToken(tokens, i, "cgi_enabled");
 	loc.setCgiEnabled(parseValidOnOff(token.value, token.line, "cgi_enabled"));
 	expectToken(tokens, i, ";");
 }
@@ -583,7 +583,7 @@ void	ConfigParser::parseCgiExtensions(const std::vector<ConfigToken>& tokens, si
 
 	while (i < tokens.size() && tokens[i].value != ";")
 	{
-		const std::string&	ext = expectValueWithValidator(tokens, i, "cgi_ext", requireExtension);
+		const std::string	ext = expectValueWithValidator(tokens, i, "cgi_ext", requireExtension);
 
 		ensureUnique(extensions, tokens[i - 1], "cgi_ext extension");
 		extensions.push_back(ext);
@@ -602,7 +602,7 @@ Reads a redirect rule:
 void	ConfigParser::parseReturn(const std::vector<ConfigToken>& tokens, size_t& i, LocationConfig& loc, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "return");
+	const ConfigToken	token = expectValueToken(tokens, i, "return");
 
 	loc.setReturnDirective(true, requireReturnCode(token), requireTarget(tokens, i, "return target"));
 	expectToken(tokens, i, ";");
@@ -647,7 +647,7 @@ If host is omitted, it uses 0.0.0.0.
 void	ConfigParser::parseListen(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "listen");
+	const ConfigToken	token = expectValueToken(tokens, i, "listen");
 	std::string			host;
 	int					port;
 	size_t				colon = token.value.rfind(':');
@@ -681,7 +681,7 @@ Reads: host <ip/localhost>;
 void ConfigParser::parseHost(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "host");
+	const ConfigToken	token = expectValueToken(tokens, i, "host");
 
 	server.setHost(requireHost(token));
 	expectToken(tokens, i, ";");
@@ -694,7 +694,7 @@ Reads: port <number>;
 void ConfigParser::parsePort(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "port");
+	const ConfigToken	token = expectValueToken(tokens, i, "port");
 
 	server.setPort(requirePort(token));
 	expectToken(tokens, i, ";");
@@ -707,7 +707,7 @@ Prefix is applied if configured.
 */
 void	ConfigParser::parseRoot(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
-	const ConfigToken&	token = expectValueToken(tokens, i, "root");
+	const ConfigToken	token = expectValueToken(tokens, i, "root");
 
 	server.setRoot(applyPrefixPath(prefix, token.value));
 	expectToken(tokens, i, ";");
@@ -720,7 +720,7 @@ Reads: index <file>;
 void	ConfigParser::parseIndex(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "index");
+	const ConfigToken	token = expectValueToken(tokens, i, "index");
 
 	server.setIndex(token.value);
 	expectToken(tokens, i, ";");
@@ -733,7 +733,7 @@ Reads: client_max_body_size <number>;
 void	ConfigParser::parseClientMaxBodySize(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "client_max_body_size");
+	const ConfigToken	token = expectValueToken(tokens, i, "client_max_body_size");
 
 	server.setMaxBodySize(requireNumericValue(token));
 	expectToken(tokens, i, ";");
@@ -747,7 +747,7 @@ If the same code is set multiple times, the latest value replaces the older.
 void	ConfigParser::parseErrorPage(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
 	(void) prefix;
-	const ConfigToken&	token = expectValueToken(tokens, i, "error_page");
+	const ConfigToken	token = expectValueToken(tokens, i, "error_page");
 
 	server.addErrorPage(requireNumericValue(token, "error_page"), requireTarget(tokens, i, "error_page target"));
 	expectToken(tokens, i, ";");
@@ -765,7 +765,7 @@ Steps:
 */
 void	ConfigParser::parseLocationBlock(const std::vector<ConfigToken>& tokens, size_t& i, ServerConfig& server, const std::string& prefix)
 {
-	const ConfigToken&	token = expectValueToken(tokens, i, "location");
+	const ConfigToken	token = expectValueToken(tokens, i, "location");
 	LocationConfig		loc;
 
 	loc.setPath(token.value);
